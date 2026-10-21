@@ -1,0 +1,15 @@
+# Netlify Configuration for SR Multi-Vendor Marketplace (Root Directory)
+[build]
+  base = "client"
+  publish = "client/dist"
+  command = "npm run build"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# Single Page Application (SPA) routing
+# Ensures direct visits to all React Router routes (/products, /vendor/register, /admin/dashboard, etc.) return index.html
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

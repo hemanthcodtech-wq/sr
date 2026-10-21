@@ -1,0 +1,3 @@
+# SPA Redirect Rule for Netlify
+# All routes fallback to index.html with 200 HTTP status so React Router handles routing
+/*    /index.html   200

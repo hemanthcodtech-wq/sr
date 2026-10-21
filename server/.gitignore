@@ -1,0 +1,23 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Dependencies
+node_modules/
+
+# Environment and secret files
+.env
+.env.*
+.env.local
+!.env.example
+
+# Temporary and scratch files
+scratch/
+uploads/
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

@@ -3,6 +3,37 @@ const Product = require('../models/Product');
 const Store = require('../models/Store');
 const { uploadToCloudinary } = require('../config/cloudinary');
 const { mockProducts, mockStores } = require('../config/mockStore');
+const { scrapeProductUrl, getSourcingTemplates } = require('../utils/urlScraper');
+
+// @desc    Extract product details from external link (Amazon, Flipkart, Meesho, DeoDap)
+// @route   POST /api/products/scrape-preview
+// @access  Private (Admin / Vendor)
+exports.scrapeProductPreview = async (req, res, next) => {
+  try {
+    const { url } = req.body;
+    if (!url) {
+      return res.status(400).json({ success: false, message: 'URL is required' });
+    }
+
+    const scraped = await scrapeProductUrl(url);
+    res.status(200).json({
+      success: true,
+      data: scraped,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Get curated sourcing templates for 1-click test listing
+// @route   GET /api/products/sourcing-templates
+// @access  Private (Admin / Vendor)
+exports.getSourcingTemplatesController = (req, res) => {
+  res.status(200).json({
+    success: true,
+    templates: getSourcingTemplates(),
+  });
+};
 
 // @desc    Get all products with filtering, search, and sorting
 // @route   GET /api/products
@@ -186,14 +217,32 @@ exports.getVendorProducts = async (req, res, next) => {
 // @access  Private (Vendor)
 exports.createProduct = async (req, res, next) => {
   try {
-    const { title, description, price, discountPrice, category, stock, images, tags, isFeatured } = req.body;
+    const {
+      title,
+      description,
+      price,
+      discountPrice,
+      category,
+      stock,
+      images,
+      tags,
+      isFeatured,
+      sourcePlatform,
+      sourceUrl,
+      sourcePrice,
+    } = req.body;
+
+    const sellingPrice = Number(price);
+    const costPrice = Number(sourcePrice) || 0;
+    const computedProfitMargin = costPrice > 0 ? Math.max(0, sellingPrice - costPrice) : 0;
+    const isDropship = ['amazon', 'flipkart', 'meesho', 'deodap', 'other'].includes(sourcePlatform);
 
     if (mongoose.connection.readyState !== 1) {
       const newProduct = {
         _id: `prod_${Date.now()}`,
         title,
         description,
-        price: Number(price),
+        price: sellingPrice,
         discountPrice: discountPrice ? Number(discountPrice) : 0,
         category,
         stock: Number(stock) || 10,
@@ -204,18 +253,41 @@ exports.createProduct = async (req, res, next) => {
         isFeatured: !!isFeatured,
         rating: 5.0,
         numReviews: 1,
+        sourcePlatform: sourcePlatform || 'in_house',
+        sourceUrl: sourceUrl || '',
+        sourcePrice: costPrice,
+        profitMargin: computedProfitMargin,
+        isDropshipped: isDropship,
         store: mockStores[0],
       };
       mockProducts.unshift(newProduct);
       return res.status(201).json({ success: true, product: newProduct });
     }
 
-    const store = await Store.findOne({ vendor: req.user._id }).populate('activePlan');
+    let store = await Store.findOne({ vendor: req.user._id }).populate('activePlan');
+    
+    // If admin is creating the product and has no vendor store, assign to the flagship store
+    if (!store && req.user.role === 'admin') {
+      store = await Store.findOne({ status: 'active' });
+      if (!store) {
+        store = await Store.create({
+          vendor: req.user._id,
+          storeName: 'Official Flagship Store',
+          slug: 'official-flagship-store',
+          category: 'Retail',
+          status: 'active',
+          enrollmentFeePaid: 999,
+          planExpiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
+        });
+      }
+    }
+
     if (!store) {
       return res.status(400).json({ success: false, message: 'You must have an active store to add products' });
     }
 
-    if (!store.planExpiresAt || new Date(store.planExpiresAt) < new Date()) {
+    // Only enforce plan expiry on non-admins
+    if (req.user.role !== 'admin' && (!store.planExpiresAt || new Date(store.planExpiresAt) < new Date())) {
       return res.status(403).json({
         success: false,
         message: 'Your store subscription plan has expired. Please renew your plan to publish products.',
@@ -225,7 +297,7 @@ exports.createProduct = async (req, res, next) => {
     const product = await Product.create({
       title,
       description,
-      price: Number(price),
+      price: sellingPrice,
       discountPrice: discountPrice ? Number(discountPrice) : 0,
       category,
       stock: Number(stock) || 10,
@@ -234,6 +306,11 @@ exports.createProduct = async (req, res, next) => {
       ],
       tags: Array.isArray(tags) ? tags : tags ? tags.split(',').map((t) => t.trim()) : [],
       isFeatured: !!isFeatured,
+      sourcePlatform: sourcePlatform || 'in_house',
+      sourceUrl: sourceUrl || '',
+      sourcePrice: costPrice,
+      profitMargin: computedProfitMargin,
+      isDropshipped: isDropship,
       vendor: req.user._id,
       store: store._id,
     });
@@ -330,7 +407,7 @@ exports.getCategories = async (req, res, next) => {
   }
 };
 
-// @desc    Upload product image to Cloudinary
+// @desc    Upload single product image to Cloudinary
 // @route   POST /api/products/upload-image
 // @access  Private (Vendor / Admin)
 exports.uploadProductImage = async (req, res, next) => {
@@ -339,11 +416,50 @@ exports.uploadProductImage = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Please provide an image file' });
     }
 
-    const result = await uploadToCloudinary(req.file.buffer, 'multivendor_products', req.file.originalname);
+    try {
+      const result = await uploadToCloudinary(req.file.buffer, 'multivendor_products', req.file.originalname);
+      return res.status(200).json({
+        success: true,
+        url: result.secure_url,
+      });
+    } catch (err) {
+      console.warn('[Cloudinary product upload fallback]', err.message);
+      const dataUri = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+      return res.status(200).json({
+        success: true,
+        url: dataUri,
+      });
+    }
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Upload multiple product images to Cloudinary
+// @route   POST /api/products/upload-images
+// @access  Private (Vendor / Admin)
+exports.uploadProductImages = async (req, res, next) => {
+  try {
+    const files = req.files || (req.file ? [req.file] : []);
+    if (!files || files.length === 0) {
+      return res.status(400).json({ success: false, message: 'Please provide one or more product images' });
+    }
+
+    const uploadPromises = files.map(async (file) => {
+      try {
+        const result = await uploadToCloudinary(file.buffer, 'multivendor_products', file.originalname);
+        return result.secure_url;
+      } catch (err) {
+        console.warn(`[Cloudinary fallback for ${file.originalname}]`, err.message);
+        return `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+      }
+    });
+
+    const urls = await Promise.all(uploadPromises);
 
     res.status(200).json({
       success: true,
-      url: result.secure_url,
+      urls,
     });
   } catch (err) {
     next(err);

@@ -42,12 +42,12 @@ const Login = () => {
       const loggedInUser = await login(email.trim().toLowerCase(), password);
       showToast(`Welcome back, ${loggedInUser.name}!`, 'success');
 
-      if (from && from !== '/' && !from.startsWith('/login')) {
-        navigate(from, { replace: true });
-      } else if (loggedInUser.role === 'admin') {
+      if (loggedInUser.role === 'admin') {
         navigate('/admin/dashboard', { replace: true });
       } else if (loggedInUser.role === 'vendor') {
         navigate('/vendor/dashboard', { replace: true });
+      } else if (from && from !== '/' && !from.startsWith('/login')) {
+        navigate(from, { replace: true });
       } else {
         navigate('/profile', { replace: true });
       }
@@ -262,7 +262,7 @@ const Login = () => {
                   <span>Vendor: <strong className="font-mono">techgear@vendor.com</strong></span>
                   <button
                     type="button"
-                    onClick={() => fillCredentials('techgear@vendor.com', 'VendorPassword123!')}
+                    onClick={() => fillCredentials('techgear@vendor.com', 'password123')}
                     className="text-[#0c2a5e] font-bold hover:underline cursor-pointer"
                   >
                     Auto Fill

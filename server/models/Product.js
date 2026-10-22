@@ -59,6 +59,30 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Dropshipping & External Sourcing Configuration (Amazon, Flipkart, Meesho, DeoDap)
+    sourcePlatform: {
+      type: String,
+      enum: ['in_house', 'amazon', 'flipkart', 'meesho', 'deodap', 'other'],
+      default: 'in_house',
+    },
+    sourceUrl: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    sourcePrice: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    profitMargin: {
+      type: Number,
+      default: 0,
+    },
+    isDropshipped: {
+      type: Boolean,
+      default: false,
+    },
     tags: [
       {
         type: String,

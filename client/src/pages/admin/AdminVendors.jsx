@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   Store,
   User,
@@ -28,12 +29,19 @@ import {
   Sparkles,
   CreditCard,
   Building,
+  Package,
+  ShoppingBag,
+  ArrowUpRight,
+  ArrowDownLeft,
+  Tag,
+  Layers,
 } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import api from '../../services/api';
 import { useToast } from '../../context/ToastContext';
 
 const AdminVendors = () => {
+  const navigate = useNavigate();
   const { success, error, info } = useToast();
 
   // State
@@ -45,6 +53,9 @@ const AdminVendors = () => {
 
   // Modals
   const [selectedApplication, setSelectedApplication] = useState(null);
+  const [vendorDetails, setVendorDetails] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [modalActiveTab, setModalActiveTab] = useState('overview'); // 'overview' | 'products' | 'orders' | 'transactions'
   const [selectedDocModal, setSelectedDocModal] = useState(null);
   const [adminNotes, setAdminNotes] = useState('');
   const [extendExpiryModal, setExtendExpiryModal] = useState(null); // store object
@@ -77,9 +88,16 @@ const AdminVendors = () => {
       }
     } catch (err) {
       console.error('Error fetching vendor data:', err);
-      error('Failed to load vendor records');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Open vendor details page (full page with store slug or ID)
+  const openVendorDetails = (store) => {
+    const slugOrId = store.slug || (store.storeName ? store.storeName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : null) || store._id;
+    if (slugOrId) {
+      navigate(`/admin/vendors/${slugOrId}`);
     }
   };
 
@@ -525,7 +543,12 @@ const AdminVendors = () => {
                         <td className="p-4">
                           <div>
                             <div className="font-bold text-sm text-slate-900 flex items-center gap-1.5">
-                              <span>{store.storeName}</span>
+                              <Link
+                                to={`/admin/vendors/${store.slug || (store.storeName ? store.storeName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '') : store._id)}`}
+                                className="hover:text-[#0c2a5e] hover:underline"
+                              >
+                                {store.storeName}
+                              </Link>
                               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
                                 {store.category || 'General'}
                               </span>
@@ -673,10 +696,7 @@ const AdminVendors = () => {
                             <div className="inline-flex items-center gap-1.5 justify-end">
                               <button
                                 type="button"
-                                onClick={() => {
-                                  setSelectedApplication(store);
-                                  setAdminNotes(store.adminNotes || '');
-                                }}
+                                onClick={() => openVendorDetails(store)}
                                 className="px-2.5 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-bold text-xs transition cursor-pointer inline-flex items-center gap-1 shadow-2xs"
                                 title="View Application Details"
                               >
@@ -708,10 +728,7 @@ const AdminVendors = () => {
                             <div className="inline-flex items-center justify-end">
                               <button
                                 type="button"
-                                onClick={() => {
-                                  setSelectedApplication(store);
-                                  setAdminNotes(store.adminNotes || '');
-                                }}
+                                onClick={() => openVendorDetails(store)}
                                 className="px-3.5 py-1.5 rounded-xl bg-[#0c2a5e] text-white hover:bg-[#153e85] font-bold text-xs transition cursor-pointer inline-flex items-center gap-1.5 shadow-2xs"
                                 title="View Complete Application Details"
                               >
@@ -831,10 +848,7 @@ const AdminVendors = () => {
                       ) : (
                         <button
                           type="button"
-                          onClick={() => {
-                            setSelectedApplication(store);
-                            setAdminNotes(store.adminNotes || '');
-                          }}
+                          onClick={() => openVendorDetails(store)}
                           className="w-full py-2 bg-[#0c2a5e] hover:bg-[#153e85] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
                         >
                           <Eye className="w-3.5 h-3.5" />
@@ -917,221 +931,639 @@ const AdminVendors = () => {
             <div className="bg-white max-w-4xl w-full rounded-3xl border border-slate-200 shadow-2xl overflow-hidden flex flex-col max-h-[92vh] animate-fadeIn">
               {/* Modal Header */}
               <div className="p-5 sm:p-6 bg-gradient-to-r from-[#071d42] via-[#0c2a5e] to-[#153e85] text-white flex items-center justify-between flex-shrink-0">
-                <div className="flex items-center gap-3.5">
-                  <div className="w-11 h-11 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-amber-300 flex-shrink-0 shadow-inner">
-                    <Building className="w-5 h-5" />
+                <div className="flex items-center gap-4">
+                  {/* Vendor Profile Avatar / Store Logo */}
+                  <div className="relative">
+                    {vendorDetails?.profilePic || selectedApplication.logo || selectedApplication.vendorUser?.avatar ? (
+                      <img
+                        src={vendorDetails?.profilePic || selectedApplication.logo || selectedApplication.vendorUser?.avatar}
+                        alt={selectedApplication.storeName}
+                        className="w-14 h-14 rounded-2xl object-cover border-2 border-white/30 shadow-md bg-white"
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-14 h-14 rounded-2xl bg-white/10 border-2 border-white/20 flex items-center justify-center text-amber-300 flex-shrink-0 shadow-inner font-black text-xl">
+                        {(selectedApplication.storeName || 'S').charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                    <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-[#0c2a5e]" title="Merchant Account" />
                   </div>
+
                   <div>
                     <div className="flex items-center gap-2 flex-wrap">
                       <h3 className="text-lg sm:text-xl font-black tracking-tight">{selectedApplication.storeName}</h3>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/20 text-white">
+                      <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-white/20 text-white backdrop-blur-xs">
                         {selectedApplication.category}
                       </span>
                     </div>
-                    <p className="text-xs text-blue-200 mt-0.5">
-                      Vendor Application &amp; Registration Details • Submitted on {new Date(selectedApplication.createdAt || Date.now()).toLocaleDateString('en-IN')}
+                    <p className="text-xs text-blue-200 mt-1 flex items-center gap-2 flex-wrap">
+                      <span>Owner: <strong className="text-white">{vendorDetails?.vendor?.name || selectedApplication.vendorUser?.name || selectedApplication.vendor?.name || 'Store Owner'}</strong></span>
+                      <span>•</span>
+                      <span>Joined {new Date(selectedApplication.createdAt || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                      {loadingDetails && (
+                        <span className="inline-flex items-center gap-1 text-[11px] text-amber-300 font-bold animate-pulse">
+                          <RefreshCw className="w-3 h-3 animate-spin" /> Fetching live metrics...
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>
 
                 <button
                   type="button"
-                  onClick={() => setSelectedApplication(null)}
+                  onClick={() => {
+                    setSelectedApplication(null);
+                    setVendorDetails(null);
+                  }}
                   className="p-2 rounded-full hover:bg-white/10 text-white/80 hover:text-white transition cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
+              {/* Quick Metrics Bar: Wallet, Sales, Orders, Products */}
+              <div className="bg-slate-50 border-b border-slate-200 px-6 py-3.5 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs flex-shrink-0">
+                <div className="bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                    <Wallet className="w-3 h-3 text-emerald-600" />
+                    <span>Wallet Amount</span>
+                  </div>
+                  <div className="text-base sm:text-lg font-black text-emerald-700 mt-0.5">
+                    ₹{(vendorDetails?.walletBalance ?? selectedApplication.walletBalance ?? 0).toLocaleString('en-IN')}
+                  </div>
+                </div>
+
+                <div className="bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                    <ShoppingBag className="w-3 h-3 text-[#0c2a5e]" />
+                    <span>Order Values</span>
+                  </div>
+                  <div className="text-base sm:text-lg font-black text-slate-900 mt-0.5">
+                    ₹{(vendorDetails?.totalSalesValue ?? 0).toLocaleString('en-IN')}
+                    <span className="text-[10px] text-slate-500 font-medium ml-1">({vendorDetails?.ordersCount ?? 0} orders)</span>
+                  </div>
+                </div>
+
+                <div className="bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                    <Package className="w-3 h-3 text-indigo-600" />
+                    <span>Catalog Products</span>
+                  </div>
+                  <div className="text-base sm:text-lg font-black text-slate-900 mt-0.5">
+                    {vendorDetails?.productsCount ?? 0}
+                    <span className="text-[10px] text-slate-500 font-medium ml-1">Live Items</span>
+                  </div>
+                </div>
+
+                <div className="bg-white p-2.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1">
+                    <ShieldCheck className="w-3 h-3 text-amber-600" />
+                    <span>Store Status</span>
+                  </div>
+                  <div className="text-xs sm:text-sm font-black text-slate-900 mt-1 capitalize truncate">
+                    {selectedApplication.status?.replace(/_/g, ' ')}
+                  </div>
+                </div>
+              </div>
+
+              {/* Navigation Tabs */}
+              <div className="flex items-center gap-1 px-6 border-b border-slate-200 bg-white flex-shrink-0 overflow-x-auto text-xs">
+                <button
+                  type="button"
+                  onClick={() => setModalActiveTab('overview')}
+                  className={`py-3 px-3.5 font-bold border-b-2 transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                    modalActiveTab === 'overview'
+                      ? 'border-[#0c2a5e] text-[#0c2a5e]'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Building className="w-3.5 h-3.5" />
+                  <span>Overview &amp; KYC</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setModalActiveTab('orders')}
+                  className={`py-3 px-3.5 font-bold border-b-2 transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                    modalActiveTab === 'orders'
+                      ? 'border-[#0c2a5e] text-[#0c2a5e]'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <ShoppingBag className="w-3.5 h-3.5" />
+                  <span>Orders &amp; Values ({vendorDetails?.ordersCount ?? 0})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setModalActiveTab('products')}
+                  className={`py-3 px-3.5 font-bold border-b-2 transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                    modalActiveTab === 'products'
+                      ? 'border-[#0c2a5e] text-[#0c2a5e]'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Package className="w-3.5 h-3.5" />
+                  <span>Products Catalog ({vendorDetails?.productsCount ?? 0})</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setModalActiveTab('transactions')}
+                  className={`py-3 px-3.5 font-bold border-b-2 transition flex items-center gap-1.5 cursor-pointer whitespace-nowrap ${
+                    modalActiveTab === 'transactions'
+                      ? 'border-[#0c2a5e] text-[#0c2a5e]'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
+                  }`}
+                >
+                  <Wallet className="w-3.5 h-3.5" />
+                  <span>Payouts &amp; Transactions ({vendorDetails?.settlements?.length ?? 0})</span>
+                </button>
+              </div>
+
               {/* Modal Body (Scrollable) */}
               <div className="p-6 space-y-6 overflow-y-auto text-xs text-slate-700 flex-1">
-                {/* 1. Status Banner */}
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                  <div>
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Application Status</span>
-                    <div className="flex items-center gap-2 mt-1">
-                      <strong className="text-sm font-black text-slate-900 capitalize">
-                        {selectedApplication.status?.replace(/_/g, ' ')}
-                      </strong>
-                      {(selectedApplication.enrollmentFeePaid || 0) > 0 ? (
-                        <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full">
-                          ✓ Fee Paid (₹{selectedApplication.enrollmentFeePaid})
-                        </span>
-                      ) : (
-                        <span className="text-[11px] font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full">
-                          Fee Awaiting (₹999)
-                        </span>
+                {/* ================= TAB 1: OVERVIEW & KYC ================= */}
+                {modalActiveTab === 'overview' && (
+                  <div className="space-y-6">
+                    {/* Status & Plan Info */}
+                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                      <div>
+                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Application Status</span>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
+                          <strong className="text-sm font-black text-slate-900 capitalize">
+                            {selectedApplication.status?.replace(/_/g, ' ')}
+                          </strong>
+                          {(selectedApplication.enrollmentFeePaid || 0) > 0 ? (
+                            <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full">
+                              ✓ Fee Paid (₹{selectedApplication.enrollmentFeePaid})
+                            </span>
+                          ) : (
+                            <span className="text-[11px] font-bold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-full">
+                              Fee Awaiting (₹{selectedApplication.activePlan?.price || 999})
+                            </span>
+                          )}
+                          {selectedApplication.activePlan && (
+                            <span className="text-[11px] font-bold text-[#0c2a5e] bg-blue-50 border border-blue-200 px-2.5 py-0.5 rounded-full">
+                              Plan: {selectedApplication.activePlan.title} ({selectedApplication.activePlan.durationDays}d)
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {selectedApplication.planExpiresAt && (
+                        <div className="text-left sm:text-right">
+                          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Access Expiry</span>
+                          <strong className="text-sm font-bold text-slate-900">
+                            {new Date(selectedApplication.planExpiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
+                          </strong>
+                        </div>
                       )}
                     </div>
-                  </div>
 
-                  {selectedApplication.planExpiresAt && (
-                    <div className="text-left sm:text-right">
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Access Expiry</span>
-                      <strong className="text-sm font-bold text-slate-900">
-                        {new Date(selectedApplication.planExpiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}
-                      </strong>
-                    </div>
-                  )}
-                </div>
-
-                {/* 2. Grid Sections */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  {/* Left: Merchant Profile & Location */}
-                  <div className="space-y-4">
-                    {/* Merchant Identity */}
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
-                      <div className="font-bold text-slate-900 flex items-center gap-1.5 pb-1 border-b border-slate-200/60">
-                        <User className="w-4 h-4 text-[#0c2a5e]" />
-                        <span>Merchant Owner Profile</span>
-                      </div>
-                      <div className="space-y-1 text-slate-600 text-xs">
-                        <p>Name: <strong className="text-slate-900">{selectedApplication.vendorUser?.name || selectedApplication.vendor?.name}</strong></p>
-                        <p>Email: <span className="font-mono">{selectedApplication.email || selectedApplication.vendorUser?.email}</span></p>
-                        <p>Phone: <span className="font-mono">{selectedApplication.phone || selectedApplication.vendorUser?.phone}</span></p>
-                        {selectedApplication.referralCodeUsed && (
-                          <p className="text-emerald-700 font-bold flex items-center gap-1 pt-1">
-                            <Gift className="w-3.5 h-3.5" />
-                            <span>Referral Code Used: {selectedApplication.referralCodeUsed}</span>
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Store Dispatch Address */}
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
-                      <div className="font-bold text-slate-900 flex items-center gap-1.5 pb-1 border-b border-slate-200/60">
-                        <MapPin className="w-4 h-4 text-[#0c2a5e]" />
-                        <span>Store Location &amp; Dispatch Hub</span>
-                      </div>
-                      <div className="text-slate-600 leading-relaxed text-xs">
-                        <p>Street: {selectedApplication.address?.street || 'N/A'}</p>
-                        {selectedApplication.address?.landmark && <p>Landmark: {selectedApplication.address.landmark}</p>}
-                        <p>City &amp; State: {selectedApplication.address?.city || 'Bhimavaram'}, {selectedApplication.address?.state || 'Andhra Pradesh'}</p>
-                        <p>PIN Code: <span className="font-mono font-bold">{selectedApplication.address?.zipCode || '534201'}</span></p>
-                      </div>
-                    </div>
-
-                    {/* Bank Settlement Details */}
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
-                      <div className="font-bold text-slate-900 flex items-center gap-1.5 pb-1 border-b border-slate-200/60">
-                        <Building className="w-4 h-4 text-[#0c2a5e]" />
-                        <span>Payout Bank Details</span>
-                      </div>
-                      <div className="text-slate-600 space-y-1 text-xs">
-                        <p>A/C Holder: <strong className="text-slate-900">{selectedApplication.bankDetails?.accountHolder || 'N/A'}</strong></p>
-                        <p>Bank Name: {selectedApplication.bankDetails?.bankName || 'State Bank of India'}</p>
-                        <p>Account Number: <span className="font-mono font-bold text-slate-900">{selectedApplication.bankDetails?.accountNumber || 'Pending'}</span></p>
-                        <p>IFSC Code: <span className="font-mono uppercase font-bold text-slate-900">{selectedApplication.bankDetails?.ifscCode || 'N/A'}</span></p>
-                        {selectedApplication.bankDetails?.upiId && (
-                          <p>UPI ID: <span className="font-mono text-[#0c2a5e]">{selectedApplication.bankDetails.upiId}</span></p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right: Government KYC Proofs */}
-                  <div className="space-y-4">
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
-                      <div className="font-bold text-slate-900 flex items-center gap-1.5 pb-1 border-b border-slate-200/60">
-                        <FileText className="w-4 h-4 text-[#0c2a5e]" />
-                        <span>Verified KYC Document Proofs</span>
-                      </div>
-
-                      {/* Aadhaar Card Proof */}
-                      <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-slate-800">Aadhaar Card</span>
-                          <span className="font-mono font-bold text-slate-900">
-                            {selectedApplication.documents?.aadhaarNumber || 'Not provided'}
-                          </span>
-                        </div>
-                        {selectedApplication.documents?.aadhaarDocument ? (
-                          <div className="relative group rounded-lg overflow-hidden border border-slate-200 max-h-40 bg-slate-100 flex items-center justify-center">
-                            <img
-                              src={selectedApplication.documents.aadhaarDocument}
-                              alt="Aadhaar"
-                              loading="lazy"
-                              className="w-full h-36 object-contain"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setSelectedDocModal({ title: 'Aadhaar Document Proof', url: selectedApplication.documents.aadhaarDocument })}
-                              className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white font-bold gap-1 text-xs cursor-pointer"
-                            >
-                              <Eye className="w-4 h-4" /> Click to Zoom
-                            </button>
+                    {/* Grid: Merchant Profile, Store Location, Bank Details & KYC Proofs */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      {/* Left Column */}
+                      <div className="space-y-4">
+                        {/* Merchant Owner Profile */}
+                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                          <div className="font-bold text-slate-900 flex items-center justify-between pb-1 border-b border-slate-200/60">
+                            <div className="flex items-center gap-1.5">
+                              <User className="w-4 h-4 text-[#0c2a5e]" />
+                              <span>Merchant Owner Profile</span>
+                            </div>
+                            {vendorDetails?.profilePic && (
+                              <img
+                                src={vendorDetails.profilePic}
+                                alt="Vendor Avatar"
+                                className="w-8 h-8 rounded-full object-cover border border-slate-200 shadow-2xs"
+                              />
+                            )}
                           </div>
-                        ) : (
-                          <p className="text-slate-400 italic text-[11px]">No document scan uploaded</p>
-                        )}
-                      </div>
-
-                      {/* PAN Card Proof */}
-                      <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-slate-800">PAN Card</span>
-                          <span className="font-mono font-bold text-slate-900">
-                            {selectedApplication.documents?.panNumber || 'Not provided'}
-                          </span>
-                        </div>
-                        {selectedApplication.documents?.panDocument ? (
-                          <div className="relative group rounded-lg overflow-hidden border border-slate-200 max-h-40 bg-slate-100 flex items-center justify-center">
-                            <img
-                              src={selectedApplication.documents.panDocument}
-                              alt="PAN Card"
-                              loading="lazy"
-                              className="w-full h-36 object-contain"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => setSelectedDocModal({ title: 'PAN Card Document Proof', url: selectedApplication.documents.panDocument })}
-                              className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white font-bold gap-1 text-xs cursor-pointer"
-                            >
-                              <Eye className="w-4 h-4" /> Click to Zoom
-                            </button>
+                          <div className="space-y-1 text-slate-600 text-xs">
+                            <p>Name: <strong className="text-slate-900">{vendorDetails?.vendor?.name || selectedApplication.vendorUser?.name || selectedApplication.vendor?.name}</strong></p>
+                            <p>Email: <span className="font-mono text-slate-800">{vendorDetails?.vendor?.email || selectedApplication.email || selectedApplication.vendorUser?.email}</span></p>
+                            <p>Phone: <span className="font-mono text-slate-800">{vendorDetails?.vendor?.phone || selectedApplication.phone || selectedApplication.vendorUser?.phone}</span></p>
+                            <p>Live Wallet: <strong className="text-emerald-700 font-mono">₹{(vendorDetails?.walletBalance ?? selectedApplication.walletBalance ?? 0).toLocaleString('en-IN')}</strong></p>
+                            {selectedApplication.referralCodeUsed && (
+                              <p className="text-emerald-700 font-bold flex items-center gap-1 pt-1">
+                                <Gift className="w-3.5 h-3.5" />
+                                <span>Referral Code Used: {selectedApplication.referralCodeUsed}</span>
+                              </p>
+                            )}
                           </div>
-                        ) : (
-                          <p className="text-slate-400 italic text-[11px]">No document scan uploaded</p>
-                        )}
+                        </div>
+
+                        {/* Store Dispatch Address */}
+                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                          <div className="font-bold text-slate-900 flex items-center gap-1.5 pb-1 border-b border-slate-200/60">
+                            <MapPin className="w-4 h-4 text-[#0c2a5e]" />
+                            <span>Store Location &amp; Dispatch Hub</span>
+                          </div>
+                          <div className="text-slate-600 leading-relaxed text-xs">
+                            <p>Street: {selectedApplication.address?.street || 'N/A'}</p>
+                            {selectedApplication.address?.landmark && <p>Landmark: {selectedApplication.address.landmark}</p>}
+                            <p>City &amp; State: {selectedApplication.address?.city || 'Hyderabad'}, {selectedApplication.address?.state || 'Andhra Pradesh'}</p>
+                            <p>PIN Code: <span className="font-mono font-bold text-slate-900">{selectedApplication.address?.zipCode || '534201'}</span></p>
+                          </div>
+                        </div>
+
+                        {/* Bank Settlement Details */}
+                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-2">
+                          <div className="font-bold text-slate-900 flex items-center gap-1.5 pb-1 border-b border-slate-200/60">
+                            <Building className="w-4 h-4 text-[#0c2a5e]" />
+                            <span>Payout Bank Details</span>
+                          </div>
+                          <div className="text-slate-600 space-y-1 text-xs">
+                            <p>A/C Holder: <strong className="text-slate-900">{selectedApplication.bankDetails?.accountHolder || 'N/A'}</strong></p>
+                            <p>Bank Name: {selectedApplication.bankDetails?.bankName || 'State Bank of India'}</p>
+                            <p>Account Number: <span className="font-mono font-bold text-slate-900">{selectedApplication.bankDetails?.accountNumber || 'Pending'}</span></p>
+                            <p>IFSC Code: <span className="font-mono uppercase font-bold text-slate-900">{selectedApplication.bankDetails?.ifscCode || 'N/A'}</span></p>
+                            {selectedApplication.bankDetails?.upiId && (
+                              <p>UPI ID: <span className="font-mono text-[#0c2a5e]">{selectedApplication.bankDetails.upiId}</span></p>
+                            )}
+                          </div>
+                        </div>
                       </div>
 
-                      {/* GST Proof */}
-                      <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold text-slate-800">GSTIN</span>
-                          <span className="font-mono font-bold text-slate-900">
-                            {selectedApplication.documents?.gstNumber || 'Unregistered / Exempt'}
-                          </span>
+                      {/* Right Column: Verified KYC Document Proofs */}
+                      <div className="space-y-4">
+                        <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                          <div className="font-bold text-slate-900 flex items-center gap-1.5 pb-1 border-b border-slate-200/60">
+                            <FileText className="w-4 h-4 text-[#0c2a5e]" />
+                            <span>Verified KYC Document Proofs</span>
+                          </div>
+
+                          {/* Aadhaar Card Proof */}
+                          <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-slate-800">Aadhaar Card</span>
+                              <span className="font-mono font-bold text-slate-900">
+                                {selectedApplication.documents?.aadhaarNumber || 'Not provided'}
+                              </span>
+                            </div>
+                            {selectedApplication.documents?.aadhaarDocument ? (
+                              <div className="relative group rounded-lg overflow-hidden border border-slate-200 max-h-40 bg-slate-100 flex items-center justify-center">
+                                <img
+                                  src={selectedApplication.documents.aadhaarDocument}
+                                  alt="Aadhaar"
+                                  loading="lazy"
+                                  className="w-full h-36 object-contain"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedDocModal({ title: 'Aadhaar Document Proof', url: selectedApplication.documents.aadhaarDocument })}
+                                  className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white font-bold gap-1 text-xs cursor-pointer"
+                                >
+                                  <Eye className="w-4 h-4" /> Click to Zoom
+                                </button>
+                              </div>
+                            ) : (
+                              <p className="text-slate-400 italic text-[11px]">No document scan uploaded</p>
+                            )}
+                          </div>
+
+                          {/* PAN Card Proof */}
+                          <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-slate-800">PAN Card</span>
+                              <span className="font-mono font-bold text-slate-900">
+                                {selectedApplication.documents?.panNumber || 'Not provided'}
+                              </span>
+                            </div>
+                            {selectedApplication.documents?.panDocument ? (
+                              <div className="relative group rounded-lg overflow-hidden border border-slate-200 max-h-40 bg-slate-100 flex items-center justify-center">
+                                <img
+                                  src={selectedApplication.documents.panDocument}
+                                  alt="PAN Card"
+                                  loading="lazy"
+                                  className="w-full h-36 object-contain"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedDocModal({ title: 'PAN Card Document Proof', url: selectedApplication.documents.panDocument })}
+                                  className="absolute inset-0 bg-slate-950/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white font-bold gap-1 text-xs cursor-pointer"
+                                >
+                                  <Eye className="w-4 h-4" /> Click to Zoom
+                                </button>
+                              </div>
+                            ) : (
+                              <p className="text-slate-400 italic text-[11px]">No document scan uploaded</p>
+                            )}
+                          </div>
+
+                          {/* GST Proof */}
+                          <div className="p-3 bg-white rounded-xl border border-slate-200 space-y-1">
+                            <div className="flex items-center justify-between">
+                              <span className="font-bold text-slate-800">GSTIN</span>
+                              <span className="font-mono font-bold text-slate-900">
+                                {selectedApplication.documents?.gstNumber || 'Unregistered / Exempt'}
+                              </span>
+                            </div>
+                            {selectedApplication.documents?.gstDocument && (
+                              <button
+                                type="button"
+                                onClick={() => setSelectedDocModal({ title: 'GST Document', url: selectedApplication.documents.gstDocument })}
+                                className="text-blue-600 hover:underline inline-flex items-center gap-1 text-xs pt-1 font-semibold"
+                              >
+                                <Eye className="w-3.5 h-3.5" /> View GST Certificate
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        {selectedApplication.documents?.gstDocument && (
-                          <button
-                            type="button"
-                            onClick={() => setSelectedDocModal({ title: 'GST Document', url: selectedApplication.documents.gstDocument })}
-                            className="text-blue-600 hover:underline inline-flex items-center gap-1 text-xs pt-1 font-semibold"
-                          >
-                            <Eye className="w-3.5 h-3.5" /> View GST Certificate
-                          </button>
-                        )}
                       </div>
                     </div>
-                  </div>
-                </div>
 
-                {/* 3. Admin Review & Decision Notes Area (Only shown for unapproved stores) */}
-                {selectedApplication.status !== 'active' && (
-                  <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                    {/* Admin Review & Decision Notes Area (Only shown for unapproved stores) */}
+                    {selectedApplication.status !== 'active' && (
+                      <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-slate-900">Administrator Evaluation Notes</span>
+                          <span className="text-[11px] text-slate-400">Will be recorded in store audit logs</span>
+                        </div>
+                        <textarea
+                          rows={2}
+                          value={adminNotes}
+                          onChange={(e) => setAdminNotes(e.target.value)}
+                          placeholder="Enter approval notes, document feedback, or reason for rejection..."
+                          className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ================= TAB 2: ORDERS & VALUES ================= */}
+                {modalActiveTab === 'orders' && (
+                  <div className="space-y-4">
                     <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-900">Administrator Evaluation Notes</span>
-                      <span className="text-[11px] text-slate-400">Will be recorded in store audit logs</span>
+                      <div>
+                        <h4 className="font-bold text-sm text-slate-900">Store Orders &amp; Revenue Share</h4>
+                        <p className="text-xs text-slate-500">All customer orders fulfilled through {selectedApplication.storeName}</p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-[11px] text-slate-400 block font-bold">Total Vendor Sales Value</span>
+                        <strong className="text-emerald-700 font-mono text-base font-black">
+                          ₹{(vendorDetails?.totalSalesValue ?? 0).toLocaleString('en-IN')}
+                        </strong>
+                      </div>
                     </div>
-                    <textarea
-                      rows={2}
-                      value={adminNotes}
-                      onChange={(e) => setAdminNotes(e.target.value)}
-                      placeholder="Enter approval notes, document feedback, or reason for rejection..."
-                      className="w-full p-3 bg-white border border-slate-200 rounded-xl text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
-                    />
+
+                    {loadingDetails ? (
+                      <div className="text-center py-12 text-slate-400">
+                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#0c2a5e]" />
+                        <span>Loading order records...</span>
+                      </div>
+                    ) : !vendorDetails?.orders || vendorDetails.orders.length === 0 ? (
+                      <div className="text-center py-12 bg-slate-50 border border-dashed border-slate-200 rounded-2xl">
+                        <ShoppingBag className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                        <p className="font-bold text-slate-600">No Orders Received Yet</p>
+                        <p className="text-[11px] text-slate-400">Orders placed by customers for this store will appear here.</p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto rounded-xl border border-slate-200">
+                        <table className="w-full text-left text-xs">
+                          <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
+                            <tr>
+                              <th className="p-3">Invoice #</th>
+                              <th className="p-3">Customer</th>
+                              <th className="p-3">Items</th>
+                              <th className="p-3">Order Share (₹)</th>
+                              <th className="p-3">Payment</th>
+                              <th className="p-3">Date</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100 bg-white">
+                            {vendorDetails.orders.map((ord) => (
+                              <tr key={ord._id} className="hover:bg-slate-50/70 transition">
+                                <td className="p-3 font-mono font-bold text-[#0c2a5e]">
+                                  {ord.invoiceNumber || ord._id.slice(-8).toUpperCase()}
+                                </td>
+                                <td className="p-3">
+                                  <div className="font-semibold text-slate-800">{ord.customerName}</div>
+                                  {ord.customerCity && <div className="text-[10px] text-slate-400">{ord.customerCity}</div>}
+                                </td>
+                                <td className="p-3">
+                                  <span className="font-bold text-slate-700">{ord.itemsCount} item(s)</span>
+                                </td>
+                                <td className="p-3 font-black text-emerald-700">
+                                  ₹{(ord.orderShare || 0).toLocaleString('en-IN')}
+                                </td>
+                                <td className="p-3">
+                                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                    ord.paymentStatus === 'completed' || ord.paymentStatus === 'paid'
+                                      ? 'bg-emerald-100 text-emerald-800'
+                                      : 'bg-amber-100 text-amber-800'
+                                  }`}>
+                                    {ord.paymentStatus || 'paid'}
+                                  </span>
+                                </td>
+                                <td className="p-3 text-slate-500 whitespace-nowrap">
+                                  {new Date(ord.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ================= TAB 3: PRODUCTS CATALOG ================= */}
+                {modalActiveTab === 'products' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h4 className="font-bold text-sm text-slate-900">Merchant Products Catalog</h4>
+                        <p className="text-xs text-slate-500">Live inventory listed by {selectedApplication.storeName}</p>
+                      </div>
+                      <span className="font-bold text-xs bg-indigo-50 text-indigo-700 border border-indigo-200 px-2.5 py-1 rounded-full">
+                        {vendorDetails?.productsCount ?? 0} Catalog Items
+                      </span>
+                    </div>
+
+                    {loadingDetails ? (
+                      <div className="text-center py-12 text-slate-400">
+                        <RefreshCw className="w-6 h-6 animate-spin mx-auto mb-2 text-[#0c2a5e]" />
+                        <span>Loading product inventory...</span>
+                      </div>
+                    ) : !vendorDetails?.products || vendorDetails.products.length === 0 ? (
+                      <div className="text-center py-12 bg-slate-50 border border-dashed border-slate-200 rounded-2xl">
+                        <Package className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                        <p className="font-bold text-slate-600">No Products Listed Yet</p>
+                        <p className="text-[11px] text-slate-400">Merchant has not uploaded any product catalog items to this store.</p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                        {vendorDetails.products.map((prod) => (
+                          <div key={prod._id} className="p-3 bg-white border border-slate-200 rounded-2xl flex gap-3 shadow-2xs hover:shadow-xs transition">
+                            <div className="w-16 h-16 rounded-xl bg-slate-100 overflow-hidden flex-shrink-0 border border-slate-200 flex items-center justify-center">
+                              {prod.images && prod.images[0] ? (
+                                <img
+                                  src={prod.images[0]}
+                                  alt={prod.title}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => { e.target.style.display = 'none'; }}
+                                />
+                              ) : (
+                                <Package className="w-6 h-6 text-slate-400" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <h5 className="font-bold text-slate-900 text-xs truncate" title={prod.title}>{prod.title}</h5>
+                              <div className="text-[11px] text-slate-400 capitalize mt-0.5">{prod.category || 'General'}</div>
+                              <div className="flex items-center justify-between mt-2">
+                                <span className="font-black text-slate-900 text-xs">₹{prod.price?.toLocaleString('en-IN')}</span>
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                  (prod.stock || 0) <= 5
+                                    ? 'bg-rose-100 text-rose-800'
+                                    : 'bg-emerald-100 text-emerald-800'
+                                }`}>
+                                  {prod.stock || 0} in stock
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ================= TAB 4: PAYOUTS & TRANSACTIONS ================= */}
+                {modalActiveTab === 'transactions' && (
+                  <div className="space-y-5">
+                    {/* Settlement Summary Header */}
+                    <div className="p-4 bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 border border-emerald-200 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                      <div>
+                        <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wider block">Current Wallet Amount</span>
+                        <div className="text-2xl font-black text-emerald-800 mt-0.5 font-mono">
+                          ₹{(vendorDetails?.walletBalance ?? selectedApplication.walletBalance ?? 0).toLocaleString('en-IN')}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-xs text-slate-600 block">Bank Account:</span>
+                        <strong className="text-slate-900 font-mono text-xs">
+                          {selectedApplication.bankDetails?.bankName || 'SBI'} ••••{selectedApplication.bankDetails?.accountNumber?.slice(-4) || 'N/A'}
+                        </strong>
+                      </div>
+                    </div>
+
+                    {/* Admin Payouts / Settlements Made */}
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-bold text-sm text-slate-900 flex items-center gap-1.5">
+                          <ArrowUpRight className="w-4 h-4 text-emerald-600" />
+                          <span>Admin Disbursements &amp; Bank Settlements</span>
+                        </h4>
+                        <span className="text-xs text-slate-400 font-medium">
+                          {vendorDetails?.settlements?.length ?? 0} record(s)
+                        </span>
+                      </div>
+
+                      {loadingDetails ? (
+                        <div className="text-center py-8 text-slate-400">
+                          <RefreshCw className="w-5 h-5 animate-spin mx-auto mb-1 text-[#0c2a5e]" />
+                          <span>Loading transaction ledger...</span>
+                        </div>
+                      ) : !vendorDetails?.settlements || vendorDetails.settlements.length === 0 ? (
+                        <div className="text-center py-8 bg-slate-50 border border-dashed border-slate-200 rounded-xl text-slate-500">
+                          <Wallet className="w-6 h-6 text-slate-300 mx-auto mb-1" />
+                          <p className="font-bold text-xs">No Direct Settlements Recorded Yet</p>
+                          <p className="text-[11px] text-slate-400">When admin processes bank payouts to this vendor, records appear here.</p>
+                        </div>
+                      ) : (
+                        <div className="overflow-x-auto rounded-xl border border-slate-200">
+                          <table className="w-full text-left text-xs">
+                            <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
+                              <tr>
+                                <th className="p-3">Reference / Txn ID</th>
+                                <th className="p-3">Amount Settled</th>
+                                <th className="p-3">Disbursed To</th>
+                                <th className="p-3">Notes</th>
+                                <th className="p-3">Status</th>
+                                <th className="p-3">Date</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 bg-white">
+                              {vendorDetails.settlements.map((st) => (
+                                <tr key={st._id} className="hover:bg-slate-50/70 transition">
+                                  <td className="p-3 font-mono font-bold text-slate-900">
+                                    {st.transactionReference || st._id.slice(-8).toUpperCase()}
+                                  </td>
+                                  <td className="p-3 font-black text-emerald-700">
+                                    ₹{(st.amount || 0).toLocaleString('en-IN')}
+                                  </td>
+                                  <td className="p-3 text-slate-600">
+                                    {st.bankDetails?.bankName || 'Bank'} ({st.bankDetails?.accountNumber?.slice(-4) ? `••••${st.bankDetails.accountNumber.slice(-4)}` : 'A/C'})
+                                  </td>
+                                  <td className="p-3 text-slate-500 text-[11px] max-w-[200px] truncate" title={st.adminNotes}>
+                                    {st.adminNotes || 'Admin payout settlement'}
+                                  </td>
+                                  <td className="p-3">
+                                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                                      {st.status || 'completed'}
+                                    </span>
+                                  </td>
+                                  <td className="p-3 text-slate-500 whitespace-nowrap">
+                                    {new Date(st.settledAt || st.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Full Ledger Transactions */}
+                    {vendorDetails?.transactions && vendorDetails.transactions.length > 0 && (
+                      <div className="space-y-3 pt-3 border-t border-slate-200">
+                        <h4 className="font-bold text-sm text-slate-900 flex items-center gap-1.5">
+                          <Layers className="w-4 h-4 text-[#0c2a5e]" />
+                          <span>Wallet Transactions Ledger</span>
+                        </h4>
+                        <div className="overflow-x-auto rounded-xl border border-slate-200">
+                          <table className="w-full text-left text-xs">
+                            <thead className="bg-slate-100 text-slate-600 font-bold border-b border-slate-200">
+                              <tr>
+                                <th className="p-3">Type</th>
+                                <th className="p-3">Description</th>
+                                <th className="p-3">Amount</th>
+                                <th className="p-3">Balance After</th>
+                                <th className="p-3">Date</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 bg-white">
+                              {vendorDetails.transactions.map((tx) => (
+                                <tr key={tx._id} className="hover:bg-slate-50/70 transition">
+                                  <td className="p-3">
+                                    <span className="font-mono text-[10px] font-bold uppercase px-2 py-0.5 rounded-md bg-slate-100 text-slate-800">
+                                      {tx.type?.replace(/_/g, ' ')}
+                                    </span>
+                                  </td>
+                                  <td className="p-3 text-slate-700">{tx.description}</td>
+                                  <td className="p-3 font-mono font-bold">
+                                    <span className={tx.amount >= 0 ? 'text-emerald-700' : 'text-rose-600'}>
+                                      {tx.amount >= 0 ? `+₹${tx.amount.toLocaleString('en-IN')}` : `-₹${Math.abs(tx.amount).toLocaleString('en-IN')}`}
+                                    </span>
+                                  </td>
+                                  <td className="p-3 font-mono text-slate-600">
+                                    ₹{(tx.balanceAfter || 0).toLocaleString('en-IN')}
+                                  </td>
+                                  <td className="p-3 text-slate-500 whitespace-nowrap">
+                                    {new Date(tx.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

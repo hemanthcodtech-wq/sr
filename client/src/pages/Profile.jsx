@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import {
   User,
@@ -32,11 +32,27 @@ import {
   TrendingUp,
   LogOut,
   ShoppingBag,
+  Camera,
+  Tag,
+  Gift,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
 import api from '../services/api';
+
+const isRealAvatar = (avatar) => {
+  if (!avatar || typeof avatar !== 'string') return false;
+  if (avatar.includes('images.unsplash.com')) return false;
+  return true;
+};
+
+const getUserInitials = (name) => {
+  if (!name) return 'U';
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return (parts[0] || 'U').slice(0, 2).toUpperCase();
+};
 
 const Profile = () => {
   const { user, updateUserData, logout } = useAuth();
@@ -91,6 +107,36 @@ const Profile = () => {
     address: user?.address || '',
   });
   const [savingProfile, setSavingProfile] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarFileRef = useRef(null);
+
+  const handleAvatarFileChange = async (file) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      error('Please select an image file (JPG, PNG, or WEBP)');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      error('Profile image exceeds 10MB limit. Please select a smaller photo.');
+      return;
+    }
+    const formData = new FormData();
+    formData.append('avatar', file);
+    try {
+      setUploadingAvatar(true);
+      const res = await api.put('/auth/profile', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      if (res.data?.success) {
+        updateUserData(res.data.user);
+        success('Profile photo updated successfully!');
+      }
+    } catch (err) {
+      error(err.response?.data?.message || 'Failed to update profile photo');
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   // Password Change State
   const [passwordForm, setPasswordForm] = useState({
@@ -350,7 +396,7 @@ const Profile = () => {
             Customer Dashboard &amp; Settings
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Manage your personal profile, real-time order tracking, address book, and 5-tier referral network.
+            Manage your personal profile, real-time order tracking, address book, and referral rewards.
           </p>
         </div>
 
@@ -386,15 +432,36 @@ const Profile = () => {
         <aside className="lg:col-span-3 space-y-4 lg:sticky lg:top-24">
           <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 text-center space-y-4">
             {/* User Avatar */}
-            <div className="relative inline-block mx-auto">
-              <img
-                src={user?.avatar || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80'}
-                alt={user?.name || 'Customer'}
-                className="w-20 h-20 rounded-full object-cover border-4 border-blue-50 shadow-sm mx-auto"
+            <div className="relative inline-block mx-auto group">
+              {isRealAvatar(user?.avatar) ? (
+                <img
+                  src={user.avatar}
+                  alt={user?.name || 'Customer'}
+                  className="w-20 h-20 rounded-full object-cover border-4 border-blue-50 shadow-sm mx-auto"
+                />
+              ) : (
+                <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-[#0c2a5e] to-[#1a4b9c] text-white flex items-center justify-center font-black text-2xl tracking-wider shadow-sm border-4 border-blue-50 mx-auto">
+                  {getUserInitials(user?.name)}
+                </div>
+              )}
+
+              {/* Upload / Change Photo Button */}
+              <button
+                type="button"
+                onClick={() => avatarFileRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="absolute bottom-0 right-0 p-1.5 rounded-full bg-[#0c2a5e] hover:bg-[#16428a] text-white shadow-md transition cursor-pointer border-2 border-white"
+                title="Update profile picture"
+              >
+                <Camera className="w-3.5 h-3.5" />
+              </button>
+              <input
+                type="file"
+                ref={avatarFileRef}
+                className="hidden"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={(e) => handleAvatarFileChange(e.target.files?.[0])}
               />
-              <span className="absolute bottom-0 right-0 w-5 h-5 rounded-full bg-emerald-500 border-2 border-white flex items-center justify-center" title="Active Account">
-                <Check className="w-3 h-3 text-white" />
-              </span>
             </div>
 
             <div>
@@ -411,31 +478,29 @@ const Profile = () => {
               <button
                 id="tab-btn-profile"
                 onClick={() => handleTabChange('profile')}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold transition cursor-pointer ${
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold transition cursor-pointer text-left ${
                   activeTab === 'profile'
                     ? 'bg-[#0c2a5e] text-white shadow-xs'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
-                <User className="w-4 h-4" />
-                <span className="flex-1">My Profile</span>
+                <User className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1 text-left">My Profile</span>
               </button>
 
               <button
                 id="tab-btn-orders"
                 onClick={() => handleTabChange('orders')}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-bold transition cursor-pointer ${
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold transition cursor-pointer text-left ${
                   activeTab === 'orders'
                     ? 'bg-[#0c2a5e] text-white shadow-xs'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <Package className="w-4 h-4" />
-                  <span>My Orders</span>
-                </div>
+                <Package className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1 text-left">My Orders</span>
                 {orders.length > 0 && (
-                  <span className={`px-2 py-0.2 rounded-full text-[10px] font-black ${activeTab === 'orders' ? 'bg-white text-[#0c2a5e]' : 'bg-slate-100 text-slate-700'}`}>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${activeTab === 'orders' ? 'bg-white text-[#0c2a5e]' : 'bg-slate-100 text-slate-700'}`}>
                     {orders.length}
                   </span>
                 )}
@@ -444,32 +509,30 @@ const Profile = () => {
               <button
                 id="tab-btn-tracking"
                 onClick={() => handleTabChange('tracking')}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold transition cursor-pointer ${
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold transition cursor-pointer text-left ${
                   activeTab === 'tracking'
                     ? 'bg-[#0c2a5e] text-white shadow-xs'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
-                <Truck className="w-4 h-4" />
-                <span className="flex-1">Live Order Tracking</span>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <Truck className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1 text-left">Live Order Tracking</span>
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse flex-shrink-0"></span>
               </button>
 
               <button
                 id="tab-btn-wishlist"
                 onClick={() => handleTabChange('wishlist')}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-bold transition cursor-pointer ${
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold transition cursor-pointer text-left ${
                   activeTab === 'wishlist'
                     ? 'bg-[#0c2a5e] text-white shadow-xs'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <Heart className="w-4 h-4" />
-                  <span>Wishlist</span>
-                </div>
+                <Heart className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1 text-left">Wishlist</span>
                 {wishlistItems.length > 0 && (
-                  <span className={`px-2 py-0.2 rounded-full text-[10px] font-black ${activeTab === 'wishlist' ? 'bg-white text-rose-600' : 'bg-rose-100 text-rose-700'}`}>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${activeTab === 'wishlist' ? 'bg-white text-rose-600' : 'bg-rose-100 text-rose-700'}`}>
                     {wishlistItems.length}
                   </span>
                 )}
@@ -478,32 +541,30 @@ const Profile = () => {
               <button
                 id="tab-btn-referrals"
                 onClick={() => handleTabChange('referrals')}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl font-bold transition cursor-pointer ${
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold transition cursor-pointer text-left ${
                   activeTab === 'referrals'
                     ? 'bg-[#0c2a5e] text-white shadow-xs'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <Share2 className="w-4 h-4" />
-                  <span>5-Tier Referrals &amp; Wallet</span>
-                </div>
-                <span className="px-1.5 py-0.5 bg-emerald-100 text-emerald-800 text-[10px] font-black rounded-md">
-                  5%
+                <Gift className="w-4 h-4 flex-shrink-0 text-amber-400" />
+                <span className="flex-1 text-left">Referral Coupons</span>
+                <span className="px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-black rounded-md flex-shrink-0">
+                  ₹200 OFF
                 </span>
               </button>
 
               <button
                 id="tab-btn-settings"
                 onClick={() => handleTabChange('settings')}
-                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold transition cursor-pointer ${
+                className={`w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold transition cursor-pointer text-left ${
                   activeTab === 'settings'
                     ? 'bg-[#0c2a5e] text-white shadow-xs'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 }`}
               >
-                <Settings className="w-4 h-4" />
-                <span className="flex-1">Account Settings</span>
+                <Settings className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1 text-left">Account Settings</span>
               </button>
 
               <div className="border-t border-slate-100 my-1"></div>
@@ -513,10 +574,10 @@ const Profile = () => {
                   logout();
                   navigate('/login');
                 }}
-                className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-bold text-rose-600 hover:bg-rose-50 transition cursor-pointer text-left"
               >
-                <LogOut className="w-4 h-4" />
-                <span>Sign Out</span>
+                <LogOut className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1 text-left">Sign Out</span>
               </button>
             </nav>
           </div>
@@ -545,36 +606,38 @@ const Profile = () => {
           {/* TAB 1: PROFILE OVERVIEW */}
           {activeTab === 'profile' && (
             <div className="space-y-6">
-              {/* Wallet Summary Banner (Amezon Dark Navy & Cyan) */}
+              {/* Customer Referral Coupons & Rewards Banner */}
               <div className="relative overflow-hidden bg-gradient-to-r from-[#0c2a5e] via-[#0f3475] to-[#15459b] text-white p-6 sm:p-8 rounded-3xl shadow-lg border border-blue-900">
                 <div className="absolute top-0 right-0 w-80 h-80 bg-blue-400/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
 
                 <div className="relative z-10 grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
-                  {/* Active Balance */}
+                  {/* Active Referral Coupons */}
                   <div className="space-y-1 md:border-r border-blue-800/60 md:pr-6">
-                    <span className="text-[11px] uppercase tracking-wider text-blue-200 font-bold block">
-                      Active Wallet Balance
+                    <span className="text-[11px] uppercase tracking-wider text-amber-300 font-bold block flex items-center gap-1.5">
+                      <Tag className="w-3.5 h-3.5" />
+                      Referral Discount Coupons
                     </span>
                     <div className="flex items-baseline gap-2">
-                      <span className="text-3xl sm:text-4xl font-black text-cyan-300">
-                        ₹{(user?.walletBalance || 0).toLocaleString('en-IN')}
+                      <span className="text-3xl sm:text-4xl font-black text-amber-300">
+                        ₹200 OFF
                       </span>
                     </div>
                     <p className="text-[11px] text-blue-200 mt-1">
-                      100% redeemable on any product order at checkout.
+                      Per successful customer referral. Apply coupon at checkout.
                     </p>
                   </div>
 
-                  {/* Referral Earnings */}
+                  {/* Active Coupons Count */}
                   <div className="space-y-1 md:border-r border-blue-800/60 md:pr-6">
                     <span className="text-[11px] uppercase tracking-wider text-blue-200 font-bold block">
-                      Total Referral Rewards
+                      Active Coupons Available
                     </span>
-                    <div className="text-2xl sm:text-3xl font-black text-emerald-300">
-                      ₹{(user?.walletBalance ? user.walletBalance + 500 : 500).toLocaleString('en-IN')}
+                    <div className="text-2xl sm:text-3xl font-black text-emerald-300 flex items-center gap-2">
+                      <span>3 Coupons</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Ready to Use</span>
                     </div>
                     <p className="text-[11px] text-blue-200 mt-1">
-                      From your 5-tier network purchases.
+                      Code: <span className="font-mono font-bold text-white">REF200-SAVE</span> &amp; more.
                     </p>
                   </div>
 
@@ -582,21 +645,17 @@ const Profile = () => {
                   <div className="flex flex-col sm:flex-row md:flex-col gap-2.5">
                     <button
                       onClick={() => navigate('/products')}
-                      className="w-full py-2.5 px-4 rounded-xl bg-white text-[#0c2a5e] hover:bg-blue-50 font-extrabold text-xs transition shadow-sm text-center cursor-pointer"
+                      className="w-full py-2.5 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition shadow-sm text-center cursor-pointer flex items-center justify-center gap-1.5"
                     >
-                      Shop With Wallet
-                    </button>
-                    <button
-                      onClick={() => setShowWithdrawModal(true)}
-                      className="w-full py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs transition shadow-sm text-center cursor-pointer"
-                    >
-                      Withdraw to Bank / UPI
+                      <ShoppingBag className="w-3.5 h-3.5" />
+                      <span>Shop With Coupons</span>
                     </button>
                     <button
                       onClick={() => setActiveTab('referrals')}
-                      className="w-full py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold text-xs transition text-center cursor-pointer"
+                      className="w-full py-2.5 px-4 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold text-xs transition text-center cursor-pointer flex items-center justify-center gap-1.5"
                     >
-                      View 5-Tier Network
+                      <Gift className="w-3.5 h-3.5 text-amber-300" />
+                      <span>View My Coupons &amp; Refer</span>
                     </button>
                   </div>
                 </div>
@@ -1205,35 +1264,40 @@ const Profile = () => {
             </div>
           )}
 
-          {/* TAB 5: 5-TIER REFERRALS & WALLET */}
+          {/* TAB 5: REFERRAL REWARDS & DISCOUNT COUPONS */}
           {activeTab === 'referrals' && (
             <div className="space-y-6">
-              {/* Active Wallet Balance & Withdrawal Card */}
+              {/* Customer Referral Header Banner */}
               <div className="bg-gradient-to-br from-slate-950 via-[#0c2a5e] to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-md border border-blue-900 space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
-                    <span className="text-xs font-bold text-blue-200 uppercase tracking-wider block">
-                      Amezon Wallet Balance
+                    <span className="text-xs font-bold text-amber-300 uppercase tracking-wider block flex items-center gap-1.5">
+                      <Gift className="w-4 h-4 text-amber-400" />
+                      Referral Rewards Program
                     </span>
-                    <div className="text-3xl sm:text-4xl font-black text-cyan-300 mt-1">
-                      ₹{(user?.walletBalance || 0).toLocaleString('en-IN')}
+                    <div className="text-2xl sm:text-3xl font-black text-white mt-1">
+                      Invite Friends &amp; Get ₹200 Shopping Coupons
                     </div>
+                    <p className="text-xs text-blue-200 mt-1">
+                      Whenever your friend joins with your invite code and shops, you both unlock exclusive ₹200 discount vouchers!
+                    </p>
                   </div>
                   <button
-                    onClick={() => setShowWithdrawModal(true)}
-                    className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs shadow-sm transition cursor-pointer"
+                    onClick={() => navigate('/products')}
+                    className="px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow-sm transition cursor-pointer flex items-center justify-center gap-2"
                   >
-                    Withdraw to UPI / Bank
+                    <ShoppingBag className="w-4 h-4" />
+                    <span>Redeem in Store</span>
                   </button>
                 </div>
 
                 {/* Referral Link Box */}
                 <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-amber-300">Your Unique Referral Invite Link</span>
+                    <span className="text-xs font-bold text-amber-300">Your Personal Referral Invite Link</span>
                     <button
                       onClick={() => handleCopy(referralLink, 'link')}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white text-[#0c2a5e] text-xs font-black transition cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white text-[#0c2a5e] text-xs font-black transition cursor-pointer hover:bg-blue-50"
                     >
                       {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                       <span>{copiedLink ? 'Copied Link' : 'Copy Link'}</span>
@@ -1243,42 +1307,145 @@ const Profile = () => {
                 </div>
               </div>
 
-              {/* 5-Tier Commission Breakdown Table */}
-              <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs p-6 sm:p-8 space-y-4">
+              {/* Earned Coupons Wallet / Cards Section */}
+              <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs p-6 sm:p-8 space-y-5">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                  <div>
+                    <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+                      <Tag className="w-4 h-4 text-amber-500" />
+                      <span>My Available Shopping Coupons</span>
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Copy any promo voucher code below and enter it at checkout for instant order discounts!
+                    </p>
+                  </div>
+                  <span className="inline-flex items-center px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200">
+                    ● 3 Coupons Active
+                  </span>
+                </div>
+
+                {/* Grid of Coupons */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+                  {/* Coupon 1: Referral Discount */}
+                  <div className="relative overflow-hidden rounded-2xl border-2 border-dashed border-amber-400 bg-gradient-to-br from-amber-50/80 to-white p-4 space-y-3 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="px-2 py-0.5 rounded-md bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider">
+                        Referral Reward
+                      </span>
+                      <span className="text-xs font-bold text-amber-800">Flat ₹200 OFF</span>
+                    </div>
+                    <div>
+                      <div className="text-lg font-black text-slate-900 tracking-tight">₹200 OFF</div>
+                      <p className="text-[11px] text-slate-600 mt-0.5">Valid on all orders above ₹499</p>
+                    </div>
+                    <div className="flex items-center justify-between pt-2 border-t border-amber-200">
+                      <span className="font-mono text-xs font-black text-[#0c2a5e] bg-amber-100 px-2 py-1 rounded">
+                        REF200
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText('REF200');
+                          success('Coupon REF200 copied to clipboard!');
+                        }}
+                        className="text-xs font-bold text-amber-900 hover:text-amber-700 underline cursor-pointer"
+                      >
+                        Copy Code
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Coupon 2: Referral Code based coupon */}
+                  <div className="relative overflow-hidden rounded-2xl border-2 border-dashed border-blue-400 bg-gradient-to-br from-blue-50/80 to-white p-4 space-y-3 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="px-2 py-0.5 rounded-md bg-[#0c2a5e] text-white text-[10px] font-black uppercase tracking-wider">
+                        Friend Invite Bonus
+                      </span>
+                      <span className="text-xs font-bold text-blue-800">Flat ₹200 OFF</span>
+                    </div>
+                    <div>
+                      <div className="text-lg font-black text-slate-900 tracking-tight">₹200 Instant Off</div>
+                      <p className="text-[11px] text-slate-600 mt-0.5">Use your unique referral promo code</p>
+                    </div>
+                    <div className="flex items-center justify-between pt-2 border-t border-blue-200">
+                      <span className="font-mono text-xs font-black text-[#0c2a5e] bg-blue-100 px-2 py-1 rounded truncate max-w-[130px]">
+                        {user?.referralCode || 'REF200-SAVE'}
+                      </span>
+                      <button
+                        onClick={() => {
+                          const code = user?.referralCode || 'REF200-SAVE';
+                          navigator.clipboard.writeText(code);
+                          success(`Coupon ${code} copied!`);
+                        }}
+                        className="text-xs font-bold text-blue-900 hover:text-blue-700 underline cursor-pointer"
+                      >
+                        Copy Code
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Coupon 3: Festive Offer */}
+                  <div className="relative overflow-hidden rounded-2xl border-2 border-dashed border-emerald-400 bg-gradient-to-br from-emerald-50/80 to-white p-4 space-y-3 shadow-xs">
+                    <div className="flex items-center justify-between">
+                      <span className="px-2 py-0.5 rounded-md bg-emerald-500 text-white text-[10px] font-black uppercase tracking-wider">
+                        Festive Promo
+                      </span>
+                      <span className="text-xs font-bold text-emerald-800">Save ₹1,000</span>
+                    </div>
+                    <div>
+                      <div className="text-lg font-black text-slate-900 tracking-tight">₹1,000 Mega Off</div>
+                      <p className="text-[11px] text-slate-600 mt-0.5">Applicable on cart orders above ₹2,999</p>
+                    </div>
+                    <div className="flex items-center justify-between pt-2 border-t border-emerald-200">
+                      <span className="font-mono text-xs font-black text-emerald-900 bg-emerald-100 px-2 py-1 rounded">
+                        DASARA20
+                      </span>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText('DASARA20');
+                          success('Coupon DASARA20 copied to clipboard!');
+                        }}
+                        className="text-xs font-bold text-emerald-900 hover:text-emerald-700 underline cursor-pointer"
+                      >
+                        Copy Code
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* How Customer Referral Coupons Work */}
+              <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs p-6 sm:p-8 space-y-5">
                 <div className="space-y-1">
-                  <h3 className="text-base font-black text-slate-900">5-Tier Downline Affiliate Payout Structure</h3>
+                  <h3 className="text-base font-black text-slate-900">How Customer Referral Coupons Work</h3>
                   <p className="text-xs text-slate-500">
-                    Earn recurring passive commissions whenever shoppers in your downline place purchases on Amezon.online.
+                    Invite friends, family, and colleagues to shop on SR Multi-Vendor Marketplace.
                   </p>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs border-collapse">
-                    <thead>
-                      <tr className="border-b border-slate-200 bg-slate-50">
-                        <th className="py-3 px-4 font-bold text-slate-700">Tier Level</th>
-                        <th className="py-3 px-4 font-bold text-slate-700">Commission Rate</th>
-                        <th className="py-3 px-4 font-bold text-slate-700">Eligibility</th>
-                        <th className="py-3 px-4 font-bold text-slate-700">Settlement</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {[
-                        { tier: 'Level 1 (Direct)', rate: '5.0%', eligible: 'Any direct referred shopper', settlement: 'Instant on delivery' },
-                        { tier: 'Level 2', rate: '3.0%', eligible: 'Shoppers invited by L1', settlement: 'Instant on delivery' },
-                        { tier: 'Level 3', rate: '2.0%', eligible: 'Shoppers invited by L2', settlement: 'Instant on delivery' },
-                        { tier: 'Level 4', rate: '1.0%', eligible: 'Shoppers invited by L3', settlement: 'Instant on delivery' },
-                        { tier: 'Level 5', rate: '1.0%', eligible: 'Shoppers invited by L4', settlement: 'Instant on delivery' },
-                      ].map((row, idx) => (
-                        <tr key={idx} className="hover:bg-slate-50 transition">
-                          <td className="py-3 px-4 font-extrabold text-slate-900">{row.tier}</td>
-                          <td className="py-3 px-4 font-black text-emerald-600">{row.rate}</td>
-                          <td className="py-3 px-4 text-slate-600">{row.eligible}</td>
-                          <td className="py-3 px-4 text-slate-500">{row.settlement}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                  <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-100 space-y-1.5">
+                    <div className="text-xs font-bold text-blue-800 uppercase tracking-wider">Step 1</div>
+                    <div className="font-extrabold text-sm text-slate-900">Share Your Invite Link</div>
+                    <p className="text-[11.5px] text-slate-600 leading-relaxed">
+                      Copy your unique referral invite link or promo code and share it with friends via WhatsApp, SMS, or social media.
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-100 space-y-1.5">
+                    <div className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Step 2</div>
+                    <div className="font-extrabold text-sm text-slate-900">Friend Joins &amp; Purchases</div>
+                    <p className="text-[11.5px] text-slate-600 leading-relaxed">
+                      Your friend registers on the platform and places their first order from authentic verified merchants.
+                    </p>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-100 space-y-1.5">
+                    <div className="text-xs font-bold text-amber-800 uppercase tracking-wider">Step 3</div>
+                    <div className="font-extrabold text-sm text-slate-900">Unlock ₹200 Shopping Coupons</div>
+                    <p className="text-[11.5px] text-slate-600 leading-relaxed">
+                      You receive ₹200 discount coupons added directly to your account to apply at checkout for instant savings!
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>

@@ -34,6 +34,7 @@ import VendorRegister from '../pages/VendorRegister';
 import VendorDashboard from '../pages/vendor/VendorDashboard';
 import VendorProducts from '../pages/vendor/VendorProducts';
 import VendorOrders from '../pages/vendor/VendorOrders';
+import VendorOrderDetail from '../pages/vendor/VendorOrderDetail';
 import VendorWallet from '../pages/vendor/VendorWallet';
 
 // Admin Pages
@@ -43,6 +44,7 @@ import AdminOrders from '../pages/admin/AdminOrders';
 import AdminProducts from '../pages/admin/AdminProducts';
 import AdminPlans from '../pages/admin/AdminPlans';
 import AdminVendors from '../pages/admin/AdminVendors';
+import AdminVendorDetail from '../pages/admin/AdminVendorDetail';
 import AdminSettlements from '../pages/admin/AdminSettlements';
 import AdminSettings from '../pages/admin/AdminSettings';
 
@@ -109,7 +111,7 @@ const AppRoutes = () => {
         path="/orders"
         element={
           <ProtectedRoute allowedRoles={['customer', 'vendor', 'admin']}>
-            <Profile />
+            <MyOrders />
           </ProtectedRoute>
         }
       />
@@ -154,6 +156,14 @@ const AppRoutes = () => {
         }
       />
       <Route
+        path="/vendor/orders/:id"
+        element={
+          <ProtectedRoute allowedRoles={['vendor', 'admin']}>
+            <VendorOrderDetail />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/vendor/wallet"
         element={
           <ProtectedRoute allowedRoles={['vendor', 'admin']}>
@@ -179,6 +189,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute allowedRoles={['admin']}>
             <AdminVendors />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/vendors/:id"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminVendorDetail />
           </ProtectedRoute>
         }
       />

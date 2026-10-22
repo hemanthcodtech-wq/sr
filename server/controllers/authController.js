@@ -249,6 +249,7 @@ exports.register = async (req, res, next) => {
     const aadhaarFile = req.files?.aadhaar?.[0] || null;
     const panFile = req.files?.pan?.[0] || null;
     const genericDocFile = req.files?.document?.[0] || req.file || null;
+    const avatarFile = req.files?.avatar?.[0] || req.files?.profilePic?.[0] || null;
 
     // Document Validation: Only Merchants require KYC documents and numbers!
     if (role === 'vendor') {
@@ -284,6 +285,24 @@ exports.register = async (req, res, next) => {
     let panPublicId = req.body.panPublicId || '';
     let documentUrl = req.body.documentUrl || '';
     let documentPublicId = req.body.documentPublicId || '';
+    let avatarUrl = req.body.avatar || '';
+
+    // Upload Profile Picture / Avatar if provided during registration
+    if (avatarFile) {
+      try {
+        console.log(`[Amezon Auth] Uploading Profile Picture to Cloudinary: ${avatarFile.originalname} (${avatarFile.size} bytes)`);
+        const uploadResult = await uploadToCloudinary(
+          avatarFile.buffer,
+          'amezon_avatars',
+          avatarFile.originalname
+        );
+        avatarUrl = uploadResult.secure_url || '';
+        console.log(`[Amezon Auth] Profile Picture uploaded: ${avatarUrl}`);
+      } catch (err) {
+        console.warn('[Cloudinary Profile Picture Note]', err.message);
+        avatarUrl = `data:${avatarFile.mimetype};base64,${avatarFile.buffer.toString('base64')}`;
+      }
+    }
 
     // Upload Aadhaar to Cloudinary
     if (aadhaarFile) {
@@ -409,7 +428,7 @@ exports.register = async (req, res, next) => {
         walletBalance: 0,
         store: newStore ? newStore._id : null,
         emailVerified: isEmailVerified,
-        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80',
+        avatar: avatarUrl || '',
         aadhaarNumber: cleanAadhaarNumber,
         aadhaarDocument,
         aadhaarPublicId,
@@ -422,29 +441,26 @@ exports.register = async (req, res, next) => {
       };
       if (newStore) newStore.vendor = newUser._id;
 
-      let registrationOtp = null;
-      if (role === 'vendor') {
-        registrationOtp = Math.floor(100000 + Math.random() * 900000).toString();
-        const expiresAt = Date.now() + 10 * 60 * 1000;
-        otpStore.set(email.toLowerCase(), { otp: registrationOtp, expiresAt, verified: false });
+      let registrationOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = Date.now() + 10 * 60 * 1000;
+      otpStore.set(email.toLowerCase(), { otp: registrationOtp, expiresAt, verified: false });
 
-        sendEmail({
-          to: email.toLowerCase(),
-          subject: `Your Amezon.online Verification Code: ${registrationOtp}`,
-          text: `Your 6-digit verification code is: ${registrationOtp}. It expires in 10 minutes.`,
-          html: getOtpEmailTemplate(registrationOtp, email.toLowerCase()),
-        }).catch((mailErr) => {
-          console.warn(`[Amezon Auth Note] Email dispatch: ${mailErr.message}`);
-        });
+      sendEmail({
+        to: email.toLowerCase(),
+        subject: `Your SR Marketplace Verification Code: ${registrationOtp}`,
+        text: `Your 6-digit verification code is: ${registrationOtp}. It expires in 10 minutes.`,
+        html: getOtpEmailTemplate(registrationOtp, email.toLowerCase()),
+      }).catch((mailErr) => {
+        console.warn(`[Amezon Auth Note] Email dispatch: ${mailErr.message}`);
+      });
 
-        console.log(`\n======================================================`);
-        console.log(`[Amezon Auth] OTP for merchant ${email}: ${registrationOtp}`);
-        console.log(`======================================================\n`);
-      }
+      console.log(`\n======================================================`);
+      console.log(`[Amezon Auth] OTP for ${role} ${email}: ${registrationOtp}`);
+      console.log(`======================================================\n`);
 
       mockUsers.push(newUser);
       return sendTokenResponse(newUser, 201, res, {
-        otpSent: role === 'vendor',
+        otpSent: true,
       });
     }
 
@@ -470,6 +486,7 @@ exports.register = async (req, res, next) => {
       password,
       role,
       phone: phone || '',
+      avatar: avatarUrl || '',
       referralCode: myReferralCode,
       referredBy,
       emailVerified: isEmailVerified,
@@ -506,32 +523,29 @@ exports.register = async (req, res, next) => {
       await user.save();
     }
 
-    let registrationOtp = null;
-    if (role === 'vendor') {
-      registrationOtp = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = Date.now() + 10 * 60 * 1000;
-      otpStore.set(email.toLowerCase(), { otp: registrationOtp, expiresAt, verified: false });
+    let registrationOtp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 10 * 60 * 1000;
+    otpStore.set(email.toLowerCase(), { otp: registrationOtp, expiresAt, verified: false });
 
-      user.emailOtp = registrationOtp;
-      user.emailOtpExpires = new Date(expiresAt);
-      await user.save();
+    user.emailOtp = registrationOtp;
+    user.emailOtpExpires = new Date(expiresAt);
+    await user.save();
 
-      sendEmail({
-        to: email.toLowerCase(),
-        subject: `Your Amezon.online Verification Code: ${registrationOtp}`,
-        text: `Your 6-digit verification code is: ${registrationOtp}. It expires in 10 minutes.`,
-        html: getOtpEmailTemplate(registrationOtp, email.toLowerCase()),
-      }).catch((mailErr) => {
-        console.warn(`[Amezon Auth Note] Email dispatch: ${mailErr.message}`);
-      });
+    sendEmail({
+      to: email.toLowerCase(),
+      subject: `Your SR Marketplace Verification Code: ${registrationOtp}`,
+      text: `Your 6-digit verification code is: ${registrationOtp}. It expires in 10 minutes.`,
+      html: getOtpEmailTemplate(registrationOtp, email.toLowerCase()),
+    }).catch((mailErr) => {
+      console.warn(`[Amezon Auth Note] Email dispatch: ${mailErr.message}`);
+    });
 
-      console.log(`\n======================================================`);
-      console.log(`[Amezon Auth] OTP for merchant ${email}: ${registrationOtp}`);
-      console.log(`======================================================\n`);
-    }
+    console.log(`\n======================================================`);
+    console.log(`[Amezon Auth] OTP for ${role} ${email}: ${registrationOtp}`);
+    console.log(`======================================================\n`);
 
     sendTokenResponse(user, 201, res, {
-      otpSent: role === 'vendor',
+      otpSent: true,
     });
   } catch (err) {
     next(err);
@@ -599,7 +613,20 @@ exports.getMe = async (req, res, next) => {
 // @access  Private
 exports.updateProfile = async (req, res, next) => {
   try {
-    const { name, phone, avatar, address, preferences } = req.body;
+    let { name, phone, avatar, address, preferences } = req.body;
+
+    if (req.file) {
+      try {
+        const uploadResult = await uploadToCloudinary(
+          req.file.buffer,
+          'amezon_avatars',
+          req.file.originalname
+        );
+        avatar = uploadResult.secure_url || '';
+      } catch (err) {
+        avatar = `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`;
+      }
+    }
 
     if (mongoose.connection.readyState !== 1) {
       const user = mockUsers.find((u) => u._id === req.user.id || u._id === req.user._id);

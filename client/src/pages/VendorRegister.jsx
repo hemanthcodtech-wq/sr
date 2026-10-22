@@ -13,6 +13,7 @@ import {
   MapPin,
   Clock,
   ArrowRight,
+  ArrowLeft,
   Sparkles,
   Zap,
   FileText,
@@ -77,10 +78,59 @@ const VendorRegister = () => {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [confirmAccountNumber, setConfirmAccountNumber] = useState('');
   const [checkingStatus, setCheckingStatus] = useState(false);
+  const [formStep, setFormStep] = useState(1); // 1 = Store & Bank Info, 2 = Plan Selection & Payment
+
+  // Admin Plans State & Selection
+  const [plans, setPlans] = useState([]);
+  const [selectedPlan, setSelectedPlan] = useState(null);
+  const [plansLoading, setPlansLoading] = useState(true);
 
   // Simulated Razorpay Modal State for dev/test keys
   const [showSimulatedModal, setShowSimulatedModal] = useState(false);
   const [pendingPlanOrder, setPendingPlanOrder] = useState(null);
+
+  const formatDurationDays = (days) => {
+    if (!days) return '';
+    if (days === 30) return '1 Month';
+    if (days === 60) return '2 Months';
+    if (days === 90) return '3 Months (Quarterly)';
+    if (days === 180) return '6 Months (Half-Year)';
+    if (days === 365) return '1 Year (Annual)';
+    if (days % 30 === 0) return `${Math.round(days / 30)} Months`;
+    return `${days} Days`;
+  };
+
+  const fetchPlans = async (storeActivePlan = null) => {
+    try {
+      setPlansLoading(true);
+      const res = await api.get('/plans');
+      if (res.data?.success && Array.isArray(res.data.plans)) {
+        const activeOnly = res.data.plans.filter((p) => p.isActive !== false);
+        setPlans(activeOnly);
+
+        if (activeOnly.length > 0) {
+          const targetPlanId = storeActivePlan?._id || (typeof storeActivePlan === 'string' ? storeActivePlan : null);
+          const matched = targetPlanId ? activeOnly.find((p) => p._id === targetPlanId) : null;
+          const chosen = matched || activeOnly[0];
+          setSelectedPlan(chosen);
+          setEnrollmentFee(chosen.price);
+          setPlanDurationDays(chosen.durationDays);
+        }
+        return activeOnly;
+      }
+    } catch (err) {
+      console.warn('Could not fetch active plans:', err);
+    } finally {
+      setPlansLoading(false);
+    }
+    return [];
+  };
+
+  const handleSelectPlan = (plan) => {
+    setSelectedPlan(plan);
+    setEnrollmentFee(plan.price);
+    setPlanDurationDays(plan.durationDays);
+  };
 
   // Merchant Application Form Data
   const [formData, setFormData] = useState({
@@ -128,6 +178,9 @@ const VendorRegister = () => {
       const res = await api.get('/vendors/enrollment-status');
       if (res.data?.success) {
         setEnrollmentStatus(res.data.status);
+        if (res.data.activePlans && Array.isArray(res.data.activePlans) && res.data.activePlans.length > 0) {
+          setPlans(res.data.activePlans);
+        }
         setEnrollmentFee(res.data.enrollmentFee || 999);
         setPlanDurationDays(res.data.planDurationDays || 365);
         if (res.data.store) {
@@ -160,6 +213,9 @@ const VendorRegister = () => {
             setConfirmAccountNumber(res.data.store.bankDetails.accountNumber);
           }
         }
+
+        await fetchPlans(res.data.store?.activePlan);
+
         if (isManualCheck) {
           if (res.data.status === 'active') {
             success('🎉 Congratulations! Your store has been approved by Admin and is now live!');
@@ -181,6 +237,7 @@ const VendorRegister = () => {
     if (isAuthenticated) {
       fetchStatus();
     } else {
+      fetchPlans();
       setPageLoading(false);
     }
   }, [isAuthenticated]);
@@ -243,25 +300,16 @@ const VendorRegister = () => {
     success('Store, address, and settlement bank details populated!');
   };
 
-  // Submit Store Setup & Pay Fee via Razorpay
-  const handlePayAndSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!isAuthenticated) {
-      info('Please sign in to complete your store setup');
-      navigate('/login', { state: { from: { pathname: '/vendor/register' } } });
-      return;
-    }
-
-    // 1. Validation
+  // 1. Validate Store & Bank Form Fields
+  const validateStoreDetails = () => {
     if (!formData.storeName.trim()) {
       error('Please enter your store name');
-      return;
+      return false;
     }
 
     if (!formData.phone.trim()) {
       error('Please provide a business contact phone number');
-      return;
+      return false;
     }
 
     if (
@@ -271,7 +319,7 @@ const VendorRegister = () => {
       !formData.address.zipCode.trim()
     ) {
       error('Please complete all physical address fields (Street, City, State, PIN Code)');
-      return;
+      return false;
     }
 
     if (
@@ -281,26 +329,42 @@ const VendorRegister = () => {
       !formData.bankDetails.ifscCode.trim()
     ) {
       error('Please fill in all mandatory settlement bank account details');
-      return;
+      return false;
     }
 
     if (formData.bankDetails.accountNumber.trim() !== confirmAccountNumber.trim()) {
       error('Bank account numbers do not match. Please verify.');
-      return;
+      return false;
     }
 
     const cleanIfsc = formData.bankDetails.ifscCode.trim().toUpperCase();
     if (cleanIfsc.length !== 11) {
       error('IFSC code must be exactly 11 characters (e.g. SBIN0001234)');
+      return false;
+    }
+
+    return true;
+  };
+
+  // Step 1 Action: Save Store Details & Proceed to Next Step (Plan Selection)
+  const handleProceedToPlans = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+
+    if (!isAuthenticated) {
+      info('Please sign in to complete your store setup');
+      navigate('/login', { state: { from: { pathname: '/vendor/register' } } });
       return;
     }
 
+    if (!validateStoreDetails()) return;
+
     setSubmitting(true);
     try {
-      // 2. Save store details to server (status will remain pending_payment until fee is verified)
+      const cleanIfsc = formData.bankDetails.ifscCode.trim().toUpperCase();
       const payload = {
         ...formData,
         phone: formData.phone.trim(),
+        planId: selectedPlan?._id || undefined,
         bankDetails: {
           ...formData.bankDetails,
           accountNumber: formData.bankDetails.accountNumber.trim(),
@@ -314,23 +378,48 @@ const VendorRegister = () => {
       }
 
       setExistingStore(saveRes.data.store);
+      success('Store details saved! Now select your membership plan to complete enrollment.');
+      setFormStep(2);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (err) {
+      console.error('Save error:', err);
+      error(err.response?.data?.message || err.message || 'Failed to save store profile');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-      // 3. Initiate Razorpay Order for Enrollment Fee
-      const orderRes = await api.post('/vendors/initiate-enrollment-payment');
+  // Step 2 Action: Initiate Plan Payment & Submit Application
+  const handleInitiatePayment = async () => {
+    if (!isAuthenticated) {
+      info('Please sign in to complete payment');
+      navigate('/login', { state: { from: { pathname: '/vendor/register' } } });
+      return;
+    }
+
+    if (!selectedPlan && plans.length > 0) {
+      error('Please select an enrollment membership plan to proceed');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const orderRes = await api.post('/vendors/initiate-enrollment-payment', {
+        planId: selectedPlan?._id,
+      });
       if (!orderRes.data?.success) {
         throw new Error(orderRes.data?.message || 'Payment initiation failed');
       }
 
       const { order, razorpayKeyId, isMock, amount } = orderRes.data;
 
-      // 4. Open Razorpay or fallback to Test Checkout Modal
       if (!isMock && window.Razorpay && razorpayKeyId && !razorpayKeyId.includes('placeholder')) {
         const options = {
           key: razorpayKeyId,
           amount: order.amount,
           currency: 'INR',
           name: 'Amezon.online Vendor Enrollment',
-          description: `Store Enrollment Plan (${planDurationDays} Days)`,
+          description: selectedPlan ? `${selectedPlan.title} (${selectedPlan.durationDays} Days)` : `Store Enrollment Plan (${planDurationDays} Days)`,
           image: '/favicon.svg',
           order_id: order.id,
           prefill: {
@@ -344,6 +433,7 @@ const VendorRegister = () => {
               razorpayOrderId: response.razorpay_order_id,
               razorpayPaymentId: response.razorpay_payment_id,
               razorpaySignature: response.razorpay_signature,
+              planId: selectedPlan?._id,
             });
           },
           modal: {
@@ -361,8 +451,8 @@ const VendorRegister = () => {
         setShowSimulatedModal(true);
       }
     } catch (err) {
-      console.error('Submission error:', err);
-      error(err.response?.data?.message || err.message || 'Failed to submit application');
+      console.error('Payment initiation error:', err);
+      error(err.response?.data?.message || err.message || 'Failed to initiate payment');
     } finally {
       setSubmitting(false);
     }
@@ -372,9 +462,13 @@ const VendorRegister = () => {
   const finalizePayment = async (paymentDetails) => {
     try {
       setPaymentLoading(true);
-      const res = await api.post('/vendors/verify-enrollment-payment', paymentDetails);
+      const res = await api.post('/vendors/verify-enrollment-payment', {
+        ...paymentDetails,
+        planId: selectedPlan?._id,
+      });
       if (res.data?.success) {
-        success(`Payment of ₹${enrollmentFee} received! Application submitted for Admin approval.`);
+        const planTitle = selectedPlan?.title || res.data.store?.activePlan?.title || 'Plan';
+        success(`Payment of ₹${enrollmentFee} for "${planTitle}" received! Application submitted for Admin approval.`);
         setEnrollmentStatus('pending_admin_approval');
         if (res.data.store) {
           setExistingStore(res.data.store);
@@ -395,6 +489,7 @@ const VendorRegister = () => {
       razorpayOrderId: pendingPlanOrder?.id || `order_sim_${Date.now()}`,
       razorpayPaymentId: `pay_sim_${Date.now()}`,
       razorpaySignature: 'simulated_valid_signature',
+      planId: selectedPlan?._id,
     });
   };
 
@@ -446,35 +541,37 @@ const VendorRegister = () => {
           {/* Step 2: Store & Bank Setup */}
           <div className="flex flex-col items-center flex-1">
             <div
-              className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold ${
-                isDetailsAndFeePaid
+              className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold transition-all ${
+                isDetailsAndFeePaid || formStep === 2
                   ? 'bg-emerald-600 text-white shadow-xs'
                   : 'bg-[#0c2a5e] text-white shadow-xs'
               }`}
             >
-              {isDetailsAndFeePaid ? '✓' : '2'}
+              {isDetailsAndFeePaid || formStep === 2 ? '✓' : '2'}
             </div>
             <span className="text-[10px] font-bold text-slate-700 mt-1">2. Store &amp; Bank Info</span>
           </div>
 
           <div
-            className={`flex-1 h-1 rounded ${
-              isDetailsAndFeePaid ? 'bg-emerald-600' : 'bg-slate-200'
+            className={`flex-1 h-1 rounded transition-all ${
+              isDetailsAndFeePaid || formStep === 2 ? 'bg-emerald-600' : 'bg-slate-200'
             }`}
           />
 
           {/* Step 3: Platform Plan Fee */}
           <div className="flex flex-col items-center flex-1">
             <div
-              className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold ${
+              className={`flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold transition-all ${
                 isDetailsAndFeePaid
                   ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'bg-[#0c2a5e] text-white shadow-xs animate-pulse'
+                  : formStep === 2
+                  ? 'bg-[#0c2a5e] text-white shadow-xs animate-pulse ring-4 ring-blue-100'
+                  : 'bg-slate-200 text-slate-600'
               }`}
             >
               {isDetailsAndFeePaid ? '✓' : '3'}
             </div>
-            <span className="text-[10px] font-bold text-slate-700 mt-1">3. Pay Platform Fee</span>
+            <span className="text-[10px] font-bold text-slate-700 mt-1">3. Select Plan &amp; Pay</span>
           </div>
 
           <div
@@ -529,6 +626,12 @@ const VendorRegister = () => {
               <span className="text-slate-500 font-semibold">Enrollment Fee Status:</span>
               <span className="font-black text-emerald-700 bg-emerald-100 px-2.5 py-0.5 rounded-full text-xs">
                 ✓ PAID ₹{enrollmentFee.toLocaleString('en-IN')}
+              </span>
+            </div>
+            <div className="flex items-center justify-between py-1 border-b border-slate-200">
+              <span className="text-slate-500 font-semibold">Chosen Membership Plan:</span>
+              <span className="font-bold text-[#0c2a5e] bg-blue-100/70 px-2.5 py-0.5 rounded-full text-xs">
+                {existingStore?.activePlan?.title || selectedPlan?.title || 'Platform Plan'} ({existingStore?.activePlan?.durationDays || planDurationDays} Days)
               </span>
             </div>
             {existingStore?.paymentDetails?.razorpayPaymentId && (
@@ -611,6 +714,11 @@ const VendorRegister = () => {
 
           <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-left text-xs text-emerald-900 space-y-1">
             <p className="font-bold">Store: {existingStore?.storeName}</p>
+            {existingStore?.activePlan && (
+              <p className="font-semibold text-emerald-800">
+                Plan: {existingStore.activePlan.title} ({existingStore.activePlan.durationDays} Days)
+              </p>
+            )}
             <p className="text-[11px] text-emerald-800">
               Validity: Valid until{' '}
               {existingStore?.planExpiresAt
@@ -641,10 +749,7 @@ const VendorRegister = () => {
         enrollmentStatus === 'pending_payment' ||
         enrollmentStatus === 'not_submitted' ||
         enrollmentStatus === 'rejected') && (
-        <form
-          onSubmit={handlePayAndSubmit}
-          className="bg-white p-6 sm:p-10 rounded-3xl border border-slate-200 shadow-xl space-y-8"
-        >
+        <div className="bg-white p-6 sm:p-10 rounded-3xl border border-slate-200 shadow-xl space-y-8">
           {enrollmentStatus === 'rejected' && (
             <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-800 space-y-1">
               <p className="font-bold flex items-center gap-1.5">
@@ -657,29 +762,76 @@ const VendorRegister = () => {
             </div>
           )}
 
-          {/* Header Action: Auto-fill Demo Data */}
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-100">
-            <div>
-              <h2 className="text-lg font-black text-slate-900">Merchant Store Setup &amp; Bank Settlement</h2>
-              <p className="text-xs text-slate-500">
-                Step 2 of 4: Enter store profile, physical dispatch address, settlement bank details, and pay enrollment fee.
-              </p>
-            </div>
+          {/* Form Step Navigation Tabs */}
+          <div className="flex border-b border-slate-200 gap-2 sm:gap-6 pb-2">
             <button
               type="button"
-              id="fill-demo-store-data-btn"
-              onClick={handleFillDemoData}
-              className="text-xs font-bold text-[#0c2a5e] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 self-start sm:self-auto shadow-xs"
+              onClick={() => setFormStep(1)}
+              className={`pb-2 px-3 text-xs sm:text-sm font-black border-b-2 transition flex items-center gap-2 cursor-pointer ${
+                formStep === 1
+                  ? 'border-[#0c2a5e] text-[#0c2a5e]'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
             >
-              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span>Auto-Fill Demo Details</span>
+              <div
+                className={`w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center ${
+                  formStep === 1 ? 'bg-[#0c2a5e] text-white' : 'bg-slate-200 text-slate-700'
+                }`}
+              >
+                1
+              </div>
+              <span>Store Profile &amp; Settlement Bank</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (validateStoreDetails()) {
+                  setFormStep(2);
+                }
+              }}
+              className={`pb-2 px-3 text-xs sm:text-sm font-black border-b-2 transition flex items-center gap-2 cursor-pointer ${
+                formStep === 2
+                  ? 'border-[#0c2a5e] text-[#0c2a5e]'
+                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              <div
+                className={`w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center ${
+                  formStep === 2 ? 'bg-[#0c2a5e] text-white' : 'bg-slate-200 text-slate-700'
+                }`}
+              >
+                2
+              </div>
+              <span>Choose Membership Plan &amp; Pay</span>
             </button>
           </div>
 
-          {/* Section 1: Store Profile Information */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2 text-sm font-black text-slate-900">
-              <Building className="w-4 h-4 text-[#0c2a5e]" />
+          {formStep === 1 && (
+            <div className="space-y-8 animate-fadeIn">
+              {/* Header Action: Auto-fill Demo Data */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-100">
+                <div>
+                  <h2 className="text-lg font-black text-slate-900">Merchant Store Setup &amp; Bank Settlement</h2>
+                  <p className="text-xs text-slate-500">
+                    Step 2 of 4: Enter store profile, physical dispatch address, and settlement bank details.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  id="fill-demo-store-data-btn"
+                  onClick={handleFillDemoData}
+                  className="text-xs font-bold text-[#0c2a5e] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 self-start sm:self-auto shadow-xs"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Auto-Fill Demo Details</span>
+                </button>
+              </div>
+
+              {/* Section 1: Store Profile Information */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-2 text-sm font-black text-slate-900">
+                  <Building className="w-4 h-4 text-[#0c2a5e]" />
               <span>1. Store Profile &amp; Contact Details</span>
             </div>
 
@@ -961,78 +1113,253 @@ const VendorRegister = () => {
             </div>
           </div>
 
-          {/* Section 4: Platform Enrollment Plan Card Fixed by Admin */}
-          <div className="p-6 bg-gradient-to-br from-blue-50/60 via-slate-50 to-amber-50/40 border-2 border-[#0c2a5e]/30 rounded-3xl space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-              <div>
-                <span className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-blue-100 text-[#0c2a5e] text-xs font-black uppercase tracking-wider">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Platform Enrollment Plan</span>
+              {/* Step 1 Primary CTA */}
+              <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                <p className="text-xs text-slate-500">
+                  Next step: Choose from the membership plans created by platform administration.
+                </p>
+                <button
+                  type="button"
+                  id="proceed-to-plans-btn"
+                  onClick={handleProceedToPlans}
+                  disabled={submitting}
+                  className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-gradient-to-r from-[#0c2a5e] to-[#174896] hover:from-[#092048] hover:to-[#123875] text-white font-black text-sm shadow-xl transition active:scale-98 flex items-center justify-center gap-2 cursor-pointer disabled:bg-slate-400"
+                >
+                  {submitting ? (
+                    <span>Saving Store Details...</span>
+                  ) : (
+                    <>
+                      <span>Proceed to Plan Selection &amp; Payment</span>
+                      <ArrowRight className="w-4 h-4 text-amber-300" />
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {formStep === 2 && (
+            <div className="space-y-6 animate-fadeIn">
+              {/* Step 2 Header Navigation */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setFormStep(1)}
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#0c2a5e] hover:text-[#184a96] transition cursor-pointer"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Back to Store &amp; Bank Profile</span>
+                </button>
+                <span className="text-xs text-slate-500 font-semibold">
+                  Step 3 of 4: Select Store Membership Plan
                 </span>
-                <h3 className="text-lg font-black text-slate-900 mt-1">
-                  SR Verified Merchant Annual Pass
-                </h3>
-                <p className="text-xs text-slate-600">
-                  Fixed fee set by platform administration. Grants store activation upon review.
+              </div>
+
+              {/* Store Profile Review Banner */}
+              <div className="p-4 bg-slate-50 border border-slate-200/90 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                <div className="space-y-0.5">
+                  <div className="flex items-center gap-2">
+                    <strong className="text-sm font-black text-slate-900">{formData.storeName || 'Store'}</strong>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-[#0c2a5e]">
+                      {formData.category}
+                    </span>
+                  </div>
+                  <p className="text-slate-600">
+                    Dispatch: {formData.address.city}, {formData.address.state} • Bank: {formData.bankDetails.bankName} (****{formData.bankDetails.accountNumber ? formData.bankDetails.accountNumber.slice(-4) : '****'})
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setFormStep(1)}
+                  className="text-xs font-bold text-[#0c2a5e] hover:underline cursor-pointer flex-shrink-0"
+                >
+                  Edit Details
+                </button>
+              </div>
+
+              {/* Section 4: Platform Enrollment Membership Plans Created by Admin */}
+              <div className="space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-2 border-b border-slate-100">
+                  <div className="flex items-center gap-2 text-sm font-black text-slate-900">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    <span>Choose Membership Plan (Configured by Admin)</span>
+                  </div>
+                  <span className="text-[11px] font-bold text-slate-500">
+                    Choose a plan to activate your store upon Admin approval
+                  </span>
+                </div>
+
+                {plansLoading ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {[1, 2].map((i) => (
+                      <div
+                        key={i}
+                        className="h-44 rounded-2xl bg-slate-100 border border-slate-200 animate-pulse"
+                      />
+                    ))}
+                  </div>
+                ) : plans.length > 0 ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {plans.map((plan) => {
+                      const isSelected = selectedPlan?._id === plan._id;
+                      return (
+                        <div
+                          key={plan._id}
+                          onClick={() => handleSelectPlan(plan)}
+                          className={`relative rounded-2xl p-5 transition-all cursor-pointer flex flex-col justify-between ${
+                            isSelected
+                              ? 'border-2 border-[#0c2a5e] bg-gradient-to-br from-blue-50/90 via-slate-50 to-indigo-50/50 shadow-md ring-2 ring-[#0c2a5e]/20 scale-[1.01]'
+                              : 'border border-slate-200 bg-white hover:border-slate-300 hover:shadow-xs'
+                          }`}
+                        >
+                          {/* Top Header with Radio Indicator and Badge */}
+                          <div className="space-y-3">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className={`w-5 h-5 rounded-full flex items-center justify-center border-2 transition ${
+                                    isSelected
+                                      ? 'border-[#0c2a5e] bg-[#0c2a5e] text-white'
+                                      : 'border-slate-300 bg-white'
+                                  }`}
+                                >
+                                  {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                                </div>
+                                <h4 className="text-base font-black text-slate-900 capitalize">
+                                  {plan.title}
+                                </h4>
+                              </div>
+
+                              {plan.badge ? (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-100 text-amber-800 border border-amber-200">
+                                  {plan.badge}
+                                </span>
+                              ) : isSelected ? (
+                                <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-blue-100 text-[#0c2a5e]">
+                                  Selected
+                                </span>
+                              ) : null}
+                            </div>
+
+                            {/* Price and Validity */}
+                            <div className="pt-1">
+                              <div className="flex items-baseline gap-1">
+                                <span className="text-2xl sm:text-3xl font-black text-[#0c2a5e]">
+                                  ₹{plan.price.toLocaleString('en-IN')}
+                                </span>
+                                <span className="text-xs text-slate-500 font-bold">
+                                  / {plan.durationDays} Days
+                                </span>
+                              </div>
+                              <div className="text-[11px] font-bold text-slate-600 flex items-center gap-1 mt-1">
+                                <Clock className="w-3.5 h-3.5 text-amber-600 flex-shrink-0" />
+                                <span>Validity: {plan.durationDays} Days ({formatDurationDays(plan.durationDays)})</span>
+                              </div>
+                            </div>
+
+                            {/* Description if present */}
+                            {plan.description && (
+                              <p className="text-xs text-slate-600 line-clamp-2">
+                                {plan.description}
+                              </p>
+                            )}
+
+                            {/* Features list */}
+                            <div className="pt-2 border-t border-slate-200/80 space-y-1.5 text-xs text-slate-700">
+                              {plan.features && plan.features.length > 0 ? (
+                                plan.features.map((feat, idx) => (
+                                  <div key={idx} className="flex items-start gap-1.5">
+                                    <Check className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                                    <span className="text-[11px] leading-tight">{feat}</span>
+                                  </div>
+                                ))
+                              ) : (
+                                <>
+                                  <div className="flex items-start gap-1.5">
+                                    <Check className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                                    <span className="text-[11px] leading-tight">Unlimited Product Catalog &amp; Inventory</span>
+                                  </div>
+                                  <div className="flex items-start gap-1.5">
+                                    <Check className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                                    <span className="text-[11px] leading-tight">Public Storefront with Verified Merchant Trust Badge</span>
+                                  </div>
+                                  <div className="flex items-start gap-1.5">
+                                    <Check className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                                    <span className="text-[11px] leading-tight">Direct Customer Orders &amp; Direct Bank Settlements</span>
+                                  </div>
+                                  <div className="flex items-start gap-1.5">
+                                    <Check className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0 mt-0.5" />
+                                    <span className="text-[11px] leading-tight">Earn ₹500 Instant Referral Bonus on Merchant Invites</span>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Selected State Marker Button */}
+                          <div className="pt-3 mt-3 border-t border-slate-100">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSelectPlan(plan);
+                              }}
+                              className={`w-full py-1.5 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+                                isSelected
+                                  ? 'bg-[#0c2a5e] text-white'
+                                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+                              }`}
+                            >
+                              {isSelected ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5" />
+                                  <span>Plan Selected</span>
+                                </>
+                              ) : (
+                                <span>Choose This Plan</span>
+                              )}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-5 bg-amber-50 border border-amber-200 rounded-2xl text-xs text-amber-800">
+                    <p className="font-bold">Standard Platform Enrollment Plan</p>
+                    <p>Fee: ₹{enrollmentFee} (Validity: {planDurationDays} Days)</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Primary Action Button: Pay & Submit */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  id="pay-and-submit-merchant-btn"
+                  onClick={handleInitiatePayment}
+                  disabled={submitting || paymentLoading}
+                  className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#0c2a5e] to-[#174896] hover:from-[#092048] hover:to-[#123875] text-white font-black text-sm shadow-xl transition active:scale-98 flex items-center justify-center gap-2 cursor-pointer disabled:bg-slate-400"
+                >
+                  {submitting || paymentLoading ? (
+                    <span>Opening Razorpay Payment Gateway...</span>
+                  ) : (
+                    <>
+                      <CreditCard className="w-5 h-5 text-amber-300" />
+                      <span>
+                        Pay ₹{enrollmentFee.toLocaleString('en-IN')}{selectedPlan ? ` for ${selectedPlan.title}` : ''} via Razorpay &amp; Submit for Admin Approval
+                      </span>
+                      <ArrowRight className="w-4 h-4 text-amber-300" />
+                    </>
+                  )}
+                </button>
+                <p className="text-[11px] text-center text-slate-500 mt-2">
+                  Note: Until the enrollment fee is paid, your store will not be visible in Admin Vendor Requests. Once paid, the Admin will review and activate your store.
                 </p>
               </div>
-
-              <div className="text-left sm:text-right">
-                <div className="text-3xl font-black text-[#0c2a5e]">
-                  ₹{enrollmentFee.toLocaleString('en-IN')}
-                </div>
-                <div className="text-xs text-slate-500 font-bold flex items-center sm:justify-end gap-1 mt-0.5">
-                  <Clock className="w-3.5 h-3.5 text-amber-600" />
-                  <span>Validity: {planDurationDays} Days (1 Year)</span>
-                </div>
-              </div>
             </div>
-
-            <div className="pt-3 border-t border-slate-200/80 grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs text-slate-700">
-              <div className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span>Unlimited Product Catalog &amp; Inventory</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span>Public Storefront with Verified Merchant Trust Badge</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span>Direct Customer Orders &amp; Direct Bank Settlements</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Check className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                <span>Earn ₹500 Instant Referral Bonus on Merchant Invites</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Primary Action Button: Pay & Submit */}
-          <div className="pt-2">
-            <button
-              type="submit"
-              id="pay-and-submit-merchant-btn"
-              disabled={submitting || paymentLoading}
-              className="w-full py-4 rounded-2xl bg-gradient-to-r from-[#0c2a5e] to-[#174896] hover:from-[#092048] hover:to-[#123875] text-white font-black text-sm shadow-xl transition active:scale-98 flex items-center justify-center gap-2 cursor-pointer disabled:bg-slate-400"
-            >
-              {submitting || paymentLoading ? (
-                <span>Processing Store Details &amp; Payment...</span>
-              ) : (
-                <>
-                  <CreditCard className="w-5 h-5 text-amber-300" />
-                  <span>
-                    Pay ₹{enrollmentFee.toLocaleString('en-IN')} via Razorpay &amp; Submit for Admin Approval
-                  </span>
-                  <ArrowRight className="w-4 h-4 text-amber-300" />
-                </>
-              )}
-            </button>
-            <p className="text-[11px] text-center text-slate-500 mt-2">
-              Note: Until the enrollment fee is paid, your store will not be visible in Admin Vendor Requests. Once paid, the Admin will review and activate your store.
-            </p>
-          </div>
-        </form>
+          )}
+        </div>
       )}
 
       {/* Simulated Razorpay Test Checkout Modal (fallback for test keys) */}
@@ -1051,12 +1378,15 @@ const VendorRegister = () => {
 
             <div className="space-y-2 text-center py-2">
               <p className="text-xs text-slate-500">Paying Store Enrollment Fee for:</p>
-              <h4 className="font-black text-slate-900 text-base">{formData.storeName}</h4>
+              <h4 className="font-black text-slate-900 text-base">{formData.storeName || 'Store'}</h4>
+              <p className="text-xs font-bold text-[#0c2a5e] bg-blue-50 inline-block px-3 py-1 rounded-full border border-blue-200">
+                {selectedPlan?.title || 'Selected Membership Plan'}
+              </p>
               <div className="text-4xl font-black text-[#0c2a5e]">
                 ₹{enrollmentFee.toLocaleString('en-IN')}
               </div>
               <p className="text-xs text-slate-500">
-                Plan Validity: <strong>{planDurationDays} Days (1 Year)</strong>
+                Plan Validity: <strong>{planDurationDays} Days ({formatDurationDays(planDurationDays)})</strong>
               </p>
             </div>
 

@@ -117,12 +117,12 @@ const AdminLayout = ({ children, title = 'Dashboard Overview', subtitle = '', on
       badgeAlert: pendingApprovalsCount > 0,
     },
     {
-      title: 'Products',
+      title: 'Products & Sourcing',
       path: '/admin/products',
       icon: Package,
     },
     {
-      title: 'Order History',
+      title: 'Orders & Fulfillment',
       path: '/admin/orders',
       icon: ShoppingBag,
     },

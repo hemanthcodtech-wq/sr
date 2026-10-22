@@ -31,6 +31,19 @@ import Logo from './Logo';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
 
+const isRealAvatar = (avatar) => {
+  if (!avatar || typeof avatar !== 'string') return false;
+  if (avatar.includes('images.unsplash.com')) return false;
+  return true;
+};
+
+const getUserInitials = (name) => {
+  if (!name) return 'U';
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+  return (parts[0] || 'U').slice(0, 2).toUpperCase();
+};
+
 const Navbar = () => {
   const { user, isAuthenticated, logout, isAdmin, isVendor } = useAuth();
   const { cartCount, wishlistCount } = useCart();
@@ -123,6 +136,16 @@ const Navbar = () => {
               <span className="text-xs font-semibold mt-1">Stores</span>
             </Link>
 
+            {isVendor && (
+              <Link
+                to="/vendor/dashboard"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black text-xs shadow-2xs hover:brightness-105 transition"
+              >
+                <Store className="w-3.5 h-3.5" />
+                <span>Vendor Hub</span>
+              </Link>
+            )}
+
             <Link
               to="/about"
               className="hidden xl:flex flex-col items-center text-slate-700 hover:text-[#0c2a5e] transition group text-center"
@@ -173,25 +196,47 @@ const Navbar = () => {
             {isAuthenticated ? (
               <div className="relative">
                 <button
+                  type="button"
+                  id="user-menu-btn"
                   onClick={() => setUserDropdownOpen(!userDropdownOpen)}
-                  className="flex items-center gap-1.5 p-1 rounded-md text-slate-700 hover:text-[#0c2a5e] transition cursor-pointer"
+                  className="flex items-center gap-1.5 p-1 rounded-full hover:bg-slate-100 transition cursor-pointer"
+                  aria-expanded={userDropdownOpen}
                 >
-                  <img
-                    src={user?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'}
-                    alt="User"
-                    className="w-8 h-8 rounded-full object-cover border border-slate-300"
-                  />
+                  {isRealAvatar(user?.avatar) ? (
+                    <img
+                      src={user.avatar}
+                      alt={user?.name || 'User'}
+                      className="w-8 h-8 rounded-full object-cover border border-slate-300 shadow-2xs"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#0c2a5e] to-[#1a4b9c] text-white flex items-center justify-center font-black text-xs tracking-wider shadow-2xs border border-[#143d82]">
+                      {getUserInitials(user?.name)}
+                    </div>
+                  )}
                   <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${userDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {userDropdownOpen && (
-                  <div className="absolute right-0 mt-2 w-56 bg-white border border-slate-200 rounded-xl shadow-xl py-2 z-50 text-xs">
-                    <div className="px-4 py-2 border-b border-slate-100">
-                      <p className="font-bold text-slate-900 truncate">{user?.name}</p>
-                      <p className="text-[11px] text-slate-500 truncate">{user?.email}</p>
-                      <span className="inline-block mt-1 font-bold uppercase px-2 py-0.5 rounded-full bg-blue-50 text-[#0c2a5e]">
-                        {user?.role}
-                      </span>
+                  <div className="absolute right-0 mt-2 w-60 bg-white border border-slate-200 rounded-2xl shadow-xl py-2 z-50 text-xs">
+                    <div className="px-4 py-2.5 border-b border-slate-100 flex items-center gap-2.5">
+                      {isRealAvatar(user?.avatar) ? (
+                        <img
+                          src={user.avatar}
+                          alt={user?.name || 'User'}
+                          className="w-9 h-9 rounded-full object-cover border border-slate-200 shadow-xs flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#0c2a5e] to-[#1a4b9c] text-white flex items-center justify-center font-black text-xs tracking-wider shadow-xs border border-[#143d82] flex-shrink-0">
+                          {getUserInitials(user?.name)}
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className="font-bold text-slate-900 truncate">{user?.name}</p>
+                        <p className="text-[11px] text-slate-500 truncate">{user?.email}</p>
+                        <span className="inline-block mt-0.5 font-bold uppercase px-2 py-0.5 rounded-full bg-blue-50 text-[#0c2a5e] text-[10px]">
+                          {user?.role}
+                        </span>
+                      </div>
                     </div>
 
                     <Link

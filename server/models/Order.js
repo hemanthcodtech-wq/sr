@@ -50,6 +50,41 @@ const orderItemSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  // Dropshipping source & fulfillment tracking
+  isDropshipped: {
+    type: Boolean,
+    default: false,
+  },
+  sourcePlatform: {
+    type: String,
+    enum: ['in_house', 'amazon', 'flipkart', 'meesho', 'deodap', 'other'],
+    default: 'in_house',
+  },
+  sourceUrl: {
+    type: String,
+    default: '',
+  },
+  sourcePrice: {
+    type: Number,
+    default: 0,
+  },
+  profitMargin: {
+    type: Number,
+    default: 0,
+  },
+  sourceOrderId: {
+    type: String,
+    default: '',
+  },
+  sourceTrackingNumber: {
+    type: String,
+    default: '',
+  },
+  fulfillmentStatus: {
+    type: String,
+    enum: ['unfulfilled', 'ordered_on_source', 'shipped_by_source', 'delivered_to_customer'],
+    default: 'unfulfilled',
+  },
 });
 
 const orderSchema = new mongoose.Schema(

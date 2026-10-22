@@ -115,7 +115,7 @@ const defaultUsers = [
     phone: '+91 98765 43210',
     referralCode: 'ADMIN-NEXMART',
     walletBalance: 0,
-    avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200&auto=format&fit=crop&q=80',
+    avatar: '',
   },
   {
     _id: 'user_vendor_techgear',
@@ -126,7 +126,7 @@ const defaultUsers = [
     referralCode: 'VEND-ARJUN1',
     walletBalance: 2500,
     store: defaultStores[0],
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=200&auto=format&fit=crop&q=80',
+    avatar: '',
   },
   {
     _id: 'user_vendor_urbanstyle',
@@ -138,7 +138,7 @@ const defaultUsers = [
     referredBy: 'user_vendor_techgear',
     walletBalance: 1200,
     store: defaultStores[1],
-    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=200&auto=format&fit=crop&q=80',
+    avatar: '',
   },
   {
     _id: 'user_customer_ramarajukoyyalagadda',
@@ -180,7 +180,7 @@ const defaultUsers = [
       smsUpdates: true,
       promoAlerts: true,
     },
-    avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&auto=format&fit=crop&q=80',
+    avatar: '',
   },
 ];
 

@@ -96,27 +96,39 @@ export const CartProvider = ({ children }) => {
         return false;
       }
 
+      let toastMsg = null;
+      let toastType = 'success';
+
       setCartItems((prevItems) => {
         const existing = prevItems.find((item) => item.product._id === product._id);
         if (existing) {
           const updatedQty = existing.quantity + quantity;
           if (product.stock && updatedQty > product.stock) {
-            info(`Only ${product.stock} items currently in stock.`);
+            toastMsg = `Only ${product.stock} items currently in stock.`;
+            toastType = 'info';
             return prevItems;
           }
-          success(`Updated ${product.title} quantity to ${updatedQty}`);
+          toastMsg = `Updated ${product.title} quantity to ${updatedQty}`;
+          toastType = 'success';
           return prevItems.map((item) =>
             item.product._id === product._id ? { ...item, quantity: updatedQty } : item
           );
         } else {
           if (product.stock && quantity > product.stock) {
-            info(`Only ${product.stock} items available in stock.`);
+            toastMsg = `Only ${product.stock} items available in stock.`;
+            toastType = 'info';
             return prevItems;
           }
-          success(`Added "${product.title}" to your cart!`);
+          toastMsg = `Added "${product.title}" to your cart!`;
+          toastType = 'success';
           return [...prevItems, { product, quantity, store: product.store || product.vendor?.store }];
         }
       });
+
+      if (toastMsg) {
+        if (toastType === 'info') info(toastMsg);
+        else success(toastMsg);
+      }
       return true;
     },
     [isAuthenticated, error, navigate, location, info, success]
@@ -124,13 +136,17 @@ export const CartProvider = ({ children }) => {
 
   const removeFromCart = useCallback(
     (productId) => {
+      let removedTitle = null;
       setCartItems((prevItems) => {
         const removed = prevItems.find((item) => item.product._id === productId);
         if (removed) {
-          info(`Removed "${removed.product.title}" from your cart`);
+          removedTitle = removed.product.title;
         }
         return prevItems.filter((item) => item.product._id !== productId);
       });
+      if (removedTitle) {
+        info(`Removed "${removedTitle}" from your cart`);
+      }
     },
     [info]
   );
@@ -172,19 +188,29 @@ export const CartProvider = ({ children }) => {
         return false;
       }
 
+      let toastMsg = null;
+      let toastType = 'success';
       let added = false;
+
       setWishlistItems((prev) => {
         const exists = prev.some((item) => item._id === product._id);
         if (exists) {
-          info(`Removed "${product.title}" from your wishlist`);
+          toastMsg = `Removed "${product.title}" from your wishlist`;
+          toastType = 'info';
           added = false;
           return prev.filter((item) => item._id !== product._id);
         } else {
-          success(`Saved "${product.title}" to your wishlist!`);
+          toastMsg = `Saved "${product.title}" to your wishlist!`;
+          toastType = 'success';
           added = true;
           return [...prev, product];
         }
       });
+
+      if (toastMsg) {
+        if (toastType === 'info') info(toastMsg);
+        else success(toastMsg);
+      }
       return added;
     },
     [isAuthenticated, error, navigate, location, info, success]
@@ -199,13 +225,17 @@ export const CartProvider = ({ children }) => {
 
   const removeFromWishlist = useCallback(
     (productId) => {
+      let removedTitle = null;
       setWishlistItems((prev) => {
         const removed = prev.find((item) => item._id === productId);
         if (removed) {
-          info(`Removed "${removed.title}" from your wishlist`);
+          removedTitle = removed.title;
         }
         return prev.filter((item) => item._id !== productId);
       });
+      if (removedTitle) {
+        info(`Removed "${removedTitle}" from your wishlist`);
+      }
     },
     [info]
   );
@@ -230,10 +260,13 @@ export const CartProvider = ({ children }) => {
     if (wishlistStorageKey) localStorage.removeItem(wishlistStorageKey);
   }, [wishlistStorageKey]);
 
-  const cartTotal = cartItems.reduce(
-    (total, item) => total + (item.product.price || 0) * item.quantity,
-    0
-  );
+  const cartTotal = cartItems.reduce((total, item) => {
+    const itemPrice =
+      item.product.discountPrice && item.product.discountPrice < item.product.price
+        ? item.product.discountPrice
+        : item.product.price || 0;
+    return total + itemPrice * item.quantity;
+  }, 0);
 
   const cartCount = cartItems.reduce((count, item) => count + item.quantity, 0);
   const wishlistCount = wishlistItems.length;

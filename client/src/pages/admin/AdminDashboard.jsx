@@ -21,6 +21,7 @@ import {
   ChevronRight,
   CreditCard,
   Building,
+  Store,
 } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import api from '../../services/api';
@@ -340,51 +341,51 @@ const AdminDashboard = () => {
             </div>
           </div>
 
-          {/* Card 5: Commissions */}
+          {/* Card 5: Number of Stores */}
           <div className="bg-white/85 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-slate-200/90 shadow-[0_4px_20px_rgba(12,42,94,0.04)] hover:shadow-[0_12px_30px_rgba(12,42,94,0.08)] hover:-translate-y-0.5 transition-all space-y-3">
-            <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-700 border border-rose-100 flex items-center justify-center shadow-2xs">
-              <Zap className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-700 border border-indigo-100 flex items-center justify-center shadow-2xs">
+              <Store className="w-5 h-5" />
             </div>
             <div>
               <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block font-sans">
-                COMMISSIONS
+                NO. OF STORES
               </span>
               <div className="text-xl sm:text-2xl font-black text-slate-900 mt-0.5 tracking-tight">
-                ₹{Number(stats.commissions || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                {stats.totalStores || stats.totalVendors || 1}
               </div>
-              <span className="text-[10px] text-slate-400 font-medium block mt-0.5">Platform Cut</span>
+              <span className="text-[10px] text-slate-400 font-medium block mt-0.5">Active Storefronts</span>
             </div>
           </div>
 
-          {/* Card 6: Net Revenue */}
+          {/* Card 6: Verified Vendors */}
           <div className="bg-white/85 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-slate-200/90 shadow-[0_4px_20px_rgba(12,42,94,0.04)] hover:shadow-[0_12px_30px_rgba(12,42,94,0.08)] hover:-translate-y-0.5 transition-all space-y-3">
-            <div className="w-10 h-10 rounded-2xl bg-cyan-50 text-cyan-700 border border-cyan-100 flex items-center justify-center shadow-2xs">
-              <TrendingUp className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-2xl bg-teal-50 text-teal-700 border border-teal-100 flex items-center justify-center shadow-2xs">
+              <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
               <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block font-sans">
-                NET REVENUE
+                MERCHANTS
               </span>
               <div className="text-xl sm:text-2xl font-black text-slate-900 mt-0.5 tracking-tight">
-                ₹{Number(stats.netRevenue || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}
+                {stats.totalVendors || 1}
               </div>
-              <span className="text-[10px] text-slate-400 font-medium block mt-0.5">Net Margin</span>
+              <span className="text-[10px] text-slate-400 font-medium block mt-0.5">Verified Vendors</span>
             </div>
           </div>
         </div>
 
         {/* Middle Section: Live Dynamic Sales Chart (8 cols) + Real Inventory Alerts (4 cols) */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-          {/* Dynamic Sales & Commissions Curve */}
+          {/* Dynamic Sales Trend Curve */}
           <div className="lg:col-span-7 xl:col-span-8 bg-white/85 backdrop-blur-xl p-5 sm:p-6 rounded-2xl border border-slate-200/90 shadow-[0_4px_20px_rgba(12,42,94,0.04)] space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div>
                 <h3 className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-                  <span>Sales &amp; Commissions Trend</span>
+                  <span>Sales &amp; Orders Trend</span>
                   <span className="text-[11px] font-bold text-slate-400 uppercase bg-slate-100 px-2 py-0.5 rounded-md">Live Sync</span>
                 </h3>
                 <p className="text-xs text-slate-500 font-medium">
-                  Dynamic revenue and platform commission distribution across timeline
+                  Dynamic store revenue and order fulfillment timeline across marketplace
                 </p>
               </div>
 
@@ -413,13 +414,10 @@ const AdminDashboard = () => {
             {/* Dynamic Legend */}
             <div className="flex flex-wrap items-center gap-4 text-xs font-bold pt-1">
               <span className="flex items-center gap-1.5 text-indigo-700">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#4338ca]"></span> Total Sales
+                <span className="w-2.5 h-2.5 rounded-full bg-[#4338ca]"></span> Total Sales (₹)
               </span>
-              <span className="flex items-center gap-1.5 text-cyan-600">
-                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400"></span> Net Revenue
-              </span>
-              <span className="flex items-center gap-1.5 text-rose-600">
-                <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Commission (10%)
+              <span className="flex items-center gap-1.5 text-emerald-600">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Active Store Orders
               </span>
             </div>
 
@@ -478,18 +476,7 @@ const AdminDashboard = () => {
                   <path
                     d={chartMetrics.cyanPath}
                     fill="none"
-                    stroke="#06b6d4"
-                    strokeWidth="2.5"
-                    strokeDasharray="4,4"
-                    strokeLinecap="round"
-                  />
-                )}
-
-                {chartMetrics.rosePath && (
-                  <path
-                    d={chartMetrics.rosePath}
-                    fill="none"
-                    stroke="#f43f5e"
+                    stroke="#10b981"
                     strokeWidth="2.5"
                     strokeLinecap="round"
                   />

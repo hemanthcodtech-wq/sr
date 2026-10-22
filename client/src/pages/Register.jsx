@@ -23,6 +23,7 @@ import {
   FileCheck,
   CreditCard,
   Check,
+  Camera,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -41,6 +42,33 @@ const Register = () => {
   const [referralCode, setReferralCode] = useState('');
   const [showReferralInput, setShowReferralInput] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(true);
+
+  // Profile Picture State
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(null);
+  const avatarInputRef = useRef(null);
+
+  const handleAvatarChange = (file) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      error('Please select an image file (JPG, PNG, or WEBP)');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      error('Profile image exceeds 10MB limit. Please select a smaller photo.');
+      return;
+    }
+    setAvatarFile(file);
+    const reader = new FileReader();
+    reader.onload = (e) => setAvatarPreview(e.target.result);
+    reader.readAsDataURL(file);
+  };
+
+  const removeAvatar = () => {
+    setAvatarFile(null);
+    setAvatarPreview(null);
+    if (avatarInputRef.current) avatarInputRef.current.value = '';
+  };
 
   // Merchant KYC: Numbers and Documents (Both Aadhaar & PAN are mandatory)
   const [aadhaarNumber, setAadhaarNumber] = useState('');
@@ -180,6 +208,11 @@ const Register = () => {
       formData.append('password', password);
       formData.append('role', role);
 
+      // Attach profile picture if uploaded
+      if (avatarFile) {
+        formData.append('avatar', avatarFile);
+      }
+
       // Only attach numbers & documents if role is vendor
       if (role === 'vendor') {
         formData.append('aadhaarNumber', aadhaarNumber.replace(/\s/g, ''));
@@ -200,12 +233,20 @@ const Register = () => {
           state: {
             email: email.trim().toLowerCase(),
             name: name.trim(),
+            role: 'vendor',
             redirectTo: '/vendor/register',
           },
         });
       } else {
-        success(`Account created successfully! Welcome to Amezon.online, ${registeredUser.name}`);
-        navigate('/');
+        success(`Account created! A 6-digit verification code has been dispatched to ${email}`);
+        navigate('/verify-otp', {
+          state: {
+            email: email.trim().toLowerCase(),
+            name: name.trim(),
+            role: 'customer',
+            redirectTo: '/profile',
+          },
+        });
       }
     } catch (err) {
       error(err.response?.data?.message || err.message || 'Registration failed');
@@ -406,6 +447,76 @@ const Register = () => {
             )}
 
             <form onSubmit={handleRegisterSubmit} className="space-y-4" autoComplete="off">
+              {/* Profile Picture Upload (Replaces default stock avatar) */}
+              <div className="p-4 bg-gradient-to-r from-slate-50 to-blue-50/40 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-center gap-4">
+                <div className="relative group flex-shrink-0">
+                  <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-full border-2 border-dashed border-slate-300 group-hover:border-[#0c2a5e] overflow-hidden bg-white shadow-xs flex items-center justify-center transition">
+                    {avatarPreview ? (
+                      <img
+                        src={avatarPreview}
+                        alt="Profile Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-slate-400 group-hover:text-[#0c2a5e] transition">
+                        <User className="w-8 h-8 stroke-[1.5]" />
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => avatarInputRef.current?.click()}
+                    className="absolute bottom-0 right-0 p-1.5 rounded-full bg-[#0c2a5e] hover:bg-[#16428a] text-white shadow-md transition cursor-pointer"
+                    title="Choose photo"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div className="flex-1 text-center sm:text-left space-y-1">
+                  <div className="flex items-center justify-center sm:justify-start gap-2">
+                    <label className="text-xs sm:text-sm font-bold text-slate-800">
+                      Profile Picture <span className="text-[11px] font-normal text-slate-500">(Optional)</span>
+                    </label>
+                    {avatarPreview && (
+                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                        Photo Selected
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-500 leading-tight">
+                    Upload your real personal or merchant photo. It will appear on your store, header, and order dispatches.
+                  </p>
+                  <div className="flex items-center justify-center sm:justify-start gap-2 pt-1">
+                    <button
+                      type="button"
+                      id="upload-profile-photo-btn"
+                      onClick={() => avatarInputRef.current?.click()}
+                      className="px-3 py-1.5 text-xs font-bold rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 transition cursor-pointer shadow-2xs"
+                    >
+                      {avatarPreview ? 'Change Photo' : 'Upload Photo'}
+                    </button>
+                    {avatarPreview && (
+                      <button
+                        type="button"
+                        onClick={removeAvatar}
+                        className="px-2.5 py-1.5 text-xs font-bold rounded-lg text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    type="file"
+                    ref={avatarInputRef}
+                    id="profile-pic-input"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={(e) => handleAvatarChange(e.target.files?.[0])}
+                  />
+                </div>
+              </div>
+
               {/* Row 1: Full Name & Phone Number */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-1.5">

@@ -91,6 +91,7 @@ exports.submitMerchantApplication = async (req, res, next) => {
       banner,
       bankDetails,
       referralCode,
+      planId,
     } = req.body;
 
     if (!storeName || !phone) {
@@ -103,6 +104,18 @@ exports.submitMerchantApplication = async (req, res, next) => {
 
     const effectiveAadhaar = documents?.aadhaarNumber || existingStore?.documents?.aadhaarNumber || req.user.aadhaarNumber || '543210987654';
     const effectivePan = documents?.panNumber || existingStore?.documents?.panNumber || req.user.panNumber || 'ABCDE1234F';
+
+    // Resolve selected plan if provided
+    let resolvedPlan = null;
+    if (planId) {
+      if (mongoose.connection.readyState !== 1) {
+        resolvedPlan = mockPlans.find((p) => p._id === planId) || null;
+      } else {
+        try {
+          resolvedPlan = await Plan.findById(planId);
+        } catch (_) {}
+      }
+    }
 
     const storePayload = {
       vendor: req.user._id,
@@ -126,15 +139,23 @@ exports.submitMerchantApplication = async (req, res, next) => {
       referralCodeUsed: referralCode ? referralCode.trim().toUpperCase() : existingStore?.referralCodeUsed || '',
     };
 
+    if (resolvedPlan) {
+      storePayload.activePlan = resolvedPlan._id;
+    } else if (existingStore?.activePlan) {
+      storePayload.activePlan = existingStore.activePlan._id || existingStore.activePlan;
+    }
+
     if (mongoose.connection.readyState !== 1) {
       let store = mockStores.find((s) => s.vendor === req.user._id || s.vendor?._id === req.user._id);
       if (store) {
         // Keep status as pending_payment if fee hasn't been paid yet
         storePayload.status = (store.enrollmentFeePaid || 0) > 0 ? (store.status || 'pending_admin_approval') : 'pending_payment';
+        if (resolvedPlan) storePayload.activePlan = resolvedPlan;
         Object.assign(store, storePayload);
       } else {
         storePayload.status = 'pending_payment';
         storePayload.enrollmentFeePaid = 0;
+        if (resolvedPlan) storePayload.activePlan = resolvedPlan;
         store = {
           _id: `store_${Date.now()}`,
           ...storePayload,
@@ -194,18 +215,35 @@ exports.submitMerchantApplication = async (req, res, next) => {
 exports.getEnrollmentStatus = async (req, res, next) => {
   try {
     const settings = await getSetting();
-    const enrollmentFee = settings.enrollmentFee || 999;
-    const planDurationDays = settings.planDurationDays || 365;
+    let enrollmentFee = settings.enrollmentFee || 999;
+    let planDurationDays = settings.planDurationDays || 365;
+
+    let activePlans = [];
+    if (mongoose.connection.readyState !== 1) {
+      activePlans = mockPlans.filter((p) => p.isActive);
+    } else {
+      activePlans = await Plan.find({ isActive: true }).sort({ price: 1 });
+    }
+
+    if (activePlans.length > 0) {
+      enrollmentFee = activePlans[0].price;
+      planDurationDays = activePlans[0].durationDays;
+    }
 
     if (mongoose.connection.readyState !== 1) {
-      const store = mockStores.find((s) => s.vendor === req.user._id || s.vendor?._id === req.user._id);
+      let store = mockStores.find((s) => s.vendor === req.user._id || s.vendor?._id === req.user._id);
+      if (store && store.activePlan && typeof store.activePlan === 'string') {
+        const found = mockPlans.find((p) => p._id === store.activePlan);
+        if (found) store.activePlan = found;
+      }
       return res.status(200).json({
         success: true,
         hasSubmitted: !!store,
         status: store?.status || 'not_submitted',
         store: store || null,
-        enrollmentFee,
-        planDurationDays,
+        activePlans,
+        enrollmentFee: store?.activePlan?.price || enrollmentFee,
+        planDurationDays: store?.activePlan?.durationDays || planDurationDays,
         isPaid: (store?.enrollmentFeePaid || 0) > 0,
         feePaidAt: store?.feePaidAt || null,
         paymentDetails: store?.paymentDetails || null,
@@ -221,8 +259,9 @@ exports.getEnrollmentStatus = async (req, res, next) => {
       hasSubmitted: !!store,
       status: store ? store.status : 'not_submitted',
       store,
-      enrollmentFee,
-      planDurationDays,
+      activePlans,
+      enrollmentFee: store?.activePlan?.price || enrollmentFee,
+      planDurationDays: store?.activePlan?.durationDays || planDurationDays,
       isPaid: (store?.enrollmentFeePaid || 0) > 0,
       feePaidAt: store?.feePaidAt || null,
       paymentDetails: store?.paymentDetails || null,
@@ -235,19 +274,62 @@ exports.getEnrollmentStatus = async (req, res, next) => {
   }
 };
 
-// @desc    Initiate Enrollment Fee Payment after Admin Approval
-// @route   POST /api/vendors/initiate-enrollment-fee
+// @desc    Initiate Enrollment Fee Payment for Selected Admin Plan
+// @route   POST /api/vendors/initiate-enrollment-payment
 // @access  Private
 exports.initiateEnrollmentPayment = async (req, res, next) => {
   try {
+    const { planId } = req.body;
     const settings = await getSetting();
-    const enrollmentFee = settings.enrollmentFee || 999;
-    const planDurationDays = settings.planDurationDays || 365;
+
+    let plan = null;
+    if (planId) {
+      if (mongoose.connection.readyState !== 1) {
+        plan = mockPlans.find((p) => p._id === planId) || null;
+      } else {
+        try {
+          plan = await Plan.findById(planId);
+        } catch (_) {}
+      }
+    }
+
+    // If plan not in body, check if store has activePlan saved
+    if (!plan) {
+      const existingStore = mongoose.connection.readyState === 1
+        ? await Store.findOne({ vendor: req.user._id })
+        : mockStores.find((s) => s.vendor === req.user._id || s.vendor?._id === req.user._id);
+
+      if (existingStore && existingStore.activePlan) {
+        const storedId = existingStore.activePlan._id || existingStore.activePlan;
+        if (mongoose.connection.readyState !== 1) {
+          plan = mockPlans.find((p) => p._id === storedId) || null;
+        } else {
+          try {
+            plan = await Plan.findById(storedId);
+          } catch (_) {}
+        }
+      }
+    }
+
+    // Fallback to first active plan in system
+    if (!plan) {
+      if (mongoose.connection.readyState !== 1) {
+        plan = mockPlans.find((p) => p.isActive) || mockPlans[0];
+      } else {
+        plan = await Plan.findOne({ isActive: true }).sort({ price: 1 });
+      }
+    }
+
+    const enrollmentFee = plan ? plan.price : (settings.enrollmentFee || 999);
+    const planDurationDays = plan ? plan.durationDays : (settings.planDurationDays || 365);
+    const planTitle = plan ? plan.title : 'Store Enrollment Plan';
 
     const receipt = `rcpt_enroll_${Date.now()}`;
     const { isMock, order } = await createRazorpayOrder(enrollmentFee, receipt, {
       userId: req.user._id ? req.user._id.toString() : 'mock_vendor',
       type: 'store_enrollment_fee',
+      planId: plan ? plan._id.toString() : null,
+      planTitle,
       planDurationDays,
     });
 
@@ -256,6 +338,7 @@ exports.initiateEnrollmentPayment = async (req, res, next) => {
       order,
       amount: enrollmentFee,
       planDurationDays,
+      plan,
       isMock,
       razorpayKeyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_placeholder_key',
     });
@@ -269,10 +352,46 @@ exports.initiateEnrollmentPayment = async (req, res, next) => {
 // @access  Private
 exports.verifyEnrollmentPayment = async (req, res, next) => {
   try {
-    const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+    const { razorpayOrderId, razorpayPaymentId, razorpaySignature, planId } = req.body;
     const settings = await getSetting();
-    const enrollmentFee = settings.enrollmentFee || 999;
-    const planDurationDays = settings.planDurationDays || 365;
+
+    let plan = null;
+    if (planId) {
+      if (mongoose.connection.readyState !== 1) {
+        plan = mockPlans.find((p) => p._id === planId) || null;
+      } else {
+        try {
+          plan = await Plan.findById(planId);
+        } catch (_) {}
+      }
+    }
+
+    // Resolve store
+    let store = mongoose.connection.readyState === 1
+      ? await Store.findOne({ vendor: req.user._id })
+      : mockStores.find((s) => s.vendor === req.user._id || s.vendor?._id === req.user._id);
+
+    if (!plan && store && store.activePlan) {
+      const storedId = store.activePlan._id || store.activePlan;
+      if (mongoose.connection.readyState !== 1) {
+        plan = mockPlans.find((p) => p._id === storedId) || null;
+      } else {
+        try {
+          plan = await Plan.findById(storedId);
+        } catch (_) {}
+      }
+    }
+
+    if (!plan) {
+      if (mongoose.connection.readyState !== 1) {
+        plan = mockPlans.find((p) => p.isActive) || mockPlans[0];
+      } else {
+        plan = await Plan.findOne({ isActive: true }).sort({ price: 1 });
+      }
+    }
+
+    const enrollmentFee = plan ? plan.price : (settings.enrollmentFee || 999);
+    const planDurationDays = plan ? plan.durationDays : (settings.planDurationDays || 365);
 
     const paymentDetails = {
       razorpayOrderId: razorpayOrderId || '',
@@ -280,10 +399,11 @@ exports.verifyEnrollmentPayment = async (req, res, next) => {
       razorpaySignature: razorpaySignature || '',
       paidAt: new Date(),
       amount: enrollmentFee,
+      planId: plan ? plan._id : null,
+      planTitle: plan ? plan.title : 'Store Enrollment Plan',
     };
 
     if (mongoose.connection.readyState !== 1) {
-      let store = mockStores.find((s) => s.vendor === req.user._id || s.vendor?._id === req.user._id);
       if (!store) {
         store = mockStores[0];
       }
@@ -291,8 +411,10 @@ exports.verifyEnrollmentPayment = async (req, res, next) => {
       // Update store to pending_admin_approval now that fee is paid
       store.status = 'pending_admin_approval';
       store.enrollmentFeePaid = enrollmentFee;
+      store.activePlan = plan || null;
       store.feePaidAt = new Date();
       store.paymentDetails = paymentDetails;
+      store.planExpiresAt = new Date(Date.now() + planDurationDays * 86400000);
 
       const currentUser = mockUsers.find((u) => u._id === req.user._id);
       if (currentUser) {
@@ -309,20 +431,22 @@ exports.verifyEnrollmentPayment = async (req, res, next) => {
     }
 
     // Live MongoDB Branch
-    let store = await Store.findOne({ vendor: req.user._id });
     if (!store) {
       return res.status(404).json({ success: false, message: 'Store not found' });
     }
 
     store.status = 'pending_admin_approval';
     store.enrollmentFeePaid = enrollmentFee;
+    if (plan) store.activePlan = plan._id;
     store.feePaidAt = new Date();
     store.paymentDetails = paymentDetails;
+    store.planExpiresAt = new Date(Date.now() + planDurationDays * 86400000);
     await store.save();
 
     await Subscription.create({
       vendor: req.user._id,
       store: store._id,
+      plan: plan ? plan._id : null,
       amountPaid: enrollmentFee,
       razorpayOrderId: razorpayOrderId || '',
       razorpayPaymentId: razorpayPaymentId || '',
@@ -338,10 +462,12 @@ exports.verifyEnrollmentPayment = async (req, res, next) => {
       { new: true }
     ).populate('store');
 
+    const populatedStore = await Store.findById(store._id).populate('activePlan');
+
     res.status(200).json({
       success: true,
       message: 'Enrollment fee paid successfully! Your application has been submitted for Admin approval.',
-      store,
+      store: populatedStore,
       user: updatedUser,
       paymentDetails,
     });
@@ -529,9 +655,24 @@ exports.getVendorStore = async (req, res, next) => {
       });
     }
 
-    const store = await Store.findOne({ vendor: req.user._id }).populate('activePlan');
+    let store = await Store.findOne({ vendor: req.user._id }).populate('activePlan');
+    if (!store && req.user.store) {
+      store = await Store.findById(req.user.store).populate('activePlan');
+    }
+
     if (!store) {
-      return res.status(404).json({ success: false, message: 'Store not found for this account' });
+      // Auto-create store for this vendor
+      store = await Store.create({
+        vendor: req.user._id,
+        storeName: `${req.user.name}'s Official Store`,
+        category: 'Electronics',
+        description: 'Verified merchant store on SR Multi-Vendor Marketplace',
+        phone: req.user.phone || '+91 98765 43210',
+        email: req.user.email,
+        status: 'active',
+        planExpiresAt: new Date(Date.now() + 180 * 86400000),
+      });
+      await User.findByIdAndUpdate(req.user._id, { store: store._id });
     }
 
     const isPlanActive = store.planExpiresAt && new Date(store.planExpiresAt) > new Date();
@@ -563,8 +704,12 @@ exports.updateStore = async (req, res, next) => {
       return res.status(200).json({ success: true, store });
     }
 
+    const filter = req.user.store
+      ? { $or: [{ vendor: req.user._id }, { _id: req.user.store }] }
+      : { vendor: req.user._id };
+
     const store = await Store.findOneAndUpdate(
-      { vendor: req.user._id },
+      filter,
       { storeName, description, phone, email, address, logo, banner, bankDetails },
       { new: true, runValidators: true }
     ).populate('activePlan');
@@ -663,12 +808,12 @@ exports.requestPayout = async (req, res, next) => {
     }
 
     const settings = await getSetting();
-    const minPayout = settings.minWithdrawalAmount || 500;
+    const minPayout = Math.min(settings.minWithdrawalAmount || 50, 50);
 
     if (!amount || amount < minPayout) {
       return res.status(400).json({
         success: false,
-        message: `Minimum settlement payout request is ₹${minPayout}`,
+        message: `Minimum payout request is ₹${minPayout}`,
       });
     }
 
@@ -840,3 +985,218 @@ exports.getPublicStoreByIdOrSlug = async (req, res, next) => {
     next(err);
   }
 };
+
+// @desc    Vendor renews their store subscription plan
+// @route   POST /api/vendors/renew-plan
+// @access  Private (Vendor / Admin)
+exports.renewPlanSubscription = async (req, res, next) => {
+  try {
+    const { planId, razorpayOrderId, razorpayPaymentId, razorpaySignature } = req.body;
+
+    if (!planId) {
+      return res.status(400).json({ success: false, message: 'Please select a plan to renew' });
+    }
+
+    let plan;
+    if (mongoose.connection.readyState !== 1) {
+      plan = mockPlans.find((p) => p._id === planId) || mockPlans[0];
+    } else {
+      plan = await Plan.findById(planId);
+    }
+
+    if (!plan) {
+      return res.status(404).json({ success: false, message: 'Selected plan not found' });
+    }
+
+    const planDurationDays = plan.durationDays || 90;
+    const renewalFee = plan.price;
+
+    let store = mongoose.connection.readyState === 1
+      ? await Store.findOne({ vendor: req.user._id })
+      : mockStores.find((s) => s.vendor === req.user._id || s.vendor?._id === req.user._id);
+
+    if (!store) {
+      return res.status(404).json({ success: false, message: 'Store not found for this account' });
+    }
+
+    const now = new Date();
+    let currentExpires = store.planExpiresAt ? new Date(store.planExpiresAt) : now;
+    // If already expired, start from now; if still valid, extend from current expiry date
+    const baseDate = currentExpires > now ? currentExpires : now;
+    const newExpiresAt = new Date(baseDate.getTime() + planDurationDays * 86400000);
+
+    const paymentDetails = {
+      razorpayOrderId: razorpayOrderId || '',
+      razorpayPaymentId: razorpayPaymentId || '',
+      razorpaySignature: razorpaySignature || '',
+      paidAt: now,
+      amount: renewalFee,
+      planId: plan._id,
+      planTitle: plan.title,
+    };
+
+    if (mongoose.connection.readyState !== 1) {
+      store.status = 'active';
+      store.activePlan = plan;
+      store.planExpiresAt = newExpiresAt;
+      store.paymentDetails = paymentDetails;
+
+      return res.status(200).json({
+        success: true,
+        message: `Plan renewed successfully! Your store is active until ${newExpiresAt.toLocaleDateString('en-IN')}`,
+        store,
+        daysRemaining: Math.ceil((newExpiresAt - now) / 86400000),
+      });
+    }
+
+    // Live MongoDB Branch
+    store.status = 'active';
+    store.activePlan = plan._id;
+    store.planExpiresAt = newExpiresAt;
+    store.paymentDetails = paymentDetails;
+    await store.save();
+
+    await Subscription.create({
+      vendor: req.user._id,
+      store: store._id,
+      plan: plan._id,
+      amountPaid: renewalFee,
+      razorpayOrderId: razorpayOrderId || '',
+      razorpayPaymentId: razorpayPaymentId || '',
+      startDate: now,
+      endDate: newExpiresAt,
+      status: 'active',
+    });
+
+    const populatedStore = await Store.findById(store._id).populate('activePlan');
+
+    res.status(200).json({
+      success: true,
+      message: `Plan renewed successfully! Your store is active until ${newExpiresAt.toLocaleDateString('en-IN')}`,
+      store: populatedStore,
+      daysRemaining: Math.ceil((newExpiresAt - now) / 86400000),
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Get real-time vendor metrics and analytics from database
+// @route   GET /api/vendors/analytics
+// @access  Private (Vendor)
+exports.getVendorAnalytics = async (req, res, next) => {
+  try {
+    const Order = require('../models/Order');
+    const Product = require('../models/Product');
+
+    const vendorId = req.user._id;
+
+    // 1. Get live vendor products
+    const products = await Product.find({ vendor: vendorId }).select('title price countInStock category isFeatured rating numReviews createdAt');
+    const totalProducts = products.length;
+    const totalStock = products.reduce((sum, p) => sum + (p.countInStock || 0), 0);
+    const featuredProductsCount = products.filter((p) => p.isFeatured).length;
+
+    // 2. Get live orders containing vendor items
+    const orders = await Order.find({ 'items.vendor': vendorId }).sort({ createdAt: -1 });
+
+    let totalSales = 0;
+    let deliveredOrdersCount = 0;
+    let pendingOrdersCount = 0;
+    let processingCount = 0;
+    let shippedCount = 0;
+    const recentOrders = [];
+
+    // Daily revenue accumulation for last 7 days
+    const daysMap = {};
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().split('T')[0];
+      const dayLabel = dayNames[d.getDay()];
+      daysMap[key] = { key, day: dayLabel, sales: 0, earnings: 0, orderCount: 0 };
+    }
+
+    orders.forEach((order) => {
+      const vendorItems = (order.items || []).filter(
+        (item) => item.vendor && item.vendor.toString() === vendorId.toString()
+      );
+
+      const orderVendorSubtotal = vendorItems.reduce(
+        (acc, item) => acc + (item.price || 0) * (item.quantity || 1),
+        0
+      );
+
+      totalSales += orderVendorSubtotal;
+
+      const allDelivered = vendorItems.every((i) => i.deliveryStatus === 'Delivered');
+      const anyShipped = vendorItems.some((i) => i.deliveryStatus === 'Shipped' || i.deliveryStatus === 'Out for Delivery');
+      const anyProcessing = vendorItems.some((i) => i.deliveryStatus === 'Processing');
+
+      if (allDelivered && vendorItems.length > 0) deliveredOrdersCount++;
+      else if (anyShipped) shippedCount++;
+      else if (anyProcessing) processingCount++;
+
+      if (!allDelivered) pendingOrdersCount++;
+
+      // Chart aggregation
+      const orderDateKey = new Date(order.createdAt).toISOString().split('T')[0];
+      if (daysMap[orderDateKey]) {
+        daysMap[orderDateKey].sales += orderVendorSubtotal;
+        daysMap[orderDateKey].earnings += Math.round(orderVendorSubtotal * 0.9);
+        daysMap[orderDateKey].orderCount += 1;
+      }
+
+      if (recentOrders.length < 5 && vendorItems.length > 0) {
+        recentOrders.push({
+          _id: order._id,
+          invoiceNumber: order.invoiceNumber,
+          createdAt: order.createdAt,
+          subtotal: orderVendorSubtotal,
+          firstItemTitle: vendorItems[0]?.title || 'Product Item',
+          firstItemImage: vendorItems[0]?.image || '',
+          deliveryStatus: vendorItems[0]?.deliveryStatus || 'Processing',
+          customerName: order.shippingAddress?.fullName || 'Customer',
+          customerCity: order.shippingAddress?.city || '',
+          customerState: order.shippingAddress?.state || '',
+        });
+      }
+    });
+
+    const settings = await getSetting();
+    const commissionPercent = settings?.commissionRatePercent || 10;
+    const myEarnings = Math.round(totalSales * ((100 - commissionPercent) / 100));
+
+    // Get live vendor referrals count
+    const referrals = await User.find({ referredBy: vendorId }).select('name email createdAt');
+    const referralBonusEarned = referrals.length * (settings?.referralBonusAmount || 200);
+
+    const weeklyChart = Object.values(daysMap);
+
+    res.status(200).json({
+      success: true,
+      stats: {
+        totalSales,
+        myEarnings,
+        walletBalance: req.user.walletBalance || 0,
+        totalProducts,
+        totalStock,
+        featuredProductsCount,
+        totalOrders: orders.length,
+        deliveredOrdersCount,
+        pendingOrdersCount,
+        processingCount,
+        shippedCount,
+        totalReferrals: referrals.length,
+        referralBonusEarned,
+        referralBonusPerStore: settings?.referralBonusAmount || 200,
+        weeklyChart,
+        recentOrders,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+

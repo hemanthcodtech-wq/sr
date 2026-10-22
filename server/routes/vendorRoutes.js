@@ -13,6 +13,8 @@ const {
   verifyEnrollmentPayment,
   getPublicStores,
   getPublicStoreByIdOrSlug,
+  renewPlanSubscription,
+  getVendorAnalytics,
 } = require('../controllers/vendorController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -26,8 +28,10 @@ router.post('/initiate-enrollment-payment', protect, initiateEnrollmentPayment);
 router.post('/verify-enrollment-payment', protect, verifyEnrollmentPayment);
 router.post('/initiate-plan-payment', protect, initiatePlanPayment);
 router.post('/register-store', protect, registerStoreWithPlan);
+router.post('/renew-plan', protect, authorize('vendor', 'admin'), renewPlanSubscription);
 router.get('/my-store', protect, authorize('vendor', 'admin'), getVendorStore);
 router.put('/my-store', protect, authorize('vendor', 'admin'), updateStore);
+router.get('/analytics', protect, authorize('vendor', 'admin'), getVendorAnalytics);
 router.get('/wallet', protect, authorize('vendor', 'admin'), getWalletAndReferrals);
 router.post('/request-payout', protect, authorize('vendor'), requestPayout);
 

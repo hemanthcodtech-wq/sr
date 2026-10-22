@@ -206,6 +206,7 @@ exports.getDashboardStats = async (req, res, next) => {
       stats: {
         totalCustomers,
         totalVendors,
+        totalStores: allStores.length,
         totalProducts,
         totalOrders: allOrders.length,
         grossSales,
@@ -313,6 +314,122 @@ exports.getMerchantApplications = async (req, res, next) => {
   }
 };
 
+// @desc    Get complete details of a specific vendor (Profile Pic, Order Values, Products, Wallet Amount, Settlements & Admin Transactions)
+// @route   GET /api/admin/vendors/:storeId/full-details
+// @access  Private (Admin)
+exports.getVendorFullDetails = async (req, res, next) => {
+  try {
+    const { storeId } = req.params;
+
+    let store = null;
+    let vendorUser = null;
+
+    if (mongoose.Types.ObjectId.isValid(storeId)) {
+      store = await Store.findById(storeId).populate('activePlan');
+    }
+    if (!store) {
+      store = await Store.findOne({
+        $or: [
+          { slug: storeId },
+          { slug: storeId.toLowerCase() },
+          { storeName: new RegExp(`^${storeId.replace(/[-_]/g, ' ')}$`, 'i') },
+          { storeName: new RegExp(`^${storeId}$`, 'i') },
+        ],
+      }).populate('activePlan');
+    }
+
+    if (!store && mongoose.Types.ObjectId.isValid(storeId)) {
+      // Try finding by vendor user ID
+      vendorUser = await User.findById(storeId);
+      if (vendorUser && vendorUser.store) {
+        store = await Store.findById(vendorUser.store).populate('activePlan');
+      }
+    }
+
+    if (!store && !vendorUser) {
+      return res.status(404).json({ success: false, message: 'Vendor store not found' });
+    }
+
+    if (!vendorUser && store?.vendor) {
+      vendorUser = await User.findById(store.vendor);
+    }
+
+    const vendorUserId = vendorUser?._id;
+    const storeObjId = store?._id;
+
+    // Fetch Products belonging to this vendor/store
+    const products = await Product.find({
+      $or: [
+        { store: storeObjId },
+        { vendor: vendorUserId },
+      ],
+    }).sort({ createdAt: -1 });
+
+    // Fetch Orders containing products from this vendor/store
+    const orders = await Order.find({
+      $or: [
+        { 'items.store': storeObjId },
+        { 'items.vendor': vendorUserId },
+      ],
+    }).sort({ createdAt: -1 });
+
+    // Calculate total order value and store sales share
+    let totalSalesValue = 0;
+    const vendorOrdersSummary = orders.map((o) => {
+      const vendorItems = o.items.filter(
+        (i) => (i.store && i.store.toString() === storeObjId?.toString()) ||
+               (i.vendor && i.vendor.toString() === vendorUserId?.toString())
+      );
+      const orderShare = vendorItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+      totalSalesValue += orderShare;
+
+      return {
+        _id: o._id,
+        invoiceNumber: o.invoiceNumber,
+        createdAt: o.createdAt,
+        totalAmount: o.totalAmount,
+        orderShare,
+        paymentStatus: o.paymentStatus,
+        paymentMethod: o.paymentMethod,
+        itemsCount: vendorItems.length,
+        items: vendorItems,
+        customerName: o.shippingAddress?.fullName || 'Customer',
+        customerCity: o.shippingAddress?.city || '',
+      };
+    });
+
+    // Fetch Settlements (admin payouts / transfers made to this vendor)
+    const settlements = await Settlement.find({
+      $or: [
+        { store: storeObjId },
+        { vendor: vendorUserId },
+      ],
+    }).sort({ createdAt: -1 });
+
+    // Fetch Wallet Transactions ledger
+    const transactions = await WalletTransaction.find({
+      vendor: vendorUserId,
+    }).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      store,
+      vendor: vendorUser,
+      walletBalance: vendorUser?.walletBalance || 0,
+      profilePic: vendorUser?.avatar || store?.logo || '',
+      productsCount: products.length,
+      products,
+      ordersCount: orders.length,
+      totalSalesValue,
+      orders: vendorOrdersSummary,
+      settlements,
+      transactions,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 // @desc    Admin Review & Approve/Reject Merchant Application
 // @route   PUT /api/admin/applications/:storeId/review
 // @access  Private (Admin)
@@ -351,8 +468,9 @@ exports.reviewMerchantApplication = async (req, res, next) => {
 
       let referralRewarded = false;
       if (isApproveAction && isAlreadyPaid) {
+        const effectiveDuration = (store.activePlan && store.activePlan.durationDays) || planDurationDays;
         const planExpiresAt = new Date();
-        planExpiresAt.setDate(planExpiresAt.getDate() + planDurationDays);
+        planExpiresAt.setDate(planExpiresAt.getDate() + effectiveDuration);
         store.planExpiresAt = planExpiresAt;
         const refResult = await creditReferralBonusIfNeeded(store, settings);
         referralRewarded = !!refResult?.rewarded;
@@ -363,7 +481,7 @@ exports.reviewMerchantApplication = async (req, res, next) => {
         message: isApproveAction
           ? (isAlreadyPaid
             ? 'Store approved & activated! Vendor dashboard and public storefront are live.'
-            : `Store approved! Notification email sent to vendor to pay ₹${enrollmentFee} enrollment fee.`)
+            : `Store approved! Notification email sent to vendor to pay platform enrollment fee.`)
           : 'Store registration application rejected.',
         store,
         referralRewarded,
@@ -371,10 +489,15 @@ exports.reviewMerchantApplication = async (req, res, next) => {
     }
 
     // Live MongoDB Branch
-    const store = await Store.findById(req.params.storeId).populate('vendor', 'name email phone');
+    const store = await Store.findById(req.params.storeId)
+      .populate('vendor', 'name email phone')
+      .populate('activePlan');
     if (!store) {
       return res.status(404).json({ success: false, message: 'Store application not found' });
     }
+
+    const effectiveFee = (store.activePlan && store.activePlan.price) || enrollmentFee;
+    const effectiveDuration = (store.activePlan && store.activePlan.durationDays) || planDurationDays;
 
     const isDirectActivate = action === 'approve_and_activate';
     const isAlreadyPaid = (store.enrollmentFeePaid || 0) > 0 || isDirectActivate;
@@ -386,13 +509,13 @@ exports.reviewMerchantApplication = async (req, res, next) => {
 
     store.status = newStatus;
     if (isDirectActivate && !store.enrollmentFeePaid) {
-      store.enrollmentFeePaid = enrollmentFee;
+      store.enrollmentFeePaid = effectiveFee;
     }
 
     store.adminNotes = notes || (isApproveAction
       ? (isAlreadyPaid
         ? 'Congratulations! Your store registration, KYC proofs, and access have been approved by admin. Your store is now live!'
-        : `Congratulations! Your store registration and KYC documents are approved. Please pay the platform enrollment fee of ₹${enrollmentFee} to activate your store.`)
+        : `Congratulations! Your store registration and KYC documents are approved. Please pay the platform enrollment fee of ₹${effectiveFee} to activate your store.`)
       : 'Application could not be approved at this time. Please check your submitted KYC document proofs.');
     store.approvedAt = isApproveAction ? new Date() : null;
     store.approvalEmailSent = isApproveAction;
@@ -401,8 +524,15 @@ exports.reviewMerchantApplication = async (req, res, next) => {
     if (isApproveAction) {
       if (isAlreadyPaid) {
         const planExpiresAt = new Date();
-        planExpiresAt.setDate(planExpiresAt.getDate() + planDurationDays);
+        planExpiresAt.setDate(planExpiresAt.getDate() + effectiveDuration);
         store.planExpiresAt = planExpiresAt;
+
+        // Activate any pending subscription
+        await Subscription.findOneAndUpdate(
+          { store: store._id },
+          { status: 'active', startDate: new Date(), endDate: planExpiresAt },
+          { sort: { createdAt: -1 } }
+        );
 
         // Credit referral reward if referred
         const refResult = await creditReferralBonusIfNeeded(store, settings);
@@ -633,6 +763,74 @@ exports.updatePlatformSettings = async (req, res, next) => {
       success: true,
       message: 'Platform settings updated successfully',
       settings,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Admin directly settles vendor wallet balance (transfers payout and reduces wallet)
+// @route   POST /api/admin/settle-vendor-wallet
+// @access  Private (Admin)
+exports.settleVendorWallet = async (req, res, next) => {
+  try {
+    const { vendorId, amount, transactionReference, notes } = req.body;
+
+    if (!vendorId) {
+      return res.status(400).json({ success: false, message: 'Vendor ID is required' });
+    }
+
+    const settleAmount = Number(amount);
+    if (!settleAmount || settleAmount <= 0) {
+      return res.status(400).json({ success: false, message: 'Valid settlement amount is required' });
+    }
+
+    const vendor = await User.findById(vendorId);
+    if (!vendor) {
+      return res.status(404).json({ success: false, message: 'Vendor user not found' });
+    }
+
+    if ((vendor.walletBalance || 0) < settleAmount) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot settle ₹${settleAmount}. Vendor available balance is ₹${vendor.walletBalance || 0}`,
+      });
+    }
+
+    // Deduct settled amount from vendor's wallet balance
+    vendor.walletBalance -= settleAmount;
+    await vendor.save();
+
+    const store = await Store.findOne({ vendor: vendor._id });
+
+    // Record completed settlement record
+    const settlement = await Settlement.create({
+      vendor: vendor._id,
+      store: store?._id,
+      amount: settleAmount,
+      status: 'completed',
+      transactionReference: transactionReference || `TXN-ADM-${Date.now()}`,
+      adminNotes: notes || 'Direct bank settlement processed by Administrator',
+      bankDetails: store?.bankDetails || {},
+      settledAt: new Date(),
+    });
+
+    // Record ledger transaction
+    await WalletTransaction.create({
+      vendor: vendor._id,
+      type: 'settlement_payout',
+      amount: -settleAmount,
+      description: `Direct Bank Settlement Disbursement: ₹${settleAmount} (Ref: ${settlement.transactionReference})`,
+      referenceId: settlement._id.toString(),
+      status: 'completed',
+      balanceAfter: vendor.walletBalance,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `Successfully settled ₹${settleAmount} for ${vendor.name}! Wallet balance reduced to ₹${vendor.walletBalance}.`,
+      remainingBalance: vendor.walletBalance,
+      settlement,
     });
   } catch (err) {
     next(err);

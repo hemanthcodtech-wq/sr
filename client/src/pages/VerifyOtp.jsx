@@ -125,7 +125,7 @@ const VerifyOtp = () => {
       });
 
       if (res.data?.success) {
-        success('Email verified successfully! Preparing your store setup...');
+        success(isVendor ? 'Email verified successfully! Preparing your store setup...' : 'Email verified successfully! Welcome to your customer account.');
 
         if (res.data.user) {
           updateUserData(res.data.user);
@@ -133,8 +133,10 @@ const VerifyOtp = () => {
           updateUserData({ ...user, emailVerified: true });
         }
 
+        const targetRoute = isVendor ? '/vendor/register' : (location.state?.redirectTo || '/profile');
+
         setTimeout(() => {
-          navigate(redirectTo, { replace: true });
+          navigate(targetRoute, { replace: true });
         }, 1200);
       }
     } catch (err) {
@@ -170,32 +172,60 @@ const VerifyOtp = () => {
     }
   };
 
+  const userRole = location.state?.role || user?.role || 'customer';
+  const isVendor = userRole === 'vendor';
+
   return (
     <div className="min-h-[85vh] flex items-center justify-center py-10 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-slate-50 via-white to-blue-50/30">
       <div className="max-w-md w-full space-y-6">
-        {/* Onboarding Steps Indicator for Merchants */}
-        <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between text-xs font-semibold">
-          <div className="flex items-center gap-1.5 text-emerald-600 font-bold">
-            <span className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-[11px]">
-              ✓
-            </span>
-            <span>1. KYC Details</span>
+        {/* Onboarding Steps Indicator for Merchants vs Customers */}
+        {isVendor ? (
+          <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between text-xs font-semibold">
+            <div className="flex items-center gap-1.5 text-emerald-600 font-bold">
+              <span className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-[11px]">
+                ✓
+              </span>
+              <span>1. KYC Details</span>
+            </div>
+            <span className="text-slate-300">──</span>
+            <div className="flex items-center gap-1.5 text-[#0c2a5e] font-bold">
+              <span className="w-5 h-5 rounded-full bg-[#0c2a5e] text-white flex items-center justify-center text-[11px] animate-pulse">
+                2
+              </span>
+              <span>2. Email OTP</span>
+            </div>
+            <span className="text-slate-300">──</span>
+            <div className="flex items-center gap-1.5 text-slate-400">
+              <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-[11px]">
+                3
+              </span>
+              <span>3. Store Setup</span>
+            </div>
           </div>
-          <span className="text-slate-300">──</span>
-          <div className="flex items-center gap-1.5 text-[#0c2a5e] font-bold">
-            <span className="w-5 h-5 rounded-full bg-[#0c2a5e] text-white flex items-center justify-center text-[11px] animate-pulse">
-              2
-            </span>
-            <span>2. Email OTP</span>
+        ) : (
+          <div className="bg-white p-3.5 rounded-2xl border border-slate-200 shadow-xs flex items-center justify-between text-xs font-semibold">
+            <div className="flex items-center gap-1.5 text-emerald-600 font-bold">
+              <span className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-[11px]">
+                ✓
+              </span>
+              <span>1. Register</span>
+            </div>
+            <span className="text-slate-300">──</span>
+            <div className="flex items-center gap-1.5 text-[#0c2a5e] font-bold">
+              <span className="w-5 h-5 rounded-full bg-[#0c2a5e] text-white flex items-center justify-center text-[11px] animate-pulse">
+                2
+              </span>
+              <span>2. Verify Email</span>
+            </div>
+            <span className="text-slate-300">──</span>
+            <div className="flex items-center gap-1.5 text-slate-400">
+              <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-[11px]">
+                3
+              </span>
+              <span>3. Start Shopping</span>
+            </div>
           </div>
-          <span className="text-slate-300">──</span>
-          <div className="flex items-center gap-1.5 text-slate-400">
-            <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center text-[11px]">
-              3
-            </span>
-            <span>3. Store Setup</span>
-          </div>
-        </div>
+        )}
 
         {/* Main Card */}
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xl shadow-blue-900/5 relative overflow-hidden text-center">
@@ -209,10 +239,10 @@ const VerifyOtp = () => {
           </div>
 
           <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-            Verify Your Business Email
+            {isVendor ? 'Verify Your Business Email' : 'Verify Your Email Address'}
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-2 leading-relaxed">
-            We have sent a 6-digit One-Time Password to your registered address:
+            We have dispatched a 6-digit verification code to:
           </p>
 
           {/* Email Highlight Pill */}

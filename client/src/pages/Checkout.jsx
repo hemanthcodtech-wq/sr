@@ -79,7 +79,12 @@ const Checkout = () => {
     const code = couponCode.trim().toUpperCase();
     if (!code) return;
 
-    if (code === 'TWO15') {
+    if (code === 'REF200' || code.startsWith('REF200-') || code.startsWith('CUST-')) {
+      const disc = Math.min(200, cartTotal);
+      setCouponDiscount(disc);
+      setAppliedCoupon({ code: code, discount: disc, desc: '₹200 Referral Shopping Reward' });
+      success(`Referral Coupon ${code} applied! ₹${disc} deducted.`);
+    } else if (code === 'TWO15') {
       if (cartTotal < 20000) {
         error('Coupon TWO15 requires a minimum cart value of ₹20,000');
         return;
@@ -98,7 +103,7 @@ const Checkout = () => {
       setAppliedCoupon({ code: 'AMEZON10', discount: disc, desc: '10% Instant Marketplace Discount' });
       success('Promo AMEZON10 applied! 10% deducted.');
     } else {
-      error('Invalid promo code. Try DASARA20 or TWO15');
+      error('Invalid promo code. Try REF200, DASARA20, or TWO15');
     }
   };
 
@@ -499,68 +504,55 @@ const Checkout = () => {
                 <h2 className="text-base font-black text-slate-900">2. Payment Method</h2>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                {/* Method 1: Razorpay Online */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                {/* Method 1: Online Payment (Cards, UPI, NetBanking, Wallets) */}
                 <div
                   onClick={() => setPaymentMethod('Razorpay')}
-                  className={`p-4 rounded-2xl border cursor-pointer transition flex flex-col justify-between ${
+                  className={`p-5 rounded-2xl border cursor-pointer transition flex flex-col justify-between ${
                     paymentMethod === 'Razorpay'
-                      ? 'border-[#0c2a5e] bg-blue-50/60 shadow-xs ring-2 ring-[#0c2a5e]'
+                      ? 'border-[#0c2a5e] bg-blue-50/70 shadow-xs ring-2 ring-[#0c2a5e]'
                       : 'border-slate-200 hover:border-slate-300 bg-white'
                   }`}
                 >
-                  <div className="space-y-2">
-                    <div className="w-8 h-8 rounded-xl bg-[#0c2a5e] text-white flex items-center justify-center">
-                      <CreditCard className="w-4 h-4" />
+                  <div className="space-y-2.5">
+                    <div className="w-10 h-10 rounded-xl bg-[#0c2a5e] text-white flex items-center justify-center shadow-xs">
+                      <CreditCard className="w-5 h-5" />
                     </div>
-                    <strong className="text-sm font-extrabold text-slate-900 block">Razorpay Gateway</strong>
-                    <p className="text-[11px] text-slate-500 leading-tight">
-                      UPI, Debit/Credit Card, NetBanking &amp; Wallets
-                    </p>
+                    <div>
+                      <strong className="text-sm font-extrabold text-slate-900 block">Online Payment</strong>
+                      <p className="text-[11.5px] text-slate-500 mt-1 leading-relaxed">
+                        UPI (GPay, PhonePe, Paytm), Credit / Debit Cards &amp; NetBanking
+                      </p>
+                    </div>
                   </div>
-                  <span className="text-[10px] text-emerald-600 font-bold mt-2">Instant Confirmation</span>
+                  <span className="text-[10.5px] text-emerald-700 font-extrabold mt-3 inline-flex items-center gap-1">
+                    ✓ Instant Confirmation &amp; Fast Dispatch
+                  </span>
                 </div>
 
-                {/* Method 2: Amezon Wallet */}
-                <div
-                  onClick={() => setPaymentMethod('Wallet')}
-                  className={`p-4 rounded-2xl border cursor-pointer transition flex flex-col justify-between ${
-                    paymentMethod === 'Wallet'
-                      ? 'border-[#0c2a5e] bg-blue-50/60 shadow-xs ring-2 ring-[#0c2a5e]'
-                      : 'border-slate-200 hover:border-slate-300 bg-white'
-                  }`}
-                >
-                  <div className="space-y-2">
-                    <div className="w-8 h-8 rounded-xl bg-cyan-600 text-white flex items-center justify-center">
-                      <Wallet className="w-4 h-4" />
-                    </div>
-                    <strong className="text-sm font-extrabold text-slate-900 block">Amezon Wallet</strong>
-                    <p className="text-[11px] text-slate-500 leading-tight">
-                      Available: <strong className="text-cyan-700">₹{(user?.walletBalance || 0).toLocaleString('en-IN')}</strong>
-                    </p>
-                  </div>
-                  <span className="text-[10px] text-[#0c2a5e] font-bold mt-2">Zero Gateway Fees</span>
-                </div>
-
-                {/* Method 3: Cash on Delivery */}
+                {/* Method 2: Cash on Delivery */}
                 <div
                   onClick={() => setPaymentMethod('Cash on Delivery')}
-                  className={`p-4 rounded-2xl border cursor-pointer transition flex flex-col justify-between ${
+                  className={`p-5 rounded-2xl border cursor-pointer transition flex flex-col justify-between ${
                     paymentMethod === 'Cash on Delivery'
-                      ? 'border-[#0c2a5e] bg-blue-50/60 shadow-xs ring-2 ring-[#0c2a5e]'
+                      ? 'border-[#0c2a5e] bg-blue-50/70 shadow-xs ring-2 ring-[#0c2a5e]'
                       : 'border-slate-200 hover:border-slate-300 bg-white'
                   }`}
                 >
-                  <div className="space-y-2">
-                    <div className="w-8 h-8 rounded-xl bg-amber-600 text-white flex items-center justify-center">
-                      <Banknote className="w-4 h-4" />
+                  <div className="space-y-2.5">
+                    <div className="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center shadow-xs">
+                      <Banknote className="w-5 h-5" />
                     </div>
-                    <strong className="text-sm font-extrabold text-slate-900 block">Cash on Delivery</strong>
-                    <p className="text-[11px] text-slate-500 leading-tight">
-                      Pay cash or scan QR when package arrives
-                    </p>
+                    <div>
+                      <strong className="text-sm font-extrabold text-slate-900 block">Cash on Delivery</strong>
+                      <p className="text-[11.5px] text-slate-500 mt-1 leading-relaxed">
+                        Pay cash or scan UPI QR code upon doorstep delivery
+                      </p>
+                    </div>
                   </div>
-                  <span className="text-[10px] text-amber-700 font-bold mt-2">Pay at Doorstep</span>
+                  <span className="text-[10.5px] text-amber-700 font-extrabold mt-3 inline-flex items-center gap-1">
+                    ● Pay at Doorstep
+                  </span>
                 </div>
               </div>
 
@@ -578,11 +570,9 @@ const Checkout = () => {
                 >
                   {loading
                     ? 'Processing Order...'
-                    : paymentMethod === 'Wallet'
-                    ? `Pay ₹${finalPayable.toLocaleString('en-IN')} from Wallet`
                     : paymentMethod === 'Cash on Delivery'
                     ? `Place COD Order (₹${finalPayable.toLocaleString('en-IN')})`
-                    : `Pay ₹${finalPayable.toLocaleString('en-IN')} via Razorpay`}
+                    : `Pay Online (₹${finalPayable.toLocaleString('en-IN')})`}
                 </button>
               </div>
             </div>

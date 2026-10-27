@@ -85,6 +85,33 @@ const orderItemSchema = new mongoose.Schema({
     enum: ['unfulfilled', 'ordered_on_source', 'shipped_by_source', 'delivered_to_customer'],
     default: 'unfulfilled',
   },
+  commissionEarned: {
+    type: Number,
+    default: 0,
+  },
+  // Vendor Affiliate Promotion (50/50 profit margin split)
+  promotedByVendor: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null,
+  },
+  promotedByStore: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Store',
+    default: null,
+  },
+  isAffiliateSale: {
+    type: Boolean,
+    default: false,
+  },
+  vendorProfitShare: {
+    type: Number,
+    default: 0,
+  },
+  adminProfitShare: {
+    type: Number,
+    default: 0,
+  },
 });
 
 const orderSchema = new mongoose.Schema(

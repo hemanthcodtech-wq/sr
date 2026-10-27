@@ -45,6 +45,7 @@ const AdminDashboard = () => {
   const [recentOrders, setRecentOrders] = useState([]);
   const [inventoryAlerts, setInventoryAlerts] = useState([]);
   const [chartData, setChartData] = useState([]);
+  const [commissionTransactions, setCommissionTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Filters & Controls
@@ -76,6 +77,7 @@ const AdminDashboard = () => {
         setRecentOrders(res.data.recentOrders || []);
         setInventoryAlerts(res.data.inventoryAlerts || []);
         setChartData(res.data.chartData || []);
+        setCommissionTransactions(res.data.commissionTransactions || []);
       }
     } catch (err) {
       console.error('Error loading live dashboard metrics:', err);
@@ -272,6 +274,52 @@ const AdminDashboard = () => {
               <RotateCcw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-amber-300' : 'text-amber-400'}`} />
               <span>{loading ? 'Syncing...' : 'Sync Live'}</span>
             </button>
+          </div>
+        </div>
+
+        {/* HERO: ADMIN DROPSHIP COMMISSION WALLET & PROFIT PANEL */}
+        <div className="bg-gradient-to-r from-emerald-950 via-[#0c2a5e] to-teal-950 rounded-3xl p-6 sm:p-7 text-white shadow-xl relative overflow-hidden border border-emerald-500/20">
+          <div className="absolute right-0 top-0 -mt-10 -mr-10 w-72 h-72 bg-emerald-400/10 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300 shadow-inner flex-shrink-0">
+                <DollarSign className="w-7 h-7" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2.5 flex-wrap">
+                  <h3 className="text-xl font-black tracking-tight">Admin Dropship Commission Wallet</h3>
+                  <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    Auto-Credited on Orders
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-emerald-100/80 mt-1 max-w-xl leading-relaxed">
+                  Every time a customer buys a DeoDap product, the net profit margin (Customer Selling Price − DeoDap Wholesale Cost) is automatically credited directly to your Admin Wallet!
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-4 bg-white/10 backdrop-blur-md px-6 py-4 rounded-2xl border border-white/15 w-full md:w-auto justify-between md:justify-start">
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-200 block">
+                  AVAILABLE COMMISSION WALLET
+                </span>
+                <div className="text-2xl sm:text-3xl font-black font-mono text-emerald-300">
+                  ₹{Number(stats.adminWalletBalance || 0).toLocaleString('en-IN')}
+                </div>
+                <span className="text-[10px] text-emerald-200/80 block mt-0.5">
+                  Total Dropship Profit: ₹{Number(stats.totalDropshipCommission || 0).toLocaleString('en-IN')}
+                </span>
+              </div>
+              <Link
+                to="/admin/dropshipping"
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-300 hover:to-teal-300 text-slate-950 font-black text-xs transition shadow-md flex items-center gap-1.5 active:scale-98 whitespace-nowrap"
+              >
+                <span>Dropship Hub</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
           </div>
         </div>
 
@@ -591,6 +639,62 @@ const AdminDashboard = () => {
             </Link>
           </div>
         </div>
+
+        {/* DEODAP COMMISSIONS EARNED AUDIT LEDGER */}
+        {commissionTransactions.length > 0 && (
+          <div className="bg-white/85 backdrop-blur-xl rounded-2xl border border-slate-200/90 shadow-[0_4px_20px_rgba(12,42,94,0.04)] overflow-hidden">
+            <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 bg-gradient-to-r from-emerald-50/60 to-white">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
+                  <TrendingUp className="w-5 h-5 text-emerald-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+                    <span>DeoDap Dropship Commission Ledger</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                      Live Audit Log
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Every commission automatically credited to your Admin Wallet on customer purchase
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">TOTAL COMMISSIONS EARNED</span>
+                <span className="font-mono font-black text-emerald-600 text-lg">
+                  ₹{Number(stats.totalDropshipCommission || 0).toLocaleString('en-IN')}
+                </span>
+              </div>
+            </div>
+
+            <div className="divide-y divide-slate-100 text-xs">
+              {commissionTransactions.map((tx) => (
+                <div key={tx._id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50/80 transition">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold flex-shrink-0">
+                      +₹
+                    </div>
+                    <div>
+                      <div className="font-bold text-slate-900">{tx.description}</div>
+                      <div className="text-[11px] text-slate-400 mt-0.5">
+                        {new Date(tx.createdAt).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className="font-mono font-black text-emerald-700 text-sm">
+                      +₹{Number(tx.amount || 0).toLocaleString('en-IN')}
+                    </div>
+                    <div className="text-[10px] text-slate-400 font-mono">
+                      Wallet Balance: ₹{Number(tx.balanceAfter || 0).toLocaleString('en-IN')}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Bottom Section: Real Live Customer Orders Table */}
         <div className="bg-white/85 backdrop-blur-xl rounded-2xl border border-slate-200/90 shadow-[0_4px_20px_rgba(12,42,94,0.04)] overflow-hidden">

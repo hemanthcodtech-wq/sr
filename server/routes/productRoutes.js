@@ -24,7 +24,7 @@ router.get('/vendor/my-products', protect, authorize('vendor', 'admin'), getVend
 router.get('/:id', getProductById);
 
 router.post('/scrape-preview', protect, authorize('vendor', 'admin'), scrapeProductPreview);
-router.post('/', protect, authorize('vendor', 'admin'), createProduct);
+router.post('/', protect, authorize('vendor'), createProduct);
 router.put('/:id', protect, authorize('vendor', 'admin'), updateProduct);
 router.delete('/:id', protect, authorize('vendor', 'admin'), deleteProduct);
 router.post('/upload-image', protect, authorize('vendor', 'admin'), upload.single('image'), uploadProductImage);

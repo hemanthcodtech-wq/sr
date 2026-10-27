@@ -4,7 +4,7 @@ import { Filter, SlidersHorizontal, Search, RotateCcw, Package } from 'lucide-re
 import ProductCard from '../components/ProductCard';
 import api from '../services/api';
 
-const categoriesList = ['All', 'Electronics', 'Furniture', 'Grocery', 'Fashion', 'Footwear', 'Accessories'];
+const categoriesList = ['All', 'Electronics', 'Home & Kitchen', 'Toys', 'Beauty', 'Fitness', 'Fashion', 'Automotive'];
 
 const Products = () => {
   const [searchParams, setSearchParams] = useSearchParams();

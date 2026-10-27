@@ -28,7 +28,9 @@ import {
   ChevronUp,
   Zap,
   Sparkles,
+  Store,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import api from '../../services/api';
 import { useToast } from '../../context/ToastContext';
@@ -180,6 +182,29 @@ const AdminOrders = () => {
       onRefresh={fetchOrders}
     >
       <div className="space-y-6 animate-fadeIn pb-12 font-sans">
+        {/* TOP NAVIGATION TOGGLE (Dropship vs Vendor Orders) */}
+        <div className="bg-white rounded-2xl p-1.5 border border-slate-200/90 shadow-2xs flex flex-wrap gap-2 items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Link
+              to="/admin/dropshipping"
+              className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition flex items-center gap-2"
+            >
+              <Truck className="w-4 h-4 text-slate-500" />
+              <span>Dropshipping Orders (Amazon/Meesho/DeoDap)</span>
+            </Link>
+            <Link
+              to="/admin/vendor-orders"
+              className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition flex items-center gap-2"
+            >
+              <Store className="w-4 h-4 text-slate-500" />
+              <span>Vendor Marketplace Orders &amp; Payouts</span>
+            </Link>
+            <span className="px-3 py-1.5 rounded-xl text-xs font-black bg-blue-50 text-[#0c2a5e] border border-blue-200">
+              All Orders Master View
+            </span>
+          </div>
+        </div>
+
         {/* HERO BANNER */}
         <div className="bg-gradient-to-r from-[#071d42] via-[#0c2a5e] to-[#153e85] rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
           <div className="absolute right-0 top-0 -mt-10 -mr-10 w-64 h-64 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />

@@ -153,6 +153,22 @@ exports.getDashboardStats = async (req, res, next) => {
 
     const pendingSettlementAmount = pendingSettlements.reduce((sum, s) => sum + (s.amount || 0), 0);
 
+    // Fetch Admin User & Dropship Commission Ledger
+    const adminUser = await User.findOne({ role: 'admin' });
+    const adminWalletBalance = adminUser?.walletBalance || 0;
+
+    const totalDropshipCommission = allOrders.reduce((sum, o) => {
+      return sum + (o.items || []).reduce((iSum, item) => {
+        return iSum + (item.isDropshipped ? (item.commissionEarned || item.profitMargin || 0) : 0);
+      }, 0);
+    }, 0);
+
+    const dropshipOrdersCount = allOrders.filter((o) => (o.items || []).some((i) => i.isDropshipped)).length;
+
+    const commissionTransactions = await WalletTransaction.find({ type: 'dropship_commission' })
+      .sort({ createdAt: -1 })
+      .limit(10);
+
     // Compute dynamic daily chart metrics
     const daysCount = 7;
     const chartData = [];
@@ -218,7 +234,11 @@ exports.getDashboardStats = async (req, res, next) => {
         pendingSettlementCount: pendingSettlements.length,
         referralBonusAmount: setting ? setting.referralBonusAmount : 500,
         commissionRatePercent: commissionPercent,
+        adminWalletBalance,
+        totalDropshipCommission,
+        dropshipOrdersCount,
       },
+      commissionTransactions,
       recentOrders,
       inventoryAlerts,
       chartData,
@@ -831,6 +851,44 @@ exports.settleVendorWallet = async (req, res, next) => {
       message: `Successfully settled ₹${settleAmount} for ${vendor.name}! Wallet balance reduced to ₹${vendor.walletBalance}.`,
       remainingBalance: vendor.walletBalance,
       settlement,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Get detailed Admin Dropship Commission audit ledger
+// @route   GET /api/admin/commissions
+// @access  Private (Admin)
+exports.getAdminCommissionLedger = async (req, res, next) => {
+  try {
+    let admin = null;
+    let transactions = [];
+    let totalDropshipCommission = 0;
+
+    if (mongoose.connection.readyState === 1) {
+      admin = await User.findOne({ role: 'admin' });
+      transactions = await WalletTransaction.find({ type: 'dropship_commission' })
+        .sort({ createdAt: -1 })
+        .limit(100);
+
+      const orders = await Order.find({ 'items.isDropshipped': true });
+      totalDropshipCommission = orders.reduce((sum, o) => {
+        return sum + (o.items || []).reduce((iSum, item) => {
+          return iSum + (item.isDropshipped ? (item.commissionEarned || item.profitMargin || 0) : 0);
+        }, 0);
+      }, 0);
+    } else {
+      admin = mockUsers.find((u) => u.role === 'admin') || mockUsers[0];
+      transactions = mockTransactions.filter((t) => t.type === 'dropship_commission');
+    }
+
+    res.status(200).json({
+      success: true,
+      adminWalletBalance: admin?.walletBalance || 0,
+      totalDropshipCommission,
+      transactionCount: transactions.length,
+      transactions,
     });
   } catch (err) {
     next(err);

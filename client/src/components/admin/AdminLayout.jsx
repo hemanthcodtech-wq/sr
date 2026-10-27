@@ -8,6 +8,7 @@ import {
   CreditCard,
   Sliders,
   Settings,
+  Truck,
   Bell,
   ChevronsLeft,
   ChevronsRight,
@@ -19,6 +20,7 @@ import {
   RefreshCw,
   Clock,
   AlertCircle,
+  Tag,
 } from 'lucide-react';
 import Logo from '../Logo';
 import { useAuth } from '../../context/AuthContext';
@@ -117,19 +119,29 @@ const AdminLayout = ({ children, title = 'Dashboard Overview', subtitle = '', on
       badgeAlert: pendingApprovalsCount > 0,
     },
     {
-      title: 'Products & Sourcing',
+      title: 'DeoDap Products',
       path: '/admin/products',
       icon: Package,
     },
     {
-      title: 'Orders & Fulfillment',
-      path: '/admin/orders',
+      title: 'Dropship Orders',
+      path: '/admin/dropshipping',
+      icon: Truck,
+    },
+    {
+      title: 'Vendor Orders',
+      path: '/admin/vendor-orders',
       icon: ShoppingBag,
     },
     {
       title: 'Vendor Plans',
       path: '/admin/plans',
       icon: CreditCard,
+    },
+    {
+      title: 'Coupons & Discounts',
+      path: '/admin/coupons',
+      icon: Tag,
     },
     {
       title: 'Settlements',

@@ -99,6 +99,11 @@ const Profile = () => {
     details: '',
   });
 
+  // Referral & Coupons State
+  const [coupons, setCoupons] = useState([]);
+  const [referralStats, setReferralStats] = useState({ totalReferred: 0, couponsEarned: 0, totalSaved: 0 });
+  const [loadingCoupons, setLoadingCoupons] = useState(false);
+
   // Settings State
   const [editProfileForm, setEditProfileForm] = useState({
     name: user?.name || '',
@@ -205,6 +210,31 @@ const Profile = () => {
       console.warn('Addresses fetch note:', err.message);
     }
   };
+
+  useEffect(() => {
+    if (activeTab === 'referrals') {
+      const fetchReferralData = async () => {
+        setLoadingCoupons(true);
+        try {
+          const [cRes, sRes] = await Promise.allSettled([
+            api.get('/coupons/my-coupons'),
+            api.get('/coupons/referral-stats'),
+          ]);
+          if (cRes.status === 'fulfilled' && cRes.value.data?.success) {
+            setCoupons(cRes.value.data.coupons || []);
+          }
+          if (sRes.status === 'fulfilled' && sRes.value.data?.success) {
+            setReferralStats(sRes.value.data.stats || { totalReferred: 0, couponsEarned: 0, totalSaved: 0 });
+          }
+        } catch (e) {
+          console.warn('Referrals fetch error:', e);
+        } finally {
+          setLoadingCoupons(false);
+        }
+      };
+      fetchReferralData();
+    }
+  }, [activeTab]);
 
   const referralLink = user?.referralCode
     ? `${window.location.origin}/register?ref=${user.referralCode}`
@@ -1278,32 +1308,75 @@ const Profile = () => {
                     <div className="text-2xl sm:text-3xl font-black text-white mt-1">
                       Invite Friends &amp; Get ₹200 Shopping Coupons
                     </div>
-                    <p className="text-xs text-blue-200 mt-1">
-                      Whenever your friend joins with your invite code and shops, you both unlock exclusive ₹200 discount vouchers!
+                    <p className="text-xs text-blue-200 mt-1 max-w-xl">
+                      Whenever your friend joins with your invite link and shops, you both unlock exclusive ₹200 discount vouchers to use on any order!
                     </p>
                   </div>
-                  <button
-                    onClick={() => navigate('/products')}
-                    className="px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow-sm transition cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    <ShoppingBag className="w-4 h-4" />
-                    <span>Redeem in Store</span>
-                  </button>
-                </div>
-
-                {/* Referral Link Box */}
-                <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-amber-300">Your Personal Referral Invite Link</span>
+                  <div className="flex items-center gap-2">
                     <button
-                      onClick={() => handleCopy(referralLink, 'link')}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-white text-[#0c2a5e] text-xs font-black transition cursor-pointer hover:bg-blue-50"
+                      onClick={handleShare}
+                      className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-black text-xs shadow-sm transition cursor-pointer flex items-center justify-center gap-2"
                     >
-                      {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                      <span>{copiedLink ? 'Copied Link' : 'Copy Link'}</span>
+                      <Share2 className="w-4 h-4" />
+                      <span>Share Invite</span>
+                    </button>
+                    <button
+                      onClick={() => navigate('/products')}
+                      className="px-4 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow-sm transition cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      <ShoppingBag className="w-4 h-4" />
+                      <span>Shop Now</span>
                     </button>
                   </div>
-                  <p className="font-mono text-xs text-blue-100 truncate">{referralLink}</p>
+                </div>
+
+                {/* Referral Link & Code Box */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-amber-300 uppercase tracking-wider">Your Referral Link</span>
+                      <button
+                        onClick={() => handleCopy(referralLink, 'link')}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white text-[#0c2a5e] text-[11px] font-black transition cursor-pointer hover:bg-blue-50"
+                      >
+                        {copiedLink ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedLink ? 'Copied' : 'Copy Link'}</span>
+                      </button>
+                    </div>
+                    <p className="font-mono text-xs text-blue-100 truncate">{referralLink}</p>
+                  </div>
+
+                  <div className="p-4 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-amber-300 uppercase tracking-wider">Your Referral Code</span>
+                      <button
+                        onClick={() => handleCopy(user?.referralCode || 'REF200', 'code')}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-400 text-slate-950 text-[11px] font-black transition cursor-pointer hover:bg-amber-300"
+                      >
+                        {copiedCode ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedCode ? 'Copied' : 'Copy Code'}</span>
+                      </button>
+                    </div>
+                    <p className="font-mono text-sm font-black text-white">{user?.referralCode || 'REF200'}</p>
+                  </div>
+                </div>
+
+                {/* Referral Performance Stats Row */}
+                <div className="grid grid-cols-3 gap-3 pt-1">
+                  <div className="p-3 rounded-2xl bg-white/5 border border-white/10 text-center">
+                    <span className="text-[10px] uppercase font-bold text-blue-200 block">Friends Referred</span>
+                    <strong className="text-xl font-black text-white">{referralStats.friendsReferred || referralStats.totalReferred || 0}</strong>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-white/5 border border-white/10 text-center">
+                    <span className="text-[10px] uppercase font-bold text-blue-200 block">Coupons Earned</span>
+                    <strong className="text-xl font-black text-amber-400">{referralStats.referralCouponsEarned || coupons.filter(c => c.isReferralReward).length || 0}</strong>
+                  </div>
+                  <div className="p-3 rounded-2xl bg-white/5 border border-white/10 text-center">
+                    <span className="text-[10px] uppercase font-bold text-blue-200 block">Savings Value</span>
+                    <strong className="text-xl font-black text-emerald-400">
+                      ₹{(((referralStats.referralCouponsEarned || coupons.filter(c => c.isReferralReward).length || 0)) * 200).toLocaleString('en-IN')}
+                    </strong>
+                  </div>
                 </div>
               </div>
 
@@ -1316,101 +1389,69 @@ const Profile = () => {
                       <span>My Available Shopping Coupons</span>
                     </h3>
                     <p className="text-xs text-slate-500">
-                      Copy any promo voucher code below and enter it at checkout for instant order discounts!
+                      Copy any promo voucher code below or select it directly at checkout for instant order deductions!
                     </p>
                   </div>
                   <span className="inline-flex items-center px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-xs font-bold border border-emerald-200">
-                    ● 3 Coupons Active
+                    ● {coupons.length} Active {coupons.length === 1 ? 'Coupon' : 'Coupons'}
                   </span>
                 </div>
 
-                {/* Grid of Coupons */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
-                  {/* Coupon 1: Referral Discount */}
-                  <div className="relative overflow-hidden rounded-2xl border-2 border-dashed border-amber-400 bg-gradient-to-br from-amber-50/80 to-white p-4 space-y-3 shadow-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="px-2 py-0.5 rounded-md bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider">
-                        Referral Reward
-                      </span>
-                      <span className="text-xs font-bold text-amber-800">Flat ₹200 OFF</span>
-                    </div>
-                    <div>
-                      <div className="text-lg font-black text-slate-900 tracking-tight">₹200 OFF</div>
-                      <p className="text-[11px] text-slate-600 mt-0.5">Valid on all orders above ₹499</p>
-                    </div>
-                    <div className="flex items-center justify-between pt-2 border-t border-amber-200">
-                      <span className="font-mono text-xs font-black text-[#0c2a5e] bg-amber-100 px-2 py-1 rounded">
-                        REF200
-                      </span>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText('REF200');
-                          success('Coupon REF200 copied to clipboard!');
-                        }}
-                        className="text-xs font-bold text-amber-900 hover:text-amber-700 underline cursor-pointer"
-                      >
-                        Copy Code
-                      </button>
-                    </div>
+                {/* Grid of Dynamic Coupons */}
+                {loadingCoupons ? (
+                  <div className="py-12 text-center text-xs text-slate-400">Loading your shopping coupons...</div>
+                ) : coupons.length === 0 ? (
+                  <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                    <Gift className="w-8 h-8 text-slate-400 mx-auto" />
+                    <h4 className="font-bold text-slate-800 text-sm">No Referral Coupons Yet</h4>
+                    <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                      Share your referral code or link with friends. When they join, you'll receive ₹200 shopping vouchers here!
+                    </p>
                   </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-1">
+                    {coupons.map((c, idx) => (
+                      <div
+                        key={idx}
+                        className="relative overflow-hidden rounded-2xl border-2 border-dashed border-amber-400 bg-gradient-to-br from-amber-50/80 to-white p-4 space-y-3 shadow-xs flex flex-col justify-between"
+                      >
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="px-2 py-0.5 rounded-md bg-amber-400 text-slate-950 text-[10px] font-black uppercase tracking-wider">
+                              {c.badge || 'Referral Voucher'}
+                            </span>
+                            <span className="text-xs font-bold text-amber-800">
+                              {c.discountType === 'percent' ? `${c.discountAmount}% OFF` : `Flat ₹${c.discountAmount} OFF`}
+                            </span>
+                          </div>
+                          <div>
+                            <div className="text-lg font-black text-slate-900 tracking-tight">
+                              {c.discountType === 'percent' ? `${c.discountAmount}% Discount` : `₹${c.discountAmount} OFF`}
+                            </div>
+                            <p className="text-[11px] text-slate-600 mt-0.5">
+                              {c.description || (c.minOrderAmount ? `Valid on orders above ₹${c.minOrderAmount}` : 'Valid on any order')}
+                            </p>
+                          </div>
+                        </div>
 
-                  {/* Coupon 2: Referral Code based coupon */}
-                  <div className="relative overflow-hidden rounded-2xl border-2 border-dashed border-blue-400 bg-gradient-to-br from-blue-50/80 to-white p-4 space-y-3 shadow-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="px-2 py-0.5 rounded-md bg-[#0c2a5e] text-white text-[10px] font-black uppercase tracking-wider">
-                        Friend Invite Bonus
-                      </span>
-                      <span className="text-xs font-bold text-blue-800">Flat ₹200 OFF</span>
-                    </div>
-                    <div>
-                      <div className="text-lg font-black text-slate-900 tracking-tight">₹200 Instant Off</div>
-                      <p className="text-[11px] text-slate-600 mt-0.5">Use your unique referral promo code</p>
-                    </div>
-                    <div className="flex items-center justify-between pt-2 border-t border-blue-200">
-                      <span className="font-mono text-xs font-black text-[#0c2a5e] bg-blue-100 px-2 py-1 rounded truncate max-w-[130px]">
-                        {user?.referralCode || 'REF200-SAVE'}
-                      </span>
-                      <button
-                        onClick={() => {
-                          const code = user?.referralCode || 'REF200-SAVE';
-                          navigator.clipboard.writeText(code);
-                          success(`Coupon ${code} copied!`);
-                        }}
-                        className="text-xs font-bold text-blue-900 hover:text-blue-700 underline cursor-pointer"
-                      >
-                        Copy Code
-                      </button>
-                    </div>
+                        <div className="flex items-center justify-between pt-2 border-t border-amber-200">
+                          <span className="font-mono text-xs font-black text-[#0c2a5e] bg-amber-100 px-2 py-1 rounded truncate max-w-[130px]">
+                            {c.code}
+                          </span>
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(c.code);
+                              success(`Coupon ${c.code} copied to clipboard!`);
+                            }}
+                            className="text-xs font-bold text-amber-900 hover:text-amber-700 underline cursor-pointer"
+                          >
+                            Copy Code
+                          </button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-
-                  {/* Coupon 3: Festive Offer */}
-                  <div className="relative overflow-hidden rounded-2xl border-2 border-dashed border-emerald-400 bg-gradient-to-br from-emerald-50/80 to-white p-4 space-y-3 shadow-xs">
-                    <div className="flex items-center justify-between">
-                      <span className="px-2 py-0.5 rounded-md bg-emerald-500 text-white text-[10px] font-black uppercase tracking-wider">
-                        Festive Promo
-                      </span>
-                      <span className="text-xs font-bold text-emerald-800">Save ₹1,000</span>
-                    </div>
-                    <div>
-                      <div className="text-lg font-black text-slate-900 tracking-tight">₹1,000 Mega Off</div>
-                      <p className="text-[11px] text-slate-600 mt-0.5">Applicable on cart orders above ₹2,999</p>
-                    </div>
-                    <div className="flex items-center justify-between pt-2 border-t border-emerald-200">
-                      <span className="font-mono text-xs font-black text-emerald-900 bg-emerald-100 px-2 py-1 rounded">
-                        DASARA20
-                      </span>
-                      <button
-                        onClick={() => {
-                          navigator.clipboard.writeText('DASARA20');
-                          success('Coupon DASARA20 copied to clipboard!');
-                        }}
-                        className="text-xs font-bold text-emerald-900 hover:text-emerald-700 underline cursor-pointer"
-                      >
-                        Copy Code
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                )}
               </div>
 
               {/* How Customer Referral Coupons Work */}

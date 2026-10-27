@@ -44,6 +44,25 @@ const platformSettingSchema = new mongoose.Schema(
       type: String,
       default: 'INR',
     },
+    // DeoDap Automated Dropshipping Settings
+    deodapProfitMarginPercent: {
+      type: Number,
+      default: 30, // 30% default profit margin markup on wholesale DeoDap prices
+      min: 0,
+      max: 500,
+    },
+    deodapAutoSync: {
+      type: Boolean,
+      default: true,
+    },
+    deodapLastSyncAt: {
+      type: Date,
+      default: null,
+    },
+    deodapTotalSynced: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,

@@ -207,6 +207,12 @@ const VendorLayout = ({
       icon: ShoppingBag,
     },
     {
+      title: 'Promote & Earn',
+      path: '/vendor/promote',
+      icon: Sparkles,
+      badge: '50% Cut',
+    },
+    {
       title: 'Wallet & Bank Payouts',
       path: '/vendor/wallet',
       icon: Wallet,
@@ -376,7 +382,16 @@ const VendorLayout = ({
                         isActive ? 'text-amber-600' : 'text-slate-400 group-hover:text-[#0c2a5e]'
                       }`}
                     />
-                    {!sidebarCollapsed && <span className="truncate">{item.title}</span>}
+                    {!sidebarCollapsed && (
+                      <span className="truncate flex-1 flex items-center justify-between">
+                        <span>{item.title}</span>
+                        {item.badge && (
+                          <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-amber-400 text-slate-950 ml-1.5 shadow-2xs">
+                            {item.badge}
+                          </span>
+                        )}
+                      </span>
+                    )}
                   </Link>
                 );
               })}
@@ -536,7 +551,14 @@ const VendorLayout = ({
                         }`}
                       >
                         <Icon className="w-4 h-4 text-amber-600" />
-                        <span>{item.title}</span>
+                        <span className="flex-1 flex items-center justify-between">
+                          <span>{item.title}</span>
+                          {item.badge && (
+                            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-amber-400 text-slate-950">
+                              {item.badge}
+                            </span>
+                          )}
+                        </span>
                       </Link>
                     );
                   })}

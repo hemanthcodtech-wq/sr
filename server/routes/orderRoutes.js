@@ -13,6 +13,7 @@ const {
   updateDropshipFulfillment,
   autoDispatchDeoDap,
   getOrderInvoice,
+  settleVendorOrderItem,
 } = require('../controllers/orderController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -25,6 +26,7 @@ router.get('/vendor/orders', protect, authorize('vendor', 'admin'), getVendorOrd
 router.put('/:orderId/items/:itemId/delivery-status', protect, authorize('vendor', 'admin'), updateVendorDeliveryStatus);
 router.put('/:orderId/items/:itemId/dropship-fulfillment', protect, authorize('admin'), updateDropshipFulfillment);
 router.post('/:orderId/items/:itemId/auto-dispatch-deodap', protect, authorize('admin'), autoDispatchDeoDap);
+router.post('/:orderId/items/:itemId/settle-vendor', protect, authorize('admin'), settleVendorOrderItem);
 router.get('/admin/all', protect, authorize('admin'), getAdminOrders);
 router.get('/:id/invoice-preview', getOrderInvoice);
 router.get('/:id', protect, getOrderById);

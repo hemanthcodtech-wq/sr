@@ -36,17 +36,21 @@ import VendorProducts from '../pages/vendor/VendorProducts';
 import VendorOrders from '../pages/vendor/VendorOrders';
 import VendorOrderDetail from '../pages/vendor/VendorOrderDetail';
 import VendorWallet from '../pages/vendor/VendorWallet';
+import VendorPromote from '../pages/vendor/VendorPromote';
 
 // Admin Pages
 import AdminLogin from '../pages/admin/AdminLogin';
 import AdminDashboard from '../pages/admin/AdminDashboard';
 import AdminOrders from '../pages/admin/AdminOrders';
+import AdminDropshipOrders from '../pages/admin/AdminDropshipOrders';
+import AdminVendorOrders from '../pages/admin/AdminVendorOrders';
 import AdminProducts from '../pages/admin/AdminProducts';
 import AdminPlans from '../pages/admin/AdminPlans';
 import AdminVendors from '../pages/admin/AdminVendors';
 import AdminVendorDetail from '../pages/admin/AdminVendorDetail';
 import AdminSettlements from '../pages/admin/AdminSettlements';
 import AdminSettings from '../pages/admin/AdminSettings';
+import AdminCoupons from '../pages/admin/AdminCoupons';
 
 const AppRoutes = () => {
   return (
@@ -171,6 +175,14 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/vendor/promote"
+        element={
+          <ProtectedRoute allowedRoles={['vendor', 'admin']}>
+            <VendorPromote />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Admin Authentication */}
       <Route path="/admin/login" element={<AdminLogin />} />
@@ -200,11 +212,38 @@ const AppRoutes = () => {
           </ProtectedRoute>
         }
       />
+      {/* Admin Orders - Unified master view */}
       <Route
         path="/admin/orders"
         element={
           <ProtectedRoute allowedRoles={['admin']}>
             <AdminOrders />
+          </ProtectedRoute>
+        }
+      />
+      {/* Admin Dropship Fulfillment - Separate dedicated page */}
+      <Route
+        path="/admin/dropshipping"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminDropshipOrders />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/dropship-orders"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminDropshipOrders />
+          </ProtectedRoute>
+        }
+      />
+      {/* Admin Vendor Marketplace Orders - Separate dedicated page */}
+      <Route
+        path="/admin/vendor-orders"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminVendorOrders />
           </ProtectedRoute>
         }
       />
@@ -221,6 +260,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute allowedRoles={['admin']}>
             <AdminPlans />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/coupons"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminCoupons />
           </ProtectedRoute>
         }
       />

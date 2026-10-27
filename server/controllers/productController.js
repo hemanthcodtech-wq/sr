@@ -214,9 +214,17 @@ exports.getVendorProducts = async (req, res, next) => {
 
 // @desc    Create new product
 // @route   POST /api/products
-// @access  Private (Vendor)
+// @access  Private (Vendor only - Admin manual product creation is disabled in favor of automated DeoDap sync)
 exports.createProduct = async (req, res, next) => {
   try {
+    // If admin attempts manual creation, prevent it as requested by marketplace dropship automation policy
+    if (req.user && req.user.role === 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'Admin manual product creation is disabled. Products are automatically synchronized from DeoDap with your configured profit margin. Use the Auto-Fetch DeoDap Products feature.',
+      });
+    }
+
     const {
       title,
       description,

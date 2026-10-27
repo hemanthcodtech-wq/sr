@@ -15,6 +15,8 @@ const {
   getPublicStoreByIdOrSlug,
   renewPlanSubscription,
   getVendorAnalytics,
+  getDropshipPromotions,
+  getMyPromotionStats,
 } = require('../controllers/vendorController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -34,5 +36,9 @@ router.put('/my-store', protect, authorize('vendor', 'admin'), updateStore);
 router.get('/analytics', protect, authorize('vendor', 'admin'), getVendorAnalytics);
 router.get('/wallet', protect, authorize('vendor', 'admin'), getWalletAndReferrals);
 router.post('/request-payout', protect, authorize('vendor'), requestPayout);
+
+// Vendor Dropship Affiliate Promotions (50/50 profit margin split)
+router.get('/dropship-promotions', protect, authorize('vendor', 'admin'), getDropshipPromotions);
+router.get('/my-promotions-stats', protect, authorize('vendor', 'admin'), getMyPromotionStats);
 
 module.exports = router;

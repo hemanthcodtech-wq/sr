@@ -59,12 +59,14 @@ exports.dispatchToDeoDap = async (order, item) => {
   // Realistic Simulation for DeoDap Dropshipping Dispatch
   const mockDeoOrderId = `DEO-ORD-${Math.floor(1000000 + Math.random() * 9000000)}`;
   const mockAwb = `DEODAP-DELHIVERY-${Math.floor(10000000 + Math.random() * 90000000)}`;
+  const commission = Math.max(0, (item.price - (item.sourcePrice || 0)) * (item.quantity || 1));
 
   return {
     success: true,
     mode: 'automated_dispatch_active',
     sourceOrderId: mockDeoOrderId,
     sourceTrackingNumber: mockAwb,
+    commissionEarned: commission,
     message: `Order successfully transmitted to DeoDap Central Fulfillment Center for ${shipping.fullName}`,
     payload,
   };

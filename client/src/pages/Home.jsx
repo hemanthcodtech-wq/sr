@@ -283,7 +283,7 @@ const Home = () => {
 
           {/* Department Filter Tabs */}
           <div className="flex items-center gap-1.5 flex-wrap text-xs font-bold">
-            {['All', 'Electronics', 'Furniture', 'Grocery', 'Fashion', 'Footwear', 'Accessories'].map((tab) => (
+            {['All', 'Electronics', 'Home & Kitchen', 'Toys', 'Beauty', 'Fitness', 'Fashion', 'Automotive'].map((tab) => (
               <button
                 key={tab}
                 type="button"
@@ -294,7 +294,7 @@ const Home = () => {
                     : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                 }`}
               >
-                {tab === 'Fashion' ? 'Clothing' : tab}
+                {tab}
               </button>
             ))}
           </div>

@@ -38,6 +38,11 @@ const enrichItemsWithDropship = async (items, defaultTrackingNum = '') => {
     const unitMargin = sPrice > 0 ? Math.max(0, itemPrice - sPrice) : 0;
     const qty = i.quantity || 1;
 
+    const totalMargin = unitMargin * qty;
+    const isPromoted = !!i.promotedByVendor;
+    const vShare = isPromoted ? Math.round(totalMargin * 0.5) : 0;
+    const aShare = isPromoted ? totalMargin - vShare : totalMargin;
+
     enriched.push({
       product: prodId,
       title: i.title || dbProd?.title || 'Product Item',
@@ -53,13 +58,102 @@ const enrichItemsWithDropship = async (items, defaultTrackingNum = '') => {
       sourcePlatform: dbProd?.sourcePlatform || i.sourcePlatform || 'in_house',
       sourceUrl: dbProd?.sourceUrl || i.sourceUrl || '',
       sourcePrice: sPrice,
-      profitMargin: unitMargin * qty,
+      profitMargin: totalMargin,
       fulfillmentStatus: isDropship ? (i.fulfillmentStatus || 'unfulfilled') : 'ordered_on_source',
       sourceOrderId: i.sourceOrderId || '',
       sourceTrackingNumber: i.sourceTrackingNumber || '',
+      promotedByVendor: i.promotedByVendor || null,
+      promotedByStore: i.promotedByStore || null,
+      isAffiliateSale: isPromoted,
+      vendorProfitShare: vShare,
+      adminProfitShare: aShare,
     });
   }
   return enriched;
+};
+
+// Helper: Automatically dispatch dropshipped DeoDap items upon customer order placement
+// and credit the net commission profit into Admin's Wallet Balance
+const autoDispatchDeoDapItems = async (order) => {
+  if (!order || !order.items) return;
+  let hasDeoDap = false;
+  for (const item of order.items) {
+    if (item.isDropshipped && (item.sourcePlatform === 'deodap' || !item.sourcePlatform)) {
+      try {
+        const dispatchResult = await dispatchToDeoDap(order, item);
+        item.sourceOrderId = dispatchResult.sourceOrderId;
+        item.sourceTrackingNumber = dispatchResult.sourceTrackingNumber;
+        item.fulfillmentStatus = 'ordered_on_source';
+        item.deliveryStatus = 'Processing';
+        const commissionAmount = item.profitMargin || Math.max(0, (item.price - (item.sourcePrice || 0)) * item.quantity);
+        item.commissionEarned = commissionAmount;
+        hasDeoDap = true;
+
+        if (order.trackingTimeline) {
+          order.trackingTimeline.push({
+            status: 'Processing',
+            title: 'DeoDap Central Fulfillment & Logistics Dispatched',
+            description: `Automated DeoDap delivery in motion for ${order.shippingAddress?.fullName || 'customer'}. Supplier Order #${dispatchResult.sourceOrderId} with Delhivery Courier (AWB: ${dispatchResult.sourceTrackingNumber}). Net admin commission of ₹${commissionAmount} credited.`,
+            location: 'DeoDap Central Warehouse (Surat / Ahmedabad)',
+            timestamp: new Date(),
+          });
+        }
+
+        // If item was promoted by a vendor affiliate, split profit margin (vendor gets share on delivery, admin gets their share now)
+        const adminProfitAmount = (item.isAffiliateSale && item.adminProfitShare !== undefined)
+          ? item.adminProfitShare
+          : commissionAmount;
+
+        // Credit Admin Commission directly to Admin's Wallet Balance & Transaction History
+        if (adminProfitAmount > 0) {
+          if (mongoose.connection.readyState === 1) {
+            const admin = await User.findOne({ role: 'admin' });
+            if (admin) {
+              admin.walletBalance = (admin.walletBalance || 0) + adminProfitAmount;
+              await admin.save();
+
+              await WalletTransaction.create({
+                vendor: admin._id,
+                type: 'dropship_commission',
+                amount: adminProfitAmount,
+                description: `DeoDap Dropship Commission on Order #${order.invoiceNumber || order._id} for "${item.title}" (Sold @ ₹${item.price} - DeoDap Cost: ₹${item.sourcePrice || 0})${item.isAffiliateSale ? ' [Promoted by Vendor]' : ''}`,
+                referenceId: order._id ? order._id.toString() : 'deodap_ref',
+                status: 'completed',
+                balanceAfter: admin.walletBalance,
+              });
+              console.log(`[Admin Commission] Credited ₹${adminProfitAmount} to Admin (${admin.email}). New Wallet Balance: ₹${admin.walletBalance}`);
+            }
+          } else {
+            const mockAdmin = mockUsers.find((u) => u.role === 'admin') || mockUsers[0];
+            if (mockAdmin) {
+              mockAdmin.walletBalance = (mockAdmin.walletBalance || 0) + adminProfitAmount;
+              mockTransactions.unshift({
+                _id: `tx_comm_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+                vendor: mockAdmin._id,
+                type: 'dropship_commission',
+                amount: adminProfitAmount,
+                description: `DeoDap Dropship Commission on Order #${order.invoiceNumber || order._id} for "${item.title}"${item.isAffiliateSale ? ' [Promoted by Vendor]' : ''}`,
+                referenceId: order._id ? order._id.toString() : 'mock_ref',
+                status: 'completed',
+                balanceAfter: mockAdmin.walletBalance,
+                createdAt: new Date(),
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('[DeoDap Auto-Dispatch & Commission Note]:', err.message);
+      }
+    }
+  }
+
+  if (hasDeoDap) {
+    const trackedItem = order.items.find((i) => i.sourceTrackingNumber);
+    if (trackedItem) {
+      order.courierName = 'Delhivery Express (DeoDap Fulfillment)';
+      order.trackingNumber = trackedItem.sourceTrackingNumber;
+    }
+  }
 };
 
 // @desc    Initiate Razorpay checkout order for customer
@@ -171,6 +265,7 @@ exports.verifyAndCreateOrder = async (req, res, next) => {
         invoiceNumber,
         createdAt: new Date(),
       };
+      await autoDispatchDeoDapItems(order);
       mockOrders.unshift(order);
 
       return res.status(201).json({
@@ -223,6 +318,12 @@ exports.verifyAndCreateOrder = async (req, res, next) => {
       await order.save();
     } catch (invErr) {
       console.warn('Invoice generation warning:', invErr.message);
+    }
+
+    // Automatically dispatch dropshipped DeoDap products for fulfillment
+    await autoDispatchDeoDapItems(order);
+    if (mongoose.connection.readyState === 1) {
+      await order.save();
     }
 
     res.status(201).json({
@@ -300,6 +401,7 @@ exports.createCodOrWalletOrder = async (req, res, next) => {
         trackingTimeline,
         createdAt: new Date(),
       };
+      await autoDispatchDeoDapItems(order);
       mockOrders.unshift(order);
 
       return res.status(201).json({
@@ -359,6 +461,12 @@ exports.createCodOrWalletOrder = async (req, res, next) => {
       await order.save();
     } catch (invErr) {
       console.warn('Invoice generation warning:', invErr.message);
+    }
+
+    // Automatically dispatch dropshipped DeoDap products for fulfillment
+    await autoDispatchDeoDapItems(order);
+    if (mongoose.connection.readyState === 1) {
+      await order.save();
     }
 
     res.status(201).json({
@@ -612,27 +720,51 @@ exports.updateVendorDeliveryStatus = async (req, res, next) => {
       item.deliveredAt = new Date();
       item.vendorSettled = true;
 
-      let setting = await PlatformSetting.findOne();
-      const commissionPercent = setting ? setting.commissionRatePercent : 10;
+      // Case A: Promoted Dropship item - credit promoter vendor affiliate commission
+      if (item.isDropshipped && item.isAffiliateSale && item.promotedByVendor && item.vendorProfitShare > 0) {
+        try {
+          const promoter = await User.findById(item.promotedByVendor);
+          if (promoter) {
+            promoter.walletBalance = (promoter.walletBalance || 0) + item.vendorProfitShare;
+            await promoter.save();
+            await WalletTransaction.create({
+              vendor: promoter._id,
+              type: 'dropship_commission',
+              amount: item.vendorProfitShare,
+              description: `Affiliate commission reward for promoted DeoDap sale "${item.title}" (Order #${order.invoiceNumber})`,
+              referenceId: order._id.toString(),
+              status: 'completed',
+              balanceAfter: promoter.walletBalance,
+            });
+            console.log(`[Affiliate Commission] Credited ₹${item.vendorProfitShare} to promoter vendor (${promoter.email}) for delivered item.`);
+          }
+        } catch (affErr) {
+          console.warn('[Affiliate Settlement Note]', affErr.message);
+        }
+      } else if (!item.isDropshipped) {
+        // Case B: Regular Vendor Store item - settle vendor payout after platform commission
+        let setting = await PlatformSetting.findOne();
+        const commissionPercent = setting ? setting.commissionRatePercent : 10;
 
-      const itemTotal = item.price * item.quantity;
-      const commissionAmount = (itemTotal * commissionPercent) / 100;
-      const vendorEarning = itemTotal - commissionAmount;
+        const itemTotal = item.price * item.quantity;
+        const commissionAmount = (itemTotal * commissionPercent) / 100;
+        const vendorEarning = itemTotal - commissionAmount;
 
-      const vendorUser = await User.findById(item.vendor);
-      if (vendorUser) {
-        vendorUser.walletBalance = (vendorUser.walletBalance || 0) + vendorEarning;
-        await vendorUser.save();
+        const vendorUser = await User.findById(item.vendor);
+        if (vendorUser) {
+          vendorUser.walletBalance = (vendorUser.walletBalance || 0) + vendorEarning;
+          await vendorUser.save();
 
-        await WalletTransaction.create({
-          vendor: vendorUser._id,
-          type: 'order_earning',
-          amount: vendorEarning,
-          description: `Earnings for delivering "${item.title}" (Order #${order.invoiceNumber}) after ${commissionPercent}% platform commission`,
-          referenceId: order._id.toString(),
-          status: 'completed',
-          balanceAfter: vendorUser.walletBalance,
-        });
+          await WalletTransaction.create({
+            vendor: vendorUser._id,
+            type: 'order_earning',
+            amount: vendorEarning,
+            description: `Earnings for delivering "${item.title}" (Order #${order.invoiceNumber}) after ${commissionPercent}% platform commission`,
+            referenceId: order._id.toString(),
+            status: 'completed',
+            balanceAfter: vendorUser.walletBalance,
+          });
+        }
       }
     }
 
@@ -721,6 +853,30 @@ exports.updateDropshipFulfillment = async (req, res, next) => {
       } else if (fulfillmentStatus === 'delivered_to_customer') {
         item.deliveryStatus = 'Delivered';
         item.deliveredAt = new Date();
+
+        // If promoted by a vendor affiliate, settle vendor profit share upon confirmed delivery
+        if (item.isAffiliateSale && item.promotedByVendor && !item.vendorSettled && item.vendorProfitShare > 0) {
+          try {
+            const promoter = await User.findById(item.promotedByVendor);
+            if (promoter) {
+              promoter.walletBalance = (promoter.walletBalance || 0) + item.vendorProfitShare;
+              await promoter.save();
+              await WalletTransaction.create({
+                vendor: promoter._id,
+                type: 'dropship_commission',
+                amount: item.vendorProfitShare,
+                description: `Affiliate commission reward for promoted DeoDap sale "${item.title}" (Order #${order.invoiceNumber || order._id})`,
+                referenceId: order._id.toString(),
+                status: 'completed',
+                balanceAfter: promoter.walletBalance,
+              });
+              item.vendorSettled = true;
+              console.log(`[Affiliate Settlement] Dispatched ₹${item.vendorProfitShare} to promoter vendor (${promoter.email}) on customer delivery.`);
+            }
+          } catch (e) {
+            console.warn('[Affiliate fulfillment settlement error]', e.message);
+          }
+        }
       }
     }
 
@@ -1295,6 +1451,111 @@ exports.getOrderInvoice = async (req, res, next) => {
       </body>
       </html>
     `);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Admin manually settles an individual order item payout to vendor's wallet
+// @route   POST /api/orders/:orderId/items/:itemId/settle-vendor
+// @access  Private (Admin)
+exports.settleVendorOrderItem = async (req, res, next) => {
+  try {
+    const { orderId, itemId } = req.params;
+
+    let order = null;
+    let item = null;
+
+    if (mongoose.connection.readyState !== 1) {
+      order = mockOrders.find((o) => o._id === orderId);
+      if (order) item = order.items.find((i) => i._id === itemId || i.product === itemId);
+      if (!order || !item) {
+        return res.status(404).json({ success: false, message: 'Order item not found' });
+      }
+
+      if (item.vendorSettled) {
+        return res.status(400).json({ success: false, message: 'This item has already been settled to the vendor.' });
+      }
+
+      const itemTotal = (item.price || 0) * (item.quantity || 1);
+      const commission = Math.round(itemTotal * 0.1);
+      const payout = itemTotal - commission;
+
+      const vendor = mockUsers.find((u) => u._id === item.vendor || u._id === item.vendor?._id);
+      if (vendor) {
+        vendor.walletBalance = (vendor.walletBalance || 0) + payout;
+        mockTransactions.unshift({
+          _id: `tx_settle_${Date.now()}`,
+          vendor: vendor._id,
+          type: 'order_earning',
+          amount: payout,
+          description: `Order item settlement payout for "${item.title}" (Order #${order.invoiceNumber})`,
+          referenceId: order._id.toString(),
+          status: 'completed',
+          balanceAfter: vendor.walletBalance,
+          createdAt: new Date(),
+        });
+      }
+
+      item.vendorSettled = true;
+      return res.status(200).json({
+        success: true,
+        message: `Successfully settled ₹${payout} to vendor wallet!`,
+        order,
+        item,
+      });
+    }
+
+    order = await Order.findById(orderId).populate('items.vendor', 'name email walletBalance');
+    if (!order) {
+      return res.status(404).json({ success: false, message: 'Order not found' });
+    }
+
+    item = order.items.id(itemId);
+    if (!item) {
+      return res.status(404).json({ success: false, message: 'Order item not found' });
+    }
+
+    if (item.vendorSettled) {
+      return res.status(400).json({ success: false, message: 'This item has already been settled to the vendor.' });
+    }
+
+    const setting = await PlatformSetting.findOne();
+    const commissionPercent = setting ? setting.commissionRatePercent : 10;
+
+    const itemTotal = (item.price || 0) * (item.quantity || 1);
+    const platformCommission = Math.round((itemTotal * commissionPercent) / 100);
+    const vendorPayout = itemTotal - platformCommission;
+
+    const vendorId = item.vendor?._id || item.vendor;
+    if (vendorId) {
+      const vendorUser = await User.findById(vendorId);
+      if (vendorUser) {
+        vendorUser.walletBalance = (vendorUser.walletBalance || 0) + vendorPayout;
+        await vendorUser.save();
+
+        await WalletTransaction.create({
+          vendor: vendorUser._id,
+          type: 'order_earning',
+          amount: vendorPayout,
+          description: `Order item settlement payout for "${item.title}" (Order #${order.invoiceNumber})`,
+          referenceId: order._id.toString(),
+          status: 'completed',
+          balanceAfter: vendorUser.walletBalance,
+        });
+      }
+    }
+
+    item.vendorSettled = true;
+    await order.save();
+
+    res.status(200).json({
+      success: true,
+      message: `Successfully settled ₹${vendorPayout} directly to vendor's wallet!`,
+      order,
+      item,
+      vendorPayout,
+    });
   } catch (err) {
     next(err);
   }

@@ -9,7 +9,7 @@ const walletTransactionSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['referral_bonus', 'order_earning', 'settlement_payout', 'admin_adjustment'],
+      enum: ['referral_bonus', 'order_earning', 'settlement_payout', 'admin_adjustment', 'dropship_commission'],
       required: true,
     },
     amount: {

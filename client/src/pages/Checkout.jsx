@@ -65,24 +65,54 @@ const Checkout = () => {
   const [couponCode, setCouponCode] = useState('');
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [couponDiscount, setCouponDiscount] = useState(0);
+  const [availableCoupons, setAvailableCoupons] = useState([]);
+
+  useEffect(() => {
+    const fetchCoupons = async () => {
+      try {
+        const res = await api.get('/coupons/my-coupons');
+        if (res.data?.success && Array.isArray(res.data.coupons)) {
+          setAvailableCoupons(res.data.coupons);
+        }
+      } catch (e) {
+        setAvailableCoupons([]);
+      }
+    };
+    fetchCoupons();
+  }, []);
+
+  // Calculate final payable amount after coupon
+  const finalPayable = Math.max(0, cartTotal - couponDiscount);
 
   const [loading, setLoading] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(null);
   const [showSimulatedModal, setShowSimulatedModal] = useState(false);
   const [pendingPaymentData, setPendingPaymentData] = useState(null);
 
-  // Calculate final payable amount after coupon
-  const finalPayable = Math.max(0, cartTotal - couponDiscount);
-
-  const handleApplyCoupon = (e) => {
-    e.preventDefault();
-    const code = couponCode.trim().toUpperCase();
+  const handleApplyCoupon = async (e, directCode = null) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const code = (directCode || couponCode).trim().toUpperCase();
     if (!code) return;
 
-    if (code === 'REF200' || code.startsWith('REF200-') || code.startsWith('CUST-')) {
+    try {
+      const res = await api.post('/coupons/validate', { code, cartTotal });
+      if (res.data?.success && res.data.coupon) {
+        const c = res.data.coupon;
+        setCouponDiscount(c.discount);
+        setAppliedCoupon({ code: c.code, discount: c.discount, desc: c.description });
+        setCouponCode(c.code);
+        success(`Coupon ${c.code} applied! ₹${c.discount} deducted.`);
+        return;
+      }
+    } catch (err) {
+      // Local fallback
+    }
+
+    if (code === 'REF200' || code.startsWith('REF200-') || code.startsWith('CUST-') || code.startsWith('WELCOME')) {
       const disc = Math.min(200, cartTotal);
       setCouponDiscount(disc);
       setAppliedCoupon({ code: code, discount: disc, desc: '₹200 Referral Shopping Reward' });
+      setCouponCode(code);
       success(`Referral Coupon ${code} applied! ₹${disc} deducted.`);
     } else if (code === 'TWO15') {
       if (cartTotal < 20000) {
@@ -91,19 +121,22 @@ const Checkout = () => {
       }
       setCouponDiscount(1500);
       setAppliedCoupon({ code: 'TWO15', discount: 1500, desc: '₹1,500 Special Savings' });
+      setCouponCode(code);
       success('Promo TWO15 applied! ₹1,500 deducted.');
     } else if (code === 'DASARA20') {
       const disc = Math.min(1000, cartTotal);
       setCouponDiscount(disc);
       setAppliedCoupon({ code: 'DASARA20', discount: disc, desc: 'Festive ₹1,000 Discount' });
+      setCouponCode(code);
       success('Promo DASARA20 applied! ₹1,000 deducted.');
     } else if (code === 'AMEZON10') {
       const disc = Math.round((cartTotal * 10) / 100);
       setCouponDiscount(disc);
       setAppliedCoupon({ code: 'AMEZON10', discount: disc, desc: '10% Instant Marketplace Discount' });
+      setCouponCode(code);
       success('Promo AMEZON10 applied! 10% deducted.');
     } else {
-      error('Invalid promo code. Try REF200, DASARA20, or TWO15');
+      error('Invalid promo code. Try REF200, WELCOME100, DASARA20, or AMEZON10');
     }
   };
 
@@ -142,14 +175,26 @@ const Checkout = () => {
 
     setLoading(true);
 
+    const orderItemsPayload = cartItems.map((item) => ({
+      ...item,
+      product: item.product?._id || item.product,
+      promotedByVendor:
+        item.promotedByVendor ||
+        (typeof window !== 'undefined'
+          ? sessionStorage.getItem('amezon_ref_vendor_' + (item.product?._id || item.product))
+          : null) ||
+        null,
+    }));
+
     // If Wallet or COD: Call dedicated backend route
     if (paymentMethod === 'Wallet' || paymentMethod === 'Cash on Delivery') {
       try {
         const res = await api.post('/orders/cod-or-wallet-checkout', {
-          items: cartItems,
+          items: orderItemsPayload,
           shippingAddress,
           totalAmount: finalPayable,
           paymentMethod,
+          couponCode: appliedCoupon?.code || null,
         });
 
         if (res.data?.success) {
@@ -175,7 +220,7 @@ const Checkout = () => {
     // Default: Razorpay Payment Flow
     try {
       const res = await api.post('/orders/initiate-checkout', {
-        items: cartItems,
+        items: orderItemsPayload,
         shippingAddress,
       });
 
@@ -243,7 +288,10 @@ const Checkout = () => {
   const finalizeOrder = async (orderPayload) => {
     try {
       setLoading(true);
-      const res = await api.post('/orders/verify-and-create', orderPayload);
+      const res = await api.post('/orders/verify-and-create', {
+        ...orderPayload,
+        couponCode: appliedCoupon?.code || null,
+      });
       if (res.data?.success) {
         clearCart();
         setOrderSuccess(res.data.order);
@@ -582,16 +630,21 @@ const Checkout = () => {
         {/* Right Column: Order Summary & Coupon Card */}
         <div className="lg:col-span-5 space-y-5">
           {/* Promo Coupon Application */}
-          <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs p-6 space-y-3 text-xs">
-            <div className="flex items-center gap-2 font-bold text-slate-900">
-              <Tag className="w-4 h-4 text-amber-600" />
-              <span>Have a Promo Coupon?</span>
+          <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs p-6 space-y-3.5 text-xs">
+            <div className="flex items-center justify-between font-bold text-slate-900">
+              <div className="flex items-center gap-2">
+                <Tag className="w-4 h-4 text-amber-600" />
+                <span>Have a Promo Coupon?</span>
+              </div>
+              <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60">
+                Referral Discounts
+              </span>
             </div>
 
             <form onSubmit={handleApplyCoupon} className="flex gap-2">
               <input
                 type="text"
-                placeholder="Try DASARA20 or TWO15"
+                placeholder="e.g. REF200, WELCOME100, DASARA20"
                 value={couponCode}
                 onChange={(e) => setCouponCode(e.target.value)}
                 className="flex-1 px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl uppercase font-mono font-bold focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
@@ -604,10 +657,65 @@ const Checkout = () => {
               </button>
             </form>
 
+            {/* Available Vouchers Chips */}
+            {availableCoupons && availableCoupons.length > 0 && (
+              <div className="space-y-1.5 pt-1">
+                <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Available for You:
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {availableCoupons.map((c, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={(e) => {
+                        setCouponCode(c.code);
+                        handleApplyCoupon(e, c.code);
+                      }}
+                      className={`group px-3 py-1.5 rounded-xl border text-[11px] font-bold flex items-center gap-1.5 transition text-left cursor-pointer ${
+                        appliedCoupon?.code === c.code
+                          ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                          : 'bg-amber-50/70 border-amber-300/80 text-amber-900 hover:bg-amber-100 hover:border-amber-400'
+                      }`}
+                    >
+                      <span className="font-mono">{c.code}</span>
+                      <span className="opacity-75">
+                        {c.discountType === 'percent' ? `(${c.discountAmount}% off)` : `(₹${c.discountAmount} off)`}
+                      </span>
+                      {appliedCoupon?.code === c.code ? (
+                        <CheckCircle2 className="w-3.5 h-3.5 ml-1 text-white" />
+                      ) : (
+                        <span className="text-[10px] uppercase font-extrabold px-1.5 py-0.2 rounded bg-amber-200/80 text-amber-800 ml-1">
+                          Tap to Apply
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {appliedCoupon && (
-              <div className="p-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-[11px] font-bold flex justify-between items-center">
-                <span>✓ {appliedCoupon.desc}</span>
-                <span>-₹{appliedCoupon.discount.toLocaleString('en-IN')}</span>
+              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-800 text-[11px] font-bold flex justify-between items-center">
+                <span className="flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                  <span>Applied: <strong>{appliedCoupon.code}</strong> — {appliedCoupon.desc}</span>
+                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-emerald-700 font-extrabold">-₹{appliedCoupon.discount.toLocaleString('en-IN')}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAppliedCoupon(null);
+                      setCouponDiscount(0);
+                      setCouponCode('');
+                    }}
+                    className="text-slate-400 hover:text-red-500 font-bold ml-1 text-xs"
+                    title="Remove coupon"
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
             )}
           </div>

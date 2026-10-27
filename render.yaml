@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: amezon-marketplace-backend
+    env: node
+    rootDir: server
+    buildCommand: npm install
+    startCommand: node server.js
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: JWT_EXPIRE
+        value: 2d
+      - key: EMAIL_FROM
+        value: "Amezon.online <ramarajukoyyalagadda@gmail.com>"
+      - key: DEODAP_DEFAULT_PROFIT_MARGIN_PERCENT
+        value: "30"
+      - key: DEODAP_API_URL
+        value: https://deodap.in/api
+      - key: DEODAP_AUTO_DISPATCH
+        value: "true"
+

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   Star,
   ShoppingCart,
@@ -21,6 +21,8 @@ import { useToast } from '../context/ToastContext';
 
 const ProductDetail = () => {
   const { id } = useParams();
+  const [searchParams] = useSearchParams();
+  const refVendor = searchParams.get('refVendor');
   const navigate = useNavigate();
   const { addToCart, toggleWishlist, isInWishlist } = useCart();
   const { info, success } = useToast();
@@ -29,6 +31,13 @@ const ProductDetail = () => {
   const [loading, setLoading] = useState(true);
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
+
+  // Capture affiliate vendor parameter
+  useEffect(() => {
+    if (refVendor && id) {
+      sessionStorage.setItem('amezon_ref_vendor_' + id, refVendor);
+    }
+  }, [refVendor, id]);
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -84,8 +93,14 @@ const ProductDetail = () => {
 
   const inWishlist = product ? isInWishlist(product._id) : false;
 
+  const handleAddToCart = () => {
+    const activeRefVendor = refVendor || (typeof window !== 'undefined' ? sessionStorage.getItem('amezon_ref_vendor_' + id) : null) || null;
+    addToCart(product, quantity, activeRefVendor);
+  };
+
   const handleBuyNow = () => {
-    const success = addToCart(product, quantity);
+    const activeRefVendor = refVendor || (typeof window !== 'undefined' ? sessionStorage.getItem('amezon_ref_vendor_' + id) : null) || null;
+    const success = addToCart(product, quantity, activeRefVendor);
     if (success) {
       navigate('/cart');
     }
@@ -263,7 +278,7 @@ const ProductDetail = () => {
 
             <div className="flex flex-col sm:flex-row items-center gap-3">
               <button
-                onClick={() => addToCart(product, quantity)}
+                onClick={handleAddToCart}
                 disabled={product.stock === 0}
                 className="w-full sm:flex-1 flex items-center justify-center gap-2 py-3 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm shadow-md transition cursor-pointer disabled:bg-slate-300"
               >

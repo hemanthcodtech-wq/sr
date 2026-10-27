@@ -7,6 +7,7 @@ const WalletTransaction = require('../models/WalletTransaction');
 const Settlement = require('../models/Settlement');
 const PlatformSetting = require('../models/PlatformSetting');
 const Product = require('../models/Product');
+const Order = require('../models/Order');
 const {
   sendEmail,
   getStoreActivatedEmailTemplate,
@@ -1199,4 +1200,125 @@ exports.getVendorAnalytics = async (req, res, next) => {
     next(err);
   }
 };
+
+// @desc    Get admin dropshipped products available for vendor promotion with 50/50 profit margin split
+// @route   GET /api/vendors/dropship-promotions
+// @access  Private (Vendor / Admin)
+exports.getDropshipPromotions = async (req, res, next) => {
+  try {
+    const vendorId = req.user._id;
+    let products = [];
+
+    if (mongoose.connection.readyState === 1) {
+      products = await Product.find({
+        $or: [
+          { isDropshipped: true },
+          { sourcePlatform: { $in: ['amazon', 'flipkart', 'meesho', 'deodap', 'other'] } },
+        ],
+      })
+        .populate('store', 'storeName logo')
+        .sort({ createdAt: -1 })
+        .lean();
+    } else {
+      products = mockProducts.filter(
+        (p) => p.isDropshipped || ['amazon', 'flipkart', 'meesho', 'deodap'].includes(p.sourcePlatform)
+      );
+    }
+
+    const clientUrl = process.env.CLIENT_URL || 'http://localhost:5173';
+
+    const mapped = products.map((p) => {
+      const sellingPrice = p.discountPrice && p.discountPrice < p.price ? p.discountPrice : p.price;
+      const sourcePrice = p.sourcePrice || 0;
+      const totalMargin = sourcePrice > 0 ? Math.max(0, sellingPrice - sourcePrice) : 0;
+      const vendorShare50 = Math.round(totalMargin * 0.5);
+      const adminShare50 = totalMargin - vendorShare50;
+
+      return {
+        _id: p._id,
+        title: p.title,
+        images: p.images || [],
+        category: p.category,
+        price: p.price,
+        discountPrice: p.discountPrice,
+        sellingPrice,
+        sourcePrice,
+        sourcePlatform: p.sourcePlatform || 'deodap',
+        sourceUrl: p.sourceUrl || '',
+        totalMargin,
+        vendorShare50,
+        adminShare50,
+        stock: p.stock,
+        rating: p.rating || 4.8,
+        promoLink: `${clientUrl}/products/${p._id}?refVendor=${vendorId}`,
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      count: mapped.length,
+      products: mapped,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Get vendor's affiliate promotion performance and earned 50% profits
+// @route   GET /api/vendors/my-promotions-stats
+// @access  Private (Vendor)
+exports.getMyPromotionStats = async (req, res, next) => {
+  try {
+    const vendorId = req.user._id;
+    let totalSalesCount = 0;
+    let totalProfitEarned = 0;
+    let promotedOrders = [];
+
+    if (mongoose.connection.readyState === 1) {
+      const orders = await Order.find({ 'items.promotedByVendor': vendorId })
+        .populate('customer', 'name email phone avatar')
+        .sort({ createdAt: -1 })
+        .lean();
+
+      orders.forEach((ord) => {
+        const myItems = (ord.items || []).filter(
+          (i) => i.promotedByVendor && i.promotedByVendor.toString() === vendorId.toString()
+        );
+
+        myItems.forEach((item) => {
+          totalSalesCount += item.quantity || 1;
+          const share = item.vendorProfitShare || Math.round((item.profitMargin || 0) * 0.5);
+          totalProfitEarned += share;
+
+          promotedOrders.push({
+            orderId: ord._id,
+            invoiceNumber: ord.invoiceNumber,
+            date: ord.createdAt,
+            customerName: ord.customer?.name || ord.shippingAddress?.fullName || 'Customer',
+            productTitle: item.title,
+            productImage: item.image,
+            sellingPrice: item.price,
+            quantity: item.quantity,
+            totalPrice: item.price * item.quantity,
+            profitMargin: item.profitMargin || 0,
+            vendorProfitShare: share,
+            deliveryStatus: item.deliveryStatus || 'Processing',
+            paymentStatus: ord.paymentStatus,
+          });
+        });
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      totalSalesCount,
+      totalProfitEarned,
+      promotedOrders,
+      walletBalance: req.user.walletBalance || 0,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 

@@ -10,10 +10,12 @@ const {
   reviewMerchantApplication,
   settleVendorWallet,
   getVendorFullDetails,
+  getAdminCommissionLedger,
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/auth');
 
 router.get('/dashboard-stats', protect, authorize('admin'), getDashboardStats);
+router.get('/commissions', protect, authorize('admin'), getAdminCommissionLedger);
 router.get('/applications', protect, authorize('admin'), getMerchantApplications);
 router.put('/applications/:storeId/review', protect, authorize('admin'), reviewMerchantApplication);
 router.get('/vendors', protect, authorize('admin'), getAllVendors);

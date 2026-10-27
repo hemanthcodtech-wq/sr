@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const User = require('../models/User');
 const Store = require('../models/Store');
+const Coupon = require('../models/Coupon');
 const jwt = require('jsonwebtoken');
 const { mockUsers, mockStores } = require('../config/mockStore');
 const { uploadToCloudinary } = require('../config/cloudinary');
@@ -530,6 +531,47 @@ exports.register = async (req, res, next) => {
     user.emailOtp = registrationOtp;
     user.emailOtpExpires = new Date(expiresAt);
     await user.save();
+
+    // Customer Referral Coupon Awarding: ONLY when referred by another customer
+    try {
+      if (referredBy) {
+        // Find referrer user to fetch their details
+        const referrerUser = await User.findById(referredBy);
+
+        // 1. Reward coupon awarded to the REFERRER for referring this customer
+        const refSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+        await Coupon.create({
+          code: `REF200-${refSuffix}`,
+          discountType: 'flat',
+          discountAmount: 200,
+          minOrderAmount: 499,
+          assignedTo: referredBy,
+          isReferralReward: true,
+          referredUser: user._id,
+          description: `₹200 Referral Reward! Your friend ${user.name} joined Amezon.online`,
+          badge: 'Referral Reward',
+          isActive: true,
+          usageLimit: 1,
+        });
+
+        // 2. Welcome bonus voucher for the new friend who registered
+        const welcomeSuffix = user._id.toString().slice(-4).toUpperCase();
+        await Coupon.create({
+          code: `WELCOME100-${welcomeSuffix}`,
+          discountType: 'flat',
+          discountAmount: 100,
+          minOrderAmount: 299,
+          assignedTo: user._id,
+          isReferralReward: false,
+          description: `Welcome ₹100 Gift Voucher for joining via referral invite from ${referrerUser?.name || 'a friend'}!`,
+          badge: 'Welcome Gift',
+          isActive: true,
+          usageLimit: 1,
+        });
+      }
+    } catch (couponErr) {
+      console.warn('Coupon creation note on register:', couponErr.message);
+    }
 
     sendEmail({
       to: email.toLowerCase(),

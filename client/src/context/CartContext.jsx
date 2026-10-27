@@ -89,7 +89,7 @@ export const CartProvider = ({ children }) => {
 
   // Add to cart - Strictly requires authentication
   const addToCart = useCallback(
-    (product, quantity = 1) => {
+    (product, quantity = 1, promotedByVendor = null) => {
       if (!isAuthenticated) {
         error('Please sign in to add products to your shopping bag.');
         navigate('/login', { state: { from: location } });
@@ -98,6 +98,11 @@ export const CartProvider = ({ children }) => {
 
       let toastMsg = null;
       let toastType = 'success';
+
+      const affiliateVendor =
+        promotedByVendor ||
+        (typeof window !== 'undefined' ? sessionStorage.getItem('amezon_ref_vendor_' + product._id) : null) ||
+        null;
 
       setCartItems((prevItems) => {
         const existing = prevItems.find((item) => item.product._id === product._id);
@@ -111,7 +116,13 @@ export const CartProvider = ({ children }) => {
           toastMsg = `Updated ${product.title} quantity to ${updatedQty}`;
           toastType = 'success';
           return prevItems.map((item) =>
-            item.product._id === product._id ? { ...item, quantity: updatedQty } : item
+            item.product._id === product._id
+              ? {
+                  ...item,
+                  quantity: updatedQty,
+                  promotedByVendor: affiliateVendor || item.promotedByVendor || null,
+                }
+              : item
           );
         } else {
           if (product.stock && quantity > product.stock) {
@@ -121,7 +132,15 @@ export const CartProvider = ({ children }) => {
           }
           toastMsg = `Added "${product.title}" to your cart!`;
           toastType = 'success';
-          return [...prevItems, { product, quantity, store: product.store || product.vendor?.store }];
+          return [
+            ...prevItems,
+            {
+              product,
+              quantity,
+              store: product.store || product.vendor?.store,
+              promotedByVendor: affiliateVendor,
+            },
+          ];
         }
       });
 

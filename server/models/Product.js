@@ -83,6 +83,25 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    sku: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    deodapProductId: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    deodapHandle: {
+      type: String,
+      default: '',
+      trim: true,
+    },
+    lastSyncedAt: {
+      type: Date,
+      default: null,
+    },
     tags: [
       {
         type: String,

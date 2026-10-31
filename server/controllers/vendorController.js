@@ -866,7 +866,7 @@ exports.getPublicStores = async (req, res, next) => {
 
     if (mongoose.connection.readyState !== 1) {
       const activeStores = mockStores
-        .filter((s) => s.status === 'active' && (!s.planExpiresAt || new Date(s.planExpiresAt) > now))
+        .filter((s) => (s.status === 'active' || s.status === 'approved') && (!s.planExpiresAt || new Date(s.planExpiresAt) > now))
         .map((s) => {
           const productCount = (mockProducts || []).filter(
             (p) => (p.store === s._id || p.store?._id === s._id)
@@ -934,7 +934,7 @@ exports.getPublicStoreByIdOrSlug = async (req, res, next) => {
 
     if (mongoose.connection.readyState !== 1) {
       const store = mockStores.find((s) => s._id === idOrSlug || s.slug === idOrSlug);
-      if (!store || store.status !== 'active') {
+      if (!store || (store.status !== 'active' && store.status !== 'approved')) {
         return res.status(404).json({ success: false, message: 'Official store not found or currently inactive.' });
       }
 

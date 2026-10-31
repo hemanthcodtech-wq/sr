@@ -79,8 +79,8 @@ const Products = () => {
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">Marketplace Catalog</h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
             Showing <span className="font-bold text-slate-800">{total}</span> verified products
-            {keyword && <span> for "<strong className="text-blue-600">{keyword}</strong>"</span>}
-            {selectedCategory !== 'All' && <span> in <strong className="text-blue-600">{selectedCategory}</strong></span>}
+            {keyword && <span> for "<strong className="text-emerald-700">{keyword}</strong>"</span>}
+            {selectedCategory !== 'All' && <span> in <strong className="text-emerald-700">{selectedCategory}</strong></span>}
           </p>
         </div>
 
@@ -144,7 +144,7 @@ const Products = () => {
                   }}
                   className={`w-full text-left px-3 py-2 rounded-xl text-xs font-semibold transition cursor-pointer ${
                     selectedCategory === cat
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-[#0f8a48] text-white shadow-xs'
                       : 'text-slate-700 hover:bg-slate-100'
                   }`}
                 >
@@ -196,13 +196,13 @@ const Products = () => {
         {/* Products Grid */}
         <div className="lg:col-span-3">
           {loading ? (
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
-              {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-                <div key={i} className="bright-card h-80 rounded-2xl animate-pulse bg-slate-100" />
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
+                <div key={i} className="bright-card h-72 rounded-xl animate-pulse bg-slate-100" />
               ))}
             </div>
           ) : products.length > 0 ? (
-            <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
               {products.map((product) => (
                 <ProductCard key={product._id} product={product} />
               ))}

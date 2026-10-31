@@ -8,29 +8,85 @@ import {
   ShieldCheck,
   CreditCard,
   Truck,
-  Heart,
+  RotateCcw,
+  Headphones,
+  Sparkles,
+  Store,
+  CheckCircle2,
 } from 'lucide-react';
 import Logo from './Logo';
 
 const Footer = () => {
   return (
-    <footer className="bg-white border-t border-slate-200 mt-16 text-slate-700 text-xs select-none">
-      {/* Main Footer Columns */}
-      <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-10 2xl:px-14 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
+    <footer className="bg-[#04101e] text-slate-300 text-xs border-t border-slate-800 select-none">
+      {/* 1. Top Value Propositions Banner */}
+      <div className="border-b border-slate-800/80 bg-[#06182c]/80 py-6 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[1440px] mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center flex-shrink-0">
+              <Truck className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="font-bold text-white text-xs sm:text-sm">Fast Doorstep Delivery</p>
+              <p className="text-[10.5px] text-slate-400">Over 19,000+ pin codes covered</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center flex-shrink-0">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="font-bold text-white text-xs sm:text-sm">100% Genuine Products</p>
+              <p className="text-[10.5px] text-slate-400">Audited &amp; verified merchants</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-400 flex items-center justify-center flex-shrink-0">
+              <RotateCcw className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="font-bold text-white text-xs sm:text-sm">7-Day Easy Returns</p>
+              <p className="text-[10.5px] text-slate-400">Hassle-free doorstep pickup</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-400 flex items-center justify-center flex-shrink-0">
+              <Headphones className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="font-bold text-white text-xs sm:text-sm">24x7 Customer Support</p>
+              <p className="text-[10.5px] text-slate-400">Instant chat &amp; phone assistance</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Main Footer Navigation Columns */}
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8">
+          
           {/* Column 1: Brand Info */}
           <div className="space-y-4 lg:col-span-1">
-            <Logo />
-            <p className="text-slate-500 leading-relaxed text-xs">
-              Your trusted multi-vendor marketplace for Electronics, Furniture, Grocery, Fashion & more. Quality verified products delivered straight to your doorstep.
+            <div className="flex flex-col items-start">
+              <Logo theme="dark" variant="brand" size="lg" showTagline={false} />
+            </div>
+            <p className="text-slate-400 leading-relaxed text-xs">
+              Your premier multi-vendor marketplace connecting you directly with trusted local stores, verified brand outlets, and artisans across India.
             </p>
-            {/* Social Icons */}
+            <div className="flex items-center gap-1.5 text-[11px] text-emerald-400 font-semibold bg-emerald-950/40 border border-emerald-500/30 px-3 py-1.5 rounded-xl w-fit">
+              <CheckCircle2 className="w-3.5 h-3.5" />
+              <span>500+ Verified Merchant Stores</span>
+            </div>
+            {/* Social Links */}
             <div className="flex items-center gap-2 pt-1">
               <a
                 href="https://facebook.com"
                 target="_blank"
                 rel="noreferrer"
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-[#0c2a5e] hover:text-white flex items-center justify-center text-slate-600 transition"
+                className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-[#0f8a48] hover:text-white flex items-center justify-center text-slate-400 transition"
                 aria-label="Facebook"
               >
                 <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
@@ -41,7 +97,7 @@ const Footer = () => {
                 href="https://twitter.com"
                 target="_blank"
                 rel="noreferrer"
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-[#0c2a5e] hover:text-white flex items-center justify-center text-slate-600 transition"
+                className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-[#0f8a48] hover:text-white flex items-center justify-center text-slate-400 transition"
                 aria-label="Twitter"
               >
                 <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
@@ -52,7 +108,7 @@ const Footer = () => {
                 href="https://instagram.com"
                 target="_blank"
                 rel="noreferrer"
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-[#0c2a5e] hover:text-white flex items-center justify-center text-slate-600 transition"
+                className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-[#0f8a48] hover:text-white flex items-center justify-center text-slate-400 transition"
                 aria-label="Instagram"
               >
                 <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
@@ -63,7 +119,7 @@ const Footer = () => {
                 href="https://youtube.com"
                 target="_blank"
                 rel="noreferrer"
-                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-[#0c2a5e] hover:text-white flex items-center justify-center text-slate-600 transition"
+                className="w-8 h-8 rounded-lg bg-slate-800 hover:bg-[#0f8a48] hover:text-white flex items-center justify-center text-slate-400 transition"
                 aria-label="YouTube"
               >
                 <svg className="w-3.5 h-3.5 fill-current" viewBox="0 0 24 24">
@@ -73,141 +129,162 @@ const Footer = () => {
             </div>
           </div>
 
-          {/* Column 2: Quick Links */}
+          {/* Column 2: Popular Categories */}
           <div className="space-y-3">
-            <h4 className="font-bold text-sm text-slate-900 border-b border-slate-100 pb-2">Quick Links</h4>
-            <ul className="space-y-2 text-slate-600">
+            <h4 className="font-bold text-sm text-white border-b border-slate-800 pb-2">Top Categories</h4>
+            <ul className="space-y-2 text-slate-400">
               <li>
-                <Link to="/" className="hover:text-[#0c2a5e] flex items-center gap-1.5 transition">
-                  <ChevronRight className="w-3 h-3 text-slate-400" /> Home
+                <Link to="/products?category=Electronics" className="hover:text-emerald-400 flex items-center gap-1.5 transition">
+                  <ChevronRight className="w-3 h-3 text-emerald-500" /> Mobiles &amp; Gadgets
                 </Link>
               </li>
               <li>
-                <Link to="/products" className="hover:text-[#0c2a5e] flex items-center gap-1.5 transition">
-                  <ChevronRight className="w-3 h-3 text-slate-400" /> All Products
+                <Link to="/products?category=Fashion" className="hover:text-emerald-400 flex items-center gap-1.5 transition">
+                  <ChevronRight className="w-3 h-3 text-emerald-500" /> Men's &amp; Women's Fashion
                 </Link>
               </li>
               <li>
-                <Link to="/about" className="hover:text-[#0c2a5e] flex items-center gap-1.5 transition">
-                  <ChevronRight className="w-3 h-3 text-slate-400" /> About Us
+                <Link to="/products?category=Footwear" className="hover:text-emerald-400 flex items-center gap-1.5 transition">
+                  <ChevronRight className="w-3 h-3 text-emerald-500" /> Footwear &amp; Sports Shoes
                 </Link>
               </li>
               <li>
-                <Link to="/about" className="hover:text-[#0c2a5e] flex items-center gap-1.5 transition">
-                  <ChevronRight className="w-3 h-3 text-slate-400" /> Contact Us
+                <Link to="/products?category=Home & Kitchen" className="hover:text-emerald-400 flex items-center gap-1.5 transition">
+                  <ChevronRight className="w-3 h-3 text-emerald-500" /> Kitchen &amp; Home Appliances
                 </Link>
               </li>
               <li>
-                <Link to="/products" className="hover:text-[#0c2a5e] flex items-center gap-1.5 transition">
-                  <ChevronRight className="w-3 h-3 text-slate-400" /> Limited Deals
+                <Link to="/products?category=Beauty" className="hover:text-emerald-400 flex items-center gap-1.5 transition">
+                  <ChevronRight className="w-3 h-3 text-emerald-500" /> Beauty &amp; Skincare
+                </Link>
+              </li>
+              <li>
+                <Link to="/products?category=Grocery" className="hover:text-emerald-400 flex items-center gap-1.5 transition">
+                  <ChevronRight className="w-3 h-3 text-emerald-500" /> Farm Fresh Groceries
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Column 3: Customer Service */}
+          {/* Column 3: Customer Care */}
           <div className="space-y-3">
-            <h4 className="font-bold text-sm text-slate-900 border-b border-slate-100 pb-2">Customer Service</h4>
-            <ul className="space-y-2 text-slate-600">
+            <h4 className="font-bold text-sm text-white border-b border-slate-800 pb-2">Customer Care</h4>
+            <ul className="space-y-2 text-slate-400">
               <li>
-                <Link to="/track-order" className="hover:text-[#0c2a5e] flex items-center gap-1.5 transition">
-                  <ChevronRight className="w-3 h-3 text-slate-400" /> Track Your Order
+                <Link to="/track-order" className="hover:text-emerald-400 flex items-center gap-1.5 transition">
+                  <ChevronRight className="w-3 h-3 text-emerald-500" /> Track Order Status
                 </Link>
               </li>
               <li>
-                <Link to="/profile" className="hover:text-[#0c2a5e] flex items-center gap-1.5 transition">
-                  <ChevronRight className="w-3 h-3 text-slate-400" /> My Account
+                <Link to="/profile" className="hover:text-emerald-400 flex items-center gap-1.5 transition">
+                  <ChevronRight className="w-3 h-3 text-emerald-500" /> My Account &amp; Orders
                 </Link>
               </li>
               <li>
-                <Link to="/cart" className="hover:text-[#0c2a5e] flex items-center gap-1.5 transition">
-                  <ChevronRight className="w-3 h-3 text-slate-400" /> Shopping Cart
+                <Link to="/wishlist" className="hover:text-emerald-400 flex items-center gap-1.5 transition">
+                  <ChevronRight className="w-3 h-3 text-emerald-500" /> Saved Wishlist
                 </Link>
               </li>
               <li>
-                <Link to="/vendor/register" className="hover:text-[#0c2a5e] flex items-center gap-1.5 transition">
-                  <ChevronRight className="w-3 h-3 text-slate-400" /> Bulk / Wholesale Orders
+                <Link to="/cart" className="hover:text-emerald-400 flex items-center gap-1.5 transition">
+                  <ChevronRight className="w-3 h-3 text-emerald-500" /> View Shopping Cart
                 </Link>
               </li>
               <li>
-                <Link to="/return-refund" className="hover:text-[#0c2a5e] flex items-center gap-1.5 transition">
-                  <ChevronRight className="w-3 h-3 text-slate-400" /> Returns & Policies
+                <Link to="/return-refund" className="hover:text-emerald-400 flex items-center gap-1.5 transition">
+                  <ChevronRight className="w-3 h-3 text-emerald-500" /> Returns &amp; Replacement
+                </Link>
+              </li>
+              <li>
+                <Link to="/contact" className="hover:text-emerald-400 flex items-center gap-1.5 transition">
+                  <ChevronRight className="w-3 h-3 text-emerald-500" /> Help &amp; Support Desk
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Column 4: Categories */}
+          {/* Column 4: Vendor & Merchant Hub */}
           <div className="space-y-3">
-            <h4 className="font-bold text-sm text-slate-900 border-b border-slate-100 pb-2">Categories</h4>
-            <ul className="space-y-2 text-slate-600">
+            <h4 className="font-bold text-sm text-white border-b border-slate-800 pb-2">Merchant Hub</h4>
+            <ul className="space-y-2 text-slate-400">
               <li>
-                <Link to="/products?category=Electronics" className="hover:text-[#0c2a5e] flex items-center gap-1.5 transition">
-                  <ChevronRight className="w-3 h-3 text-slate-400" /> Electronics
+                <Link to="/stores" className="hover:text-emerald-400 flex items-center gap-1.5 transition">
+                  <Store className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="text-white font-semibold">Official Stores Directory</span>
                 </Link>
               </li>
               <li>
-                <Link to="/products?category=Furniture" className="hover:text-[#0c2a5e] flex items-center gap-1.5 transition">
-                  <ChevronRight className="w-3 h-3 text-slate-400" /> Furniture
+                <Link to="/vendor/register" className="hover:text-emerald-400 flex items-center gap-1.5 transition text-amber-300 font-bold">
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Sell on RS &amp; Earn ₹1000</span>
                 </Link>
               </li>
               <li>
-                <Link to="/products?category=Grocery" className="hover:text-[#0c2a5e] flex items-center gap-1.5 transition">
-                  <ChevronRight className="w-3 h-3 text-slate-400" /> Grocery
+                <Link to="/vendor/dashboard" className="hover:text-emerald-400 flex items-center gap-1.5 transition">
+                  <ChevronRight className="w-3 h-3 text-emerald-500" /> Vendor Panel Login
                 </Link>
               </li>
               <li>
-                <Link to="/products?category=Fashion" className="hover:text-[#0c2a5e] flex items-center gap-1.5 transition">
-                  <ChevronRight className="w-3 h-3 text-slate-400" /> Clothing
+                <Link to="/about" className="hover:text-emerald-400 flex items-center gap-1.5 transition">
+                  <ChevronRight className="w-3 h-3 text-emerald-500" /> About RS Marketplace
                 </Link>
               </li>
               <li>
-                <Link to="/vendor/register" className="text-emerald-700 font-bold hover:text-emerald-800 flex items-center gap-1.5 transition">
-                  <ChevronRight className="w-3 h-3 text-emerald-600" /> Sell on Amezon.online
+                <Link to="/terms" className="hover:text-emerald-400 flex items-center gap-1.5 transition">
+                  <ChevronRight className="w-3 h-3 text-emerald-500" /> Seller Code of Conduct
                 </Link>
               </li>
             </ul>
           </div>
 
-          {/* Column 5: Contact Info */}
+          {/* Column 5: Contact Info & Support Reach */}
           <div className="space-y-3">
-            <h4 className="font-bold text-sm text-slate-900 border-b border-slate-100 pb-2">Contact Info</h4>
-            <div className="space-y-2.5 text-slate-600">
+            <h4 className="font-bold text-sm text-white border-b border-slate-800 pb-2">Contact Us</h4>
+            <div className="space-y-3 text-slate-400">
               <div className="flex items-start gap-2.5">
-                <MapPin className="w-4 h-4 text-[#0c2a5e] flex-shrink-0 mt-0.5" />
-                <span>Amezon Commercial Complex, Main Road, Bhimavaram, AP – 534201</span>
+                <MapPin className="w-4 h-4 text-emerald-400 flex-shrink-0 mt-0.5" />
+                <span>RS Commercial Complex, Whitefield Main Road, Bengaluru, KA - 560066</span>
               </div>
               <div className="flex items-center gap-2.5">
-                <Phone className="w-4 h-4 text-[#0c2a5e] flex-shrink-0" />
-                <span>+91 9876543210</span>
+                <Phone className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                <span className="text-white font-bold">+91 98765 43210</span>
               </div>
               <div className="flex items-center gap-2.5">
-                <Mail className="w-4 h-4 text-[#0c2a5e] flex-shrink-0" />
-                <span>support@amezon.online</span>
+                <Mail className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+                <span>support@rsmarketplace.online</span>
+              </div>
+              <div className="pt-2 text-[11px] text-slate-500">
+                Operating Hours: Mon - Sat, 9:00 AM - 9:00 PM IST
               </div>
             </div>
           </div>
+
         </div>
       </div>
 
-      {/* Bottom Bar: Copyright & Payment Badges */}
-      <div className="border-t border-slate-200 bg-slate-50 py-4 px-4 sm:px-6 lg:px-10 2xl:px-14">
-        <div className="w-full max-w-[1920px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-slate-500">
+      {/* 3. Bottom Legal & Payment Badges Bar */}
+      <div className="border-t border-slate-800 bg-[#030b15] py-4 pb-28 md:pb-4 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-[1440px] mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-[11px] text-slate-400">
           <div>
-            © 2026 SR Multi-Vendor Marketplace • Dream • Grow • Together. All Rights Reserved.
+            © 2026 RS Multi-Vendor Marketplace • <strong className="text-amber-400">SHOP • SUPPORT • GROW</strong>. All Rights Reserved.
+          </div>
+
+          {/* Payment Badges */}
+          <div className="flex items-center gap-2">
+            <span className="text-slate-400">100% Secure Checkout:</span>
+            <span className="px-2 py-0.5 bg-slate-800 text-slate-200 border border-slate-700 rounded font-bold text-[10px]">UPI</span>
+            <span className="px-2 py-0.5 bg-slate-800 text-slate-200 border border-slate-700 rounded font-bold text-[10px]">RuPay</span>
+            <span className="px-2 py-0.5 bg-slate-800 text-slate-200 border border-slate-700 rounded font-bold text-[10px]">Visa</span>
+            <span className="px-2 py-0.5 bg-slate-800 text-slate-200 border border-slate-700 rounded font-bold text-[10px]">Mastercard</span>
+            <span className="px-2 py-0.5 bg-slate-800 text-slate-200 border border-slate-700 rounded font-bold text-[10px]">COD</span>
           </div>
 
           <div className="flex items-center gap-3">
-            <span>Secure Payments:</span>
-            <span className="px-2 py-0.5 bg-white border border-slate-200 rounded font-bold text-slate-800">UPI</span>
-            <span className="px-2 py-0.5 bg-white border border-slate-200 rounded font-bold text-slate-800">Cards</span>
-            <span className="px-2 py-0.5 bg-white border border-slate-200 rounded font-bold text-slate-800">COD</span>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <Link to="/privacy-policy" className="hover:text-slate-800 transition">Privacy Policy</Link>
+            <Link to="/privacy-policy" className="hover:text-white transition">Privacy Policy</Link>
             <span>•</span>
-            <Link to="/terms" className="hover:text-slate-800 transition">Terms of Use</Link>
+            <Link to="/terms" className="hover:text-white transition">Terms of Service</Link>
+            <span>•</span>
+            <Link to="/shipping-policy" className="hover:text-white transition">Shipping Policy</Link>
           </div>
         </div>
       </div>

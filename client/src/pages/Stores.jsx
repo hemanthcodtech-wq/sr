@@ -190,9 +190,9 @@ const Stores = () => {
                 {/* Footer Action */}
                 <Link
                   to={`/store/${store._id}`}
-                  className="w-full py-2.5 px-4 rounded-xl bg-slate-100 hover:bg-[#0c2a5e] text-slate-800 hover:text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer"
+                  className="w-full py-2.5 px-4 rounded-xl bg-[#0f8a48] hover:bg-[#0c723b] active:scale-95 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
                 >
-                  <span>Visit Storefront</span>
+                  <span>Visit Shop</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
               </div>

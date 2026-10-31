@@ -1,63 +1,46 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 
 /**
- * SR Brand Logo Component:
- * - Employs official /logo.png luxury gold & black crown monogram
- * - Clean, borderless floating emblem
- * - Emphasizes iconic emblem without redundant "SR Marketplace" text
- * - Supports marketplace, vendor, admin, iconOnly, and hero variants
+ * Official Brand Logo Component:
+ * - Renders the user's official golden crown SR emblem (/logo.png)
+ * - Tightly cropped bounds (410x397) to maximize visibility and scale
+ * - Polished golden luminance & warm ambient drop shadow for maximum clarity on dark navy navbar
+ * - Sized large, crisp and bold across mobile, tablet and desktop
  */
 const Logo = ({
-  variant = 'marketplace', // 'marketplace' | 'vendor' | 'admin' | 'iconOnly' | 'hero'
-  theme = 'light',         // 'light' (white background) | 'dark' (navy sidebar)
-  size = 'md',             // 'xs' | 'sm' | 'md' | 'lg' | 'xl'
+  variant = 'brand', // 'brand' (default user logo) | 'vendor' | 'admin' | 'marketplace' | 'rs'
+  theme = 'dark',
+  size = 'lg', // 'sm' | 'md' | 'lg' | 'xl'
   className = '',
   linkTo,
-  showText = false,        // Default false to show only the iconic emblem without "SR Marketplace" text
   showTagline = false,
   animated = true,
 }) => {
-  const [imgError, setImgError] = useState(false);
   const isDark = theme === 'dark';
 
-  // Proportional sizing tokens for prominent, crisp emblem presentation
+  // Responsive height scale for the golden SR emblem
   const sizeMap = {
-    xs: {
-      img: 'w-8 h-8 sm:w-9 sm:h-9',
-      title: 'text-base sm:text-lg',
-      sub: 'text-[9px]',
-      gap: 'gap-2',
-    },
     sm: {
-      img: 'w-10 h-10 sm:w-12 sm:h-12',
-      title: 'text-lg sm:text-xl',
-      sub: 'text-[10px]',
-      gap: 'gap-2.5',
+      imgH: 'h-10 sm:h-12',
+      tagline: 'text-[7px] sm:text-[8px] tracking-[0.2em] mt-0.5',
     },
     md: {
-      img: 'w-14 h-14 sm:w-16 sm:h-16',
-      title: 'text-xl sm:text-2xl',
-      sub: 'text-[11px]',
-      gap: 'gap-3',
+      imgH: 'h-12 sm:h-14',
+      tagline: 'text-[8px] sm:text-[9px] tracking-[0.22em] mt-0.5',
     },
     lg: {
-      img: 'w-20 h-20 sm:w-24 sm:h-24',
-      title: 'text-2xl sm:text-3xl',
-      sub: 'text-xs',
-      gap: 'gap-3.5',
+      imgH: 'h-14 sm:h-16 md:h-18',
+      tagline: 'text-[9px] sm:text-[10px] tracking-[0.25em] mt-1',
     },
     xl: {
-      img: 'w-28 h-28 sm:w-32 sm:h-32',
-      title: 'text-3xl sm:text-4xl',
-      sub: 'text-sm',
-      gap: 'gap-4',
+      imgH: 'h-18 sm:h-22 md:h-24',
+      tagline: 'text-[10px] sm:text-[12px] tracking-[0.28em] mt-1.5',
     },
   };
 
-  const currentSize = sizeMap[size] || sizeMap.md;
+  const currentSize = sizeMap[size] || sizeMap.lg;
 
-  // Determine default target destination if not specified
   let targetLink = linkTo;
   if (targetLink === undefined) {
     if (variant === 'vendor') targetLink = '/vendor/dashboard';
@@ -68,84 +51,80 @@ const Logo = ({
   const Wrapper = targetLink ? Link : 'div';
   const wrapperProps = targetLink ? { to: targetLink } : {};
 
+  // If RS vector emblem is explicitly requested
+  if (variant === 'rs') {
+    return (
+      <Wrapper
+        {...wrapperProps}
+        className={`inline-flex flex-col items-center justify-center select-none transition-all duration-200 ${
+          targetLink ? 'cursor-pointer' : ''
+        } ${className}`}
+        aria-label="RS Marketplace"
+      >
+        <div className="relative flex items-center justify-center font-black select-none tracking-tight leading-none px-1">
+          <span
+            style={{ color: '#ffb703', fontFamily: "'Impact', 'Arial Black', -apple-system, sans-serif" }}
+            className="font-black inline-block bg-gradient-to-b from-[#fff385] via-[#ffc800] to-[#d97706] bg-clip-text text-transparent drop-shadow-[0_2px_6px_rgba(245,158,11,0.4)] text-3.5xl sm:text-4xl"
+          >
+            R
+          </span>
+          <span
+            style={{ color: '#0ea5e9', fontFamily: "'Impact', 'Arial Black', -apple-system, sans-serif" }}
+            className="font-black inline-block bg-gradient-to-b from-[#38bdf8] via-[#0ea5e9] to-[#0284c7] bg-clip-text text-transparent drop-shadow-[0_2px_6px_rgba(14,165,233,0.4)] -ml-0.5 text-3.5xl sm:text-4xl"
+          >
+            S
+          </span>
+        </div>
+        {showTagline && (
+          <span className="font-black uppercase text-white tracking-[0.25em] text-[8.5px] mt-1 whitespace-nowrap">
+            SHOP • SUPPORT • GROW
+          </span>
+        )}
+      </Wrapper>
+    );
+  }
+
+  // Primary: Official Golden Crown SR Luxury Logo (/logo.png)
   return (
     <Wrapper
       {...wrapperProps}
-      className={`inline-flex items-center ${currentSize.gap} group select-none transition-all duration-200 ${
+      className={`inline-flex flex-col items-center justify-center group select-none transition-all duration-200 ${
         targetLink ? 'cursor-pointer' : ''
       } ${className}`}
+      aria-label="SR Multi-Vendor Marketplace"
     >
-      {/* 1. Borderless, Prominent Floating SR Emblem */}
       <div
-        className={`relative flex-shrink-0 flex items-center justify-center transition-transform duration-200 ${
-          animated ? 'group-hover:scale-105' : ''
+        className={`relative flex items-center justify-center transition-transform duration-200 ${
+          animated ? 'group-hover:scale-105 active:scale-95' : ''
         }`}
       >
-        {!imgError ? (
-          <img
-            src="/logo.png"
-            alt="SR Logo"
-            onError={() => setImgError(true)}
-            className={`${currentSize.img} object-contain transition-transform duration-200 filter drop-shadow-xs`}
-            loading="eager"
-          />
-        ) : (
-          <div
-            className={`${currentSize.img} rounded-lg bg-gradient-to-tr from-[#92400e] via-[#d97706] to-[#fde047] flex items-center justify-center text-white font-black text-lg shadow-sm`}
-          >
-            SR
-          </div>
-        )}
+        <img
+          src="/logo.png"
+          alt="SR Logo"
+          className={`${currentSize.imgH} w-auto object-contain filter drop-shadow-[0_2px_12px_rgba(245,158,11,0.55)] brightness-105`}
+          loading="eager"
+        />
       </div>
 
-      {/* 2. Optional Variant Badges or Brand Text */}
-      {(showText || variant === 'vendor' || variant === 'admin') && variant !== 'iconOnly' && (
-        <div className="flex flex-col text-left leading-tight">
-          <div className="flex items-center gap-2 flex-wrap">
-            {showText && (
-              <span
-                className={`font-black tracking-tight ${currentSize.title} ${
-                  isDark ? 'text-white' : 'text-[#0c2a5e]'
-                }`}
-              >
-                <span className="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 bg-clip-text text-transparent font-black">
-                  SR
-                </span>
-                <span className={isDark ? 'text-white ml-1.5' : 'text-[#0c2a5e] ml-1.5'}>
-                  Marketplace
-                </span>
-              </span>
-            )}
+      {/* Optional Tagline */}
+      {showTagline && (
+        <span
+          className={`font-black uppercase whitespace-nowrap drop-shadow-xs text-amber-300/95 tracking-[0.25em] ${currentSize.tagline}`}
+        >
+          DREAM  •  GROW  •  TOGETHER
+        </span>
+      )}
 
-            {/* Variant Specific Badges */}
-            {variant === 'vendor' && (
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 uppercase tracking-wider shadow-xs">
-                Vendor Hub
-              </span>
-            )}
-
-            {variant === 'admin' && (
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-indigo-600 to-indigo-700 text-white uppercase tracking-wider shadow-xs">
-                Admin Console
-              </span>
-            )}
-          </div>
-
-          {/* Optional Subtext / Tagline */}
-          {showTagline && (
-            <span
-              className={`font-bold tracking-[0.18em] uppercase ${currentSize.sub} ${
-                isDark ? 'text-amber-300' : 'text-amber-700'
-              } flex items-center gap-1 mt-0.5`}
-            >
-              <span>DREAM</span>
-              <span className="text-amber-500">•</span>
-              <span>GROW</span>
-              <span className="text-amber-500">•</span>
-              <span>TOGETHER</span>
-            </span>
-          )}
-        </div>
+      {/* Optional Badges */}
+      {variant === 'vendor' && (
+        <span className="mt-1 px-2.5 py-0.5 rounded-full text-[9px] font-black bg-gradient-to-r from-amber-400 to-amber-500 text-slate-950 uppercase tracking-wider shadow-xs">
+          Vendor Hub
+        </span>
+      )}
+      {variant === 'admin' && (
+        <span className="mt-1 px-2.5 py-0.5 rounded-full text-[9px] font-black bg-gradient-to-r from-emerald-500 to-teal-600 text-white uppercase tracking-wider shadow-xs">
+          Admin Console
+        </span>
       )}
     </Wrapper>
   );

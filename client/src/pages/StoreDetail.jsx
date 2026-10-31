@@ -213,7 +213,7 @@ const StoreDetail = () => {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4">
             {products.map((product) => {
               const hasDiscount = product.discountPrice > 0 && product.discountPrice < product.price;
               const displayPrice = hasDiscount ? product.discountPrice : product.price;
@@ -276,10 +276,10 @@ const StoreDetail = () => {
 
                     <button
                       onClick={() => addToCart(product, 1)}
-                      className="w-full py-2 px-3 rounded-xl bg-[#0c2a5e] hover:bg-blue-800 text-white text-[11px] font-bold flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs"
+                      className="w-full py-2 px-3 rounded-xl bg-[#0f8a48] hover:bg-[#0c723b] text-white text-[11px] font-bold flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs active:scale-98"
                     >
                       <ShoppingCart className="w-3.5 h-3.5" />
-                      <span>Add to Bag</span>
+                      <span>Add to Cart</span>
                     </button>
                   </div>
                 </div>

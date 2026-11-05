@@ -37,6 +37,7 @@ import VendorOrders from '../pages/vendor/VendorOrders';
 import VendorOrderDetail from '../pages/vendor/VendorOrderDetail';
 import VendorWallet from '../pages/vendor/VendorWallet';
 import VendorPromote from '../pages/vendor/VendorPromote';
+import VendorStoreProfile from '../pages/vendor/VendorStoreProfile';
 
 // Admin Pages
 import AdminLogin from '../pages/admin/AdminLogin';
@@ -181,6 +182,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute allowedRoles={['vendor', 'admin']}>
             <VendorPromote />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/vendor/profile"
+        element={
+          <ProtectedRoute allowedRoles={['vendor', 'admin']}>
+            <VendorStoreProfile />
           </ProtectedRoute>
         }
       />

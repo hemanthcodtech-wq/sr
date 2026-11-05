@@ -17,7 +17,7 @@
     <meta name="theme-color" content="#ffffff" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
     <style>
       /* Pre-React Instant Splash Loading Screen for page refreshes */
@@ -90,8 +90,18 @@
         <div class="pre-loader-sub">Loading...</div>
       </div>
     </div>
-    <!-- Razorpay Checkout SDK -->
-    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <!-- Razorpay Checkout SDK (Loaded dynamically on checkout with graceful fallback) -->
+    <script>
+      (function() {
+        var script = document.createElement('script');
+        script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+        script.async = true;
+        script.onerror = function() {
+          console.warn('Razorpay SDK could not be loaded from external CDN. Offline / simulated payment simulation mode is enabled.');
+        };
+        document.head.appendChild(script);
+      })();
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

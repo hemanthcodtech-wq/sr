@@ -1,5 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Settings, Gift, DollarSign, ShieldCheck, ArrowLeft, Save, Sparkles } from 'lucide-react';
+import {
+  Settings,
+  Gift,
+  DollarSign,
+  ShieldCheck,
+  ArrowLeft,
+  Save,
+  Sparkles,
+  Ticket,
+  TrendingUp,
+  CreditCard,
+  Building,
+} from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
 import api from '../../services/api';
@@ -14,8 +26,13 @@ const AdminSettings = () => {
     referralBonusAmount: 500,
     commissionRatePercent: 10,
     minWithdrawalAmount: 500,
-    platformName: 'NexMart Multi-Vendor Marketplace',
-    supportEmail: 'support@nexmart.com',
+    platformName: 'SR Multi-Vendor Marketplace',
+    supportEmail: 'support@srmarketplace.online',
+    customerReferralDiscountAmount: 100,
+    customerReferralMinSpend: 499,
+    deodapAffiliateCommissionPercent: 10,
+    enrollmentFee: 999,
+    planDurationDays: 365,
   });
 
   useEffect(() => {
@@ -148,6 +165,90 @@ const AdminSettings = () => {
                 className="w-full px-3 py-2 text-sm font-black bg-white border border-amber-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
               />
             </div>
+          </div>
+        </div>
+
+        {/* Customer-to-Customer Referral Discount Vouchers */}
+        <div className="p-5 bg-purple-50/70 border border-purple-200 rounded-2xl space-y-3">
+          <div className="flex items-center gap-2">
+            <Ticket className="w-5 h-5 text-purple-600" />
+            <h2 className="font-bold text-sm text-purple-950">Customer Referral Discount Vouchers (₹)</h2>
+          </div>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            When a registered customer refers friends with their referral invite link/code, they receive an automatic discount coupon voucher stored in the database. Configure the voucher discount and minimum cart spend below.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700">Referral Discount Voucher (₹) *</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">₹</span>
+                <input
+                  type="number"
+                  min={10}
+                  required
+                  value={settings.customerReferralDiscountAmount || 100}
+                  onChange={(e) => setSettings({ ...settings, customerReferralDiscountAmount: Number(e.target.value) })}
+                  className="w-full pl-8 pr-3 py-2 text-sm font-black bg-white border border-purple-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-700">Min Cart Value to Redeem Voucher (₹) *</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">₹</span>
+                <input
+                  type="number"
+                  min={50}
+                  required
+                  value={settings.customerReferralMinSpend || 499}
+                  onChange={(e) => setSettings({ ...settings, customerReferralMinSpend: Number(e.target.value) })}
+                  className="w-full pl-8 pr-3 py-2 text-sm font-black bg-white border border-purple-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Vendor DeoDap Affiliate Promotion Commission */}
+        <div className="p-5 bg-teal-50/70 border border-teal-200 rounded-2xl space-y-3">
+          <div className="flex items-center gap-2">
+            <TrendingUp className="w-5 h-5 text-teal-600" />
+            <h2 className="font-bold text-sm text-teal-950">Vendor DeoDap Affiliate Commission (%)</h2>
+          </div>
+          <p className="text-xs text-slate-600 leading-relaxed">
+            Merchants can promote platform DeoDap dropship products with their unique affiliate link. When customers order through that link, the promoter vendor receives this commission rate credited to their wallet upon order delivery.
+          </p>
+          <div className="flex items-center gap-3">
+            <div className="relative max-w-xs w-full">
+              <input
+                type="number"
+                min={0}
+                max={100}
+                required
+                value={settings.deodapAffiliateCommissionPercent || 10}
+                onChange={(e) => setSettings({ ...settings, deodapAffiliateCommissionPercent: Number(e.target.value) })}
+                className="w-full pr-8 pl-3 py-2 text-sm font-black bg-white border border-teal-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm font-bold text-slate-400">%</span>
+            </div>
+            <span className="text-xs font-bold text-teal-700">Promoter vendor commission on DeoDap sales</span>
+          </div>
+        </div>
+
+        {/* Centralized Razorpay Gateway Escrow Model */}
+        <div className="p-5 bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-2xl space-y-3 shadow-md border border-slate-700">
+          <div className="flex items-center gap-2 text-amber-400">
+            <CreditCard className="w-5 h-5" />
+            <h2 className="font-bold text-sm">Centralized Admin Razorpay Gateway &amp; Settlements</h2>
+          </div>
+          <p className="text-xs text-slate-300 leading-relaxed">
+            All customer checkout payments and merchant store plan subscription fees are deposited directly into your central Admin Razorpay account. Vendor wallet balances (from store product sales, DeoDap promotions, and vendor referrals) are tracked in real-time, and you disburse payouts directly to their bank accounts via the Settlements queue.
+          </p>
+          <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-slate-300">
+            <span className="px-2.5 py-1 rounded-lg bg-slate-800 text-emerald-400 border border-slate-700">✓ 100% Admin Escrow</span>
+            <span className="px-2.5 py-1 rounded-lg bg-slate-800 text-amber-400 border border-slate-700">✓ Manual / Bank NEFT Settlement Payouts</span>
+            <span className="px-2.5 py-1 rounded-lg bg-slate-800 text-sky-400 border border-slate-700">✓ Real-time Dual Ledger Logging</span>
           </div>
         </div>
 

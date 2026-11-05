@@ -21,8 +21,11 @@ import {
   Clock,
   AlertCircle,
   Tag,
+  Boxes,
+  Banknote,
 } from 'lucide-react';
 import Logo from '../Logo';
+import NotificationDropdown from '../NotificationDropdown';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import api from '../../services/api';
@@ -34,7 +37,6 @@ const AdminLayout = ({ children, title = 'Dashboard Overview', subtitle = '', on
   const navigate = useNavigate();
   const [refreshing, setRefreshing] = useState(false);
   const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
 
   // Sidebar collapse state with localStorage persistence
   const [isCollapsed, setIsCollapsed] = useState(() => {
@@ -108,55 +110,78 @@ const AdminLayout = ({ children, title = 'Dashboard Overview', subtitle = '', on
   const navItems = [
     {
       title: 'Dashboard',
+      shortTitle: 'Home',
       path: '/admin/dashboard',
       icon: LayoutDashboard,
     },
     {
       title: 'Vendors',
+      shortTitle: 'Vendors',
       path: '/admin/vendors',
       icon: Store,
       badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : null,
       badgeAlert: pendingApprovalsCount > 0,
     },
     {
-      title: 'DeoDap Products',
+      title: 'Store Products',
+      shortTitle: 'Catalog',
       path: '/admin/products',
       icon: Package,
     },
     {
       title: 'Dropship Orders',
+      shortTitle: 'Dropship',
       path: '/admin/dropshipping',
       icon: Truck,
     },
     {
       title: 'Vendor Orders',
+      shortTitle: 'Orders',
       path: '/admin/vendor-orders',
       icon: ShoppingBag,
     },
     {
       title: 'Vendor Plans',
+      shortTitle: 'Plans',
       path: '/admin/plans',
       icon: CreditCard,
     },
     {
       title: 'Coupons & Discounts',
+      shortTitle: 'Coupons',
       path: '/admin/coupons',
       icon: Tag,
     },
     {
-      title: 'Settlements',
+      title: 'Vendor Payouts',
+      shortTitle: 'Payouts',
       path: '/admin/settlements',
-      icon: Sliders,
+      icon: Banknote,
     },
     {
       title: 'Settings',
+      shortTitle: 'Settings',
       path: '/admin/settings',
       icon: Settings,
     },
   ];
 
+  // Primary tabs for mobile bottom navigation bar (5 compact buttons)
+  const mobileNavItems = [
+    { title: 'Home', path: '/admin/dashboard', icon: LayoutDashboard },
+    {
+      title: 'Vendors',
+      path: '/admin/vendors',
+      icon: Store,
+      badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : null,
+    },
+    { title: 'Products', path: '/admin/products', icon: Package },
+    { title: 'Orders', path: '/admin/vendor-orders', icon: ShoppingBag },
+    { title: 'Settings', path: '/admin/settings', icon: Settings },
+  ];
+
   return (
-    <div className="min-h-screen bg-[#f1f5f9] text-slate-900 flex font-sans selection:bg-amber-100 selection:text-amber-900">
+    <div className="min-h-screen bg-[#f1f5f9] text-slate-900 flex font-sans selection:bg-amber-100 selection:text-amber-900 pb-16 lg:pb-0">
       {/* 1. Desktop Sidebar */}
       <aside
         className={`hidden lg:flex flex-col justify-between bg-white border-r border-slate-200/90 shadow-2xs sticky top-0 h-screen z-30 transition-all duration-300 ease-in-out select-none ${
@@ -417,8 +442,8 @@ const AdminLayout = ({ children, title = 'Dashboard Overview', subtitle = '', on
       {/* 3. Main Body Column */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Navbar */}
-        <header className="h-16 bg-white border-b border-slate-200/90 shadow-2xs px-4 sm:px-8 flex items-center justify-between sticky top-0 z-20">
-          <div className="flex items-center gap-3">
+        <header className="h-16 bg-white border-b border-slate-200/90 shadow-2xs px-3 sm:px-8 flex items-center justify-between sticky top-0 z-20">
+          <div className="flex items-center gap-2.5 sm:gap-3">
             <button
               onClick={() => setMobileDrawerOpen(true)}
               className="lg:hidden p-2 rounded-xl text-slate-600 hover:bg-slate-100 transition cursor-pointer"
@@ -427,7 +452,7 @@ const AdminLayout = ({ children, title = 'Dashboard Overview', subtitle = '', on
               <Menu className="w-5 h-5" />
             </button>
             <div>
-              <h1 className="text-base sm:text-lg font-black text-slate-900 tracking-tight leading-tight flex items-center gap-2">
+              <h1 className="text-sm sm:text-lg font-black text-slate-900 tracking-tight leading-tight flex items-center gap-2">
                 <span>{title}</span>
               </h1>
               {subtitle && <p className="text-[11px] text-slate-400 font-medium hidden sm:block">{subtitle}</p>}
@@ -435,7 +460,7 @@ const AdminLayout = ({ children, title = 'Dashboard Overview', subtitle = '', on
           </div>
 
           {/* Right Header Badges & Actions */}
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
             {/* Live Indicator */}
             <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -450,75 +475,11 @@ const AdminLayout = ({ children, title = 'Dashboard Overview', subtitle = '', on
               title="Sync Analytics & Approvals"
               aria-label="Sync Analytics"
             >
-              <RefreshCw className={`w-4.5 h-4.5 ${refreshing ? 'animate-spin text-indigo-600' : ''}`} />
+              <RefreshCw className={`w-4 h-4 sm:w-4.5 sm:h-4.5 ${refreshing ? 'animate-spin text-indigo-600' : ''}`} />
             </button>
 
-            {/* Notification Bell with Dropdown Alert */}
-            <div className="relative">
-              <button
-                onClick={() => setNotificationsOpen(!notificationsOpen)}
-                className="relative p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition cursor-pointer"
-                title="Notifications & Approval Alerts"
-                aria-label="Notifications"
-              >
-                <Bell className="w-5 h-5" />
-                {pendingApprovalsCount > 0 && (
-                  <span className="absolute top-1 right-1 bg-amber-500 text-white text-[10px] font-black w-4.5 h-4.5 rounded-full flex items-center justify-center ring-2 ring-white animate-pulse">
-                    {pendingApprovalsCount}
-                  </span>
-                )}
-              </button>
-
-              {/* Notification Alert Popup Panel */}
-              {notificationsOpen && (
-                <div className="absolute right-0 mt-2 w-80 sm:w-88 bg-white/95 backdrop-blur-xl border border-slate-200/90 rounded-2xl shadow-2xl p-4 z-50 animate-fadeIn space-y-3">
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                    <span className="font-black text-xs text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
-                      <Bell className="w-3.5 h-3.5 text-amber-500" />
-                      <span>Alert Notifications</span>
-                    </span>
-                    <button
-                      onClick={() => setNotificationsOpen(false)}
-                      className="text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  {pendingApprovalsCount > 0 ? (
-                    <div className="p-3.5 bg-amber-50/90 border border-amber-300/80 rounded-xl space-y-2">
-                      <div className="flex items-start gap-2.5">
-                        <Clock className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0 animate-pulse" />
-                        <div>
-                          <strong className="text-xs font-bold text-amber-950 block">
-                            {pendingApprovalsCount} Pending Merchant Approval{pendingApprovalsCount > 1 ? 's' : ''}
-                          </strong>
-                          <p className="text-[11px] text-amber-800 mt-0.5 leading-relaxed">
-                            New store registration and KYC proofs are waiting for your review.
-                          </p>
-                        </div>
-                      </div>
-                      <Link
-                        to="/admin/vendors"
-                        onClick={() => setNotificationsOpen(false)}
-                        className="inline-flex items-center gap-1 text-xs font-bold text-[#0c2a5e] hover:underline pt-1"
-                      >
-                        <span>Go to Vendor Approvals →</span>
-                      </Link>
-                    </div>
-                  ) : (
-                    <div className="p-4 text-center text-xs text-slate-500">
-                      ✓ All merchant applications are reviewed. No pending alerts.
-                    </div>
-                  )}
-
-                  <div className="pt-1 text-[10px] text-slate-400 text-center flex items-center justify-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                    <span>Admin System Connected &amp; Synced</span>
-                  </div>
-                </div>
-              )}
-            </div>
+            {/* Notification Bell with Live Real-time Dropdown */}
+            <NotificationDropdown variant="light" role="admin" />
 
             {/* Admin Profile Pill */}
             <div className="flex items-center gap-2 pl-2 sm:pl-3 border-l border-slate-200">
@@ -533,12 +494,46 @@ const AdminLayout = ({ children, title = 'Dashboard Overview', subtitle = '', on
           </div>
         </header>
 
-
         {/* Page Content Body */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+        <main className="flex-1 p-3.5 sm:p-6 lg:p-8 overflow-y-auto">
           {children}
         </main>
       </div>
+
+      {/* 4. Mobile Admin Bottom Navigation Bar */}
+      <nav
+        aria-label="Admin Mobile Navigation"
+        className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-slate-200/90 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] lg:hidden flex items-center justify-around px-2 py-1.5"
+      >
+        {mobileNavItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = location.pathname === item.path;
+
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`flex flex-col items-center justify-center flex-1 py-1 px-1 transition-all rounded-xl relative ${
+                isActive
+                  ? 'text-indigo-700 font-black'
+                  : 'text-slate-500 hover:text-slate-800 font-medium'
+              }`}
+            >
+              <div className="relative">
+                <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110 text-indigo-700' : ''}`} />
+                {item.badge && (
+                  <span className="absolute -top-1 -right-2 px-1 py-0.2 rounded-full bg-amber-500 text-slate-950 font-black text-[9px] min-w-[14px] text-center shadow-2xs">
+                    {item.badge}
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] mt-0.5 tracking-tight truncate max-w-[60px]">
+                {item.title}
+              </span>
+            </Link>
+          );
+        })}
+      </nav>
     </div>
   );
 };

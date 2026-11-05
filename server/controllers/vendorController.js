@@ -22,6 +22,7 @@ const {
   mockTransactions,
   mockSettings,
 } = require('../config/mockStore');
+const { createNotification } = require('./notificationController');
 
 // Helper to get platform setting
 const getSetting = async () => {
@@ -423,6 +424,24 @@ exports.verifyEnrollmentPayment = async (req, res, next) => {
         currentUser.store = store;
       }
 
+      try {
+        await createNotification({
+          role: 'admin',
+          type: 'plan_activated',
+          title: '🏪 New Store Plan Subscribed',
+          message: `${req.user?.name || 'Merchant'} paid ₹${enrollmentFee} for "${plan?.title || 'Merchant Plan'}". Ready for verification.`,
+          link: '/admin/merchants',
+        });
+        await createNotification({
+          recipient: req.user._id,
+          role: 'vendor',
+          type: 'plan_activated',
+          title: '💳 Plan Activated Successfully',
+          message: `Your payment of ₹${enrollmentFee} for "${plan?.title || 'Merchant Plan'}" was received. Store setup is complete!`,
+          link: '/vendor/dashboard',
+        });
+      } catch (_) {}
+
       return res.status(200).json({
         success: true,
         message: 'Enrollment fee paid successfully! Your application has been submitted for Admin approval.',
@@ -464,6 +483,24 @@ exports.verifyEnrollmentPayment = async (req, res, next) => {
     ).populate('store');
 
     const populatedStore = await Store.findById(store._id).populate('activePlan');
+
+    try {
+      await createNotification({
+        role: 'admin',
+        type: 'plan_activated',
+        title: '🏪 New Store Plan Subscribed',
+        message: `${req.user?.name || 'Merchant'} paid ₹${enrollmentFee} for "${plan?.title || 'Merchant Plan'}". Ready for verification.`,
+        link: '/admin/merchants',
+      });
+      await createNotification({
+        recipient: req.user._id,
+        role: 'vendor',
+        type: 'plan_activated',
+        title: '💳 Plan Activated Successfully',
+        message: `Your payment of ₹${enrollmentFee} for "${plan?.title || 'Merchant Plan'}" was received. Store setup is complete!`,
+        link: '/vendor/dashboard',
+      });
+    } catch (_) {}
 
     res.status(200).json({
       success: true,
@@ -697,11 +734,11 @@ exports.getVendorStore = async (req, res, next) => {
 // @access  Private (Vendor)
 exports.updateStore = async (req, res, next) => {
   try {
-    const { storeName, description, phone, email, address, logo, banner, bankDetails } = req.body;
+    const { storeName, category, description, phone, email, address, logo, banner, bankDetails } = req.body;
 
     if (mongoose.connection.readyState !== 1) {
       const store = mockStores[0];
-      Object.assign(store, { storeName, description, phone, email, address, logo, banner, bankDetails });
+      Object.assign(store, { storeName, category, description, phone, email, address, logo, banner, bankDetails });
       return res.status(200).json({ success: true, store });
     }
 
@@ -709,9 +746,14 @@ exports.updateStore = async (req, res, next) => {
       ? { $or: [{ vendor: req.user._id }, { _id: req.user.store }] }
       : { vendor: req.user._id };
 
+    const updateFields = { storeName, description, phone, email, address, bankDetails };
+    if (category) updateFields.category = category;
+    if (logo) updateFields.logo = logo;
+    if (banner) updateFields.banner = banner;
+
     const store = await Store.findOneAndUpdate(
       filter,
-      { storeName, description, phone, email, address, logo, banner, bankDetails },
+      updateFields,
       { new: true, runValidators: true }
     ).populate('activePlan');
 
@@ -793,6 +835,18 @@ exports.requestPayout = async (req, res, next) => {
         createdAt: new Date(),
       });
 
+      try {
+        await createNotification({
+          recipient: null,
+          role: 'admin',
+          type: 'settlement_payout',
+          title: '💸 New Vendor Withdrawal Request',
+          message: `${user.name || 'Vendor'} requested a bank settlement payout of ₹${Number(amount).toLocaleString('en-IN')}.`,
+          link: '/admin/settlements',
+          metadata: { settlementId: newSettlement._id, amount: Number(amount) },
+        });
+      } catch (_) {}
+
       return res.status(201).json({
         success: true,
         message: 'Settlement payout request submitted successfully.',
@@ -845,6 +899,18 @@ exports.requestPayout = async (req, res, next) => {
       status: 'pending',
       balanceAfter: user.walletBalance,
     });
+
+    try {
+      await createNotification({
+        recipient: null,
+        role: 'admin',
+        type: 'settlement_payout',
+        title: '💸 New Vendor Withdrawal Request',
+        message: `${user.name || 'Vendor'} requested a bank settlement payout of ₹${Number(amount).toLocaleString('en-IN')}.`,
+        link: '/admin/settlements',
+        metadata: { settlementId: settlement._id, amount: Number(amount) },
+      });
+    } catch (_) {}
 
     res.status(201).json({
       success: true,
@@ -1070,6 +1136,24 @@ exports.renewPlanSubscription = async (req, res, next) => {
     });
 
     const populatedStore = await Store.findById(store._id).populate('activePlan');
+
+    try {
+      await createNotification({
+        role: 'admin',
+        type: 'plan_activated',
+        title: '🏪 New Store Plan Subscribed',
+        message: `${req.user?.name || 'Merchant'} paid ₹${enrollmentFee} for "${plan?.title || 'Merchant Plan'}". Ready for verification.`,
+        link: '/admin/merchants',
+      });
+      await createNotification({
+        recipient: req.user._id,
+        role: 'vendor',
+        type: 'plan_activated',
+        title: '💳 Plan Activated Successfully',
+        message: `Your payment of ₹${enrollmentFee} for "${plan?.title || 'Merchant Plan'}" was received. Store setup is complete!`,
+        link: '/vendor/dashboard',
+      });
+    } catch (_) {}
 
     res.status(200).json({
       success: true,

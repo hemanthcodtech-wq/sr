@@ -15,34 +15,58 @@ import {
   Store,
   ChevronRight,
   ShieldCheck,
+  Check,
+  RotateCcw,
+  Sparkles,
+  Phone,
+  MessageCircle,
 } from 'lucide-react';
 import api from '../services/api';
+import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 
 const OrderTracking = () => {
   const { id } = useParams();
   const location = useLocation();
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { wishlistCount } = useCart();
 
   const [query, setQuery] = useState(id || '');
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
-  // Initial load if :id is provided in URL
   useEffect(() => {
     if (id) {
       setQuery(id);
       fetchTracking(id);
     } else {
-      // Check query param ?q=
       const params = new URLSearchParams(location.search);
       const q = params.get('q');
       if (q) {
         setQuery(q);
         fetchTracking(q);
+      } else {
+        // Auto fetch the most recent active/live order
+        fetchLatestActiveOrder();
       }
     }
   }, [id, location]);
+
+  const fetchLatestActiveOrder = async () => {
+    try {
+      const res = await api.get('/orders/my-orders');
+      if (res.data?.success && res.data.orders?.length > 0) {
+        // Find first order that is live (not delivered or cancelled)
+        const liveOrder = res.data.orders.find(
+          (o) => o.deliveryStatus !== 'Delivered' && o.deliveryStatus !== 'Cancelled'
+        ) || res.data.orders[0];
+        setOrder(liveOrder);
+        setQuery(liveOrder.invoiceNumber || liveOrder._id);
+      }
+    } catch (_) {}
+  };
 
   const fetchTracking = async (trackingRef) => {
     if (!trackingRef || !trackingRef.trim()) return;
@@ -52,7 +76,12 @@ const OrderTracking = () => {
     try {
       const res = await api.get(`/orders/track/${encodeURIComponent(trackingRef.trim())}`);
       if (res.data?.success) {
-        setOrder(res.data.order);
+        const fetchedOrder = res.data.order;
+        // User rule: tracking should come ONLY for orders that are live placed and not delivered
+        if (fetchedOrder.deliveryStatus === 'Delivered') {
+          setErrorMsg('This order has already been Delivered. Tracking is completed.');
+        }
+        setOrder(fetchedOrder);
       } else {
         setErrorMsg('No tracking records found for this reference code.');
       }
@@ -70,264 +99,331 @@ const OrderTracking = () => {
     }
   };
 
-  const getStatusBadge = (status) => {
-    switch (status) {
-      case 'Delivered':
-        return 'bg-emerald-50 text-emerald-700 border-emerald-200';
-      case 'Out for Delivery':
-        return 'bg-amber-50 text-amber-700 border-amber-200';
-      case 'Shipped':
-        return 'bg-blue-50 text-blue-700 border-blue-200';
-      case 'Processing':
-        return 'bg-indigo-50 text-indigo-700 border-indigo-200';
-      default:
-        return 'bg-slate-50 text-slate-700 border-slate-200';
-    }
+  // Steps for vertical tracker matching Screenshot 3
+  const trackingSteps = [
+    { id: 1, label: 'Order Placed', desc: 'Order confirmed and registered in database' },
+    { id: 2, label: 'Confirmed', desc: 'Current status — order verified with merchant' },
+    { id: 3, label: 'Packed', desc: 'Item packaged securely at seller hub' },
+    { id: 4, label: 'Shipped', desc: 'Handed over to Delhivery Express / logistics partner' },
+    { id: 5, label: 'Out for Delivery', desc: 'Delivery agent en route to your address' },
+    { id: 6, label: 'Delivered', desc: 'Package delivered to customer' },
+  ];
+
+  // Helper to determine active step index
+  const getActiveStepIndex = (status) => {
+    const s = (status || '').toLowerCase();
+    if (s.includes('delivered')) return 6;
+    if (s.includes('out')) return 5;
+    if (s.includes('shipped')) return 4;
+    if (s.includes('packed')) return 3;
+    if (s.includes('confirmed')) return 2;
+    return 1;
   };
 
-  const currentStatus = order?.items?.[0]?.deliveryStatus || 'Shipped';
+  const currentStep = getActiveStepIndex(order?.deliveryStatus || order?.items?.[0]?.deliveryStatus || 'Confirmed');
+  const isDelivered = (order?.deliveryStatus || '').toLowerCase() === 'delivered';
 
   return (
-    <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-10 2xl:px-14 py-8 space-y-8 select-none">
-      {/* Top Header & Breadcrumb */}
-      <div className="border-b border-slate-200 pb-5">
-        <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
-          <Link to="/" className="hover:text-[#0c2a5e]">Home</Link>
-          <ChevronRight className="w-3 h-3 text-slate-400" />
-          <Link to="/profile?tab=orders" className="hover:text-[#0c2a5e]">My Orders</Link>
-          <ChevronRight className="w-3 h-3 text-slate-400" />
-          <span className="text-slate-900 font-semibold">Live Order Tracking</span>
-        </div>
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mt-2">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-              Live Logistics &amp; Courier Tracking
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              Real-time delivery progress updates and milestone inspection
-            </p>
-          </div>
-          <Link
-            to="/profile?tab=orders"
-            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition"
-          >
-            <ArrowLeft className="w-3.5 h-3.5" />
-            <span>Back to Customer Portal</span>
-          </Link>
-        </div>
-      </div>
-
-      {/* Lookup Bar */}
-      <div className="max-w-3xl mx-auto bg-white rounded-3xl border border-slate-200/90 shadow-sm p-6 sm:p-8 space-y-4">
-        <form onSubmit={handleSearchSubmit} className="flex flex-col sm:flex-row gap-3">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
-            <input
-              type="text"
-              required
-              placeholder="Enter AWB Tracking No., Order ID, or Invoice No. (e.g. AWB892110293)"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-2xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-6 py-3 bg-[#0c2a5e] hover:bg-[#153e85] text-white font-extrabold text-xs sm:text-sm rounded-2xl transition shadow-sm cursor-pointer disabled:bg-slate-300"
-          >
-            {loading ? 'Locating...' : 'Track Package'}
-          </button>
-        </form>
-
-        {errorMsg && (
-          <div className="p-3.5 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl flex items-center gap-2">
-            <AlertCircle className="w-4 h-4 flex-shrink-0" />
-            <span>{errorMsg}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Shipment Details & Timeline */}
-      {loading ? (
-        <div className="max-w-4xl mx-auto space-y-4">
-          <div className="h-44 bg-slate-100 rounded-3xl animate-pulse" />
-          <div className="h-80 bg-slate-100 rounded-3xl animate-pulse" />
-        </div>
-      ) : order ? (
-        <div className="max-w-4xl mx-auto space-y-6">
-          {/* Main Courier Header Banner */}
-          <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs p-6 sm:p-8 space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-[#0c2a5e] text-white flex items-center justify-center font-black">
-                  <Truck className="w-7 h-7" />
-                </div>
-                <div>
-                  <span className="text-[11px] font-extrabold text-blue-900 uppercase tracking-wider block">
-                    {order.courierName || 'Delhivery Express Logistics'}
-                  </span>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-xs text-slate-500">AWB Tracking Code:</span>
-                    <strong className="text-base font-mono font-black text-slate-900">
-                      {order.trackingNumber || order.items?.[0]?.trackingNumber || 'AWB892110293'}
-                    </strong>
-                  </div>
-                  <div className="text-[11px] text-slate-500 mt-0.5">
-                    Order Ref: #{order.invoiceNumber || order._id}
-                  </div>
-                </div>
+    <div className="w-full max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 select-none font-sans">
+      {/* 3-Column Layout matching Screenshot 3 */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* LEFT COLUMN: Customer Status & Nav Menu (lg:col-span-3) */}
+        <div className="lg:col-span-3 space-y-5">
+          {/* Top User Phone Pill */}
+          <div className="glow-card p-5 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-[#0f8a48] text-white flex items-center justify-center font-black text-xl shadow-md flex-shrink-0">
+                +
               </div>
-
-              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                <div className="text-left sm:text-right">
-                  <span className="text-[10px] text-slate-500 uppercase block font-bold">Estimated Delivery</span>
-                  <strong className="text-sm text-slate-900 font-extrabold">
-                    {order.estimatedDelivery
-                      ? new Date(order.estimatedDelivery).toLocaleDateString('en-IN', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric',
-                        })
-                      : '2-3 Business Days'}
-                  </strong>
-                </div>
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border ${getStatusBadge(currentStatus)}`}>
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                  <span>{currentStatus}</span>
+              <div className="min-w-0">
+                <p className="font-extrabold text-sm text-slate-900 truncate">
+                  {user?.phone ? `+91 ${user.phone}` : user?.name || '+918978239929'}
+                </p>
+                <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                  Verified
                 </span>
               </div>
             </div>
 
-            {/* Stepper Milestones */}
-            <div className="py-2">
-              <h3 className="text-sm font-extrabold text-slate-900 mb-6">Live Transit Milestones</h3>
-              <div className="relative pl-6 sm:pl-8 border-l-2 border-blue-200 space-y-8 ml-3">
-                {(order.trackingTimeline && order.trackingTimeline.length > 0
-                  ? order.trackingTimeline
-                  : [
-                      {
-                        status: 'Order Placed',
-                        title: 'Order Confirmed & Payment Received',
-                        description: 'Transaction settled and verified.',
-                        location: 'Payment Gateway Facility',
-                        timestamp: new Date(Date.now() - 2 * 86400000),
-                      },
-                      {
-                        status: 'Processing',
-                        title: 'Packed & Dispatched by Merchant',
-                        description: 'Merchant completed packaging and manifest.',
-                        location: 'Seller Warehouse Hub',
-                        timestamp: new Date(Date.now() - 36 * 3600000),
-                      },
-                      {
-                        status: 'Shipped',
-                        title: 'In Transit with Express Logistics',
-                        description: 'Consignment en route to local hub.',
-                        location: 'Sorting Center',
-                        timestamp: new Date(Date.now() - 12 * 3600000),
-                      },
-                    ]
-                ).map((step, idx) => (
-                  <div key={idx} className="relative">
-                    <div className="absolute -left-[31px] sm:-left-[39px] top-1 w-6 h-6 rounded-full bg-white border-4 border-[#0c2a5e] flex items-center justify-center shadow-xs">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#0c2a5e]"></span>
-                    </div>
-
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <h4 className="font-extrabold text-xs sm:text-sm text-slate-900">{step.title}</h4>
-                        <span className="text-[11px] text-slate-400 font-mono">
-                          {new Date(step.timestamp).toLocaleString('en-IN', {
-                            month: 'short',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-600 leading-relaxed">{step.description}</p>
-                      {step.location && (
-                        <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mt-1">
-                          <MapPin className="w-3 h-3 text-[#0c2a5e]" />
-                          <span>{step.location}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div className="grid grid-cols-2 gap-2 pt-3 border-t border-slate-100 text-center">
+              <Link to="/orders" className="p-2 rounded-xl bg-slate-50 hover:bg-slate-100 transition">
+                <div className="text-lg font-black text-slate-900 leading-none">1</div>
+                <div className="text-[10px] text-slate-400 font-semibold mt-1">Orders</div>
+              </Link>
+              <Link to="/wishlist" className="p-2 rounded-xl bg-slate-50 hover:bg-rose-50 transition group">
+                <div className="text-lg font-black text-slate-900 group-hover:text-rose-600 leading-none">{wishlistCount}</div>
+                <div className="text-[10px] text-slate-400 font-semibold mt-1">Wishlist</div>
+              </Link>
             </div>
           </div>
 
-          {/* Delivery Destination & Product Breakdown Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5 text-xs">
-            {/* Address */}
-            <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs p-6 space-y-3">
-              <div className="flex items-center gap-2 text-slate-900 font-extrabold text-sm pb-2 border-b border-slate-100">
-                <MapPin className="w-4 h-4 text-[#0c2a5e]" />
-                <span>Delivery Address</span>
-              </div>
-              <div>
-                <strong className="text-sm font-bold text-slate-900 block">
-                  {order.shippingAddress?.fullName}
-                </strong>
-                <p className="text-slate-600 mt-1 leading-relaxed">
-                  {order.shippingAddress?.street}, {order.shippingAddress?.city}, {order.shippingAddress?.state} - {order.shippingAddress?.zipCode}
-                </p>
-                <p className="text-slate-500 mt-1">
-                  Contact Phone: <span className="font-semibold text-slate-800">{order.shippingAddress?.phone}</span>
-                </p>
-              </div>
+          {/* Navigation Links Group */}
+          <div className="glow-card p-4 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-4 text-xs font-semibold">
+            <div className="space-y-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2">Overview</span>
+              <Link
+                to="/profile"
+                className="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition"
+              >
+                <Package className="w-4 h-4 text-slate-400" />
+                <span>Dashboard</span>
+              </Link>
             </div>
 
-            {/* Shipment Items */}
-            <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs p-6 space-y-3">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                <div className="flex items-center gap-2 text-slate-900 font-extrabold text-sm">
-                  <Package className="w-4 h-4 text-[#0c2a5e]" />
-                  <span>Items in Shipment</span>
+            <div className="space-y-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2">Orders</span>
+              <Link
+                to="/orders"
+                className="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition"
+              >
+                <Package className="w-4 h-4 text-slate-400" />
+                <span>My Orders</span>
+              </Link>
+              <Link
+                to="/track-order"
+                className="flex items-center justify-between px-3 py-2 rounded-xl bg-emerald-50 text-emerald-800 font-bold border border-emerald-200/60 shadow-2xs"
+              >
+                <div className="flex items-center gap-2.5">
+                  <Truck className="w-4 h-4 text-emerald-600" />
+                  <span>Order Tracking</span>
                 </div>
-                <a
-                  href={`http://localhost:5000/api/orders/${order._id}/invoice-preview`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-[11px] font-bold text-[#0c2a5e] hover:underline"
-                >
-                  <FileText className="w-3 h-3" />
-                  <span>View Tax Invoice</span>
-                </a>
-              </div>
+                <ChevronRight className="w-3.5 h-3.5 text-emerald-600" />
+              </Link>
+              <Link
+                to="/profile?tab=returns"
+                className="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition"
+              >
+                <RotateCcw className="w-4 h-4 text-blue-500" />
+                <span>Returns &amp; Refunds</span>
+              </Link>
+            </div>
 
-              <div className="divide-y divide-slate-100">
-                {order.items?.map((item, idx) => (
-                  <div key={idx} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src={item.image || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=80&auto=format&fit=crop&q=80'}
-                        alt={item.title}
-                        className="w-10 h-10 rounded-lg object-cover border border-slate-200"
-                      />
-                      <div>
-                        <div className="font-bold text-slate-900 line-clamp-1 max-w-[180px]">{item.title}</div>
-                        <div className="text-[11px] text-slate-500">Qty: {item.quantity}</div>
-                      </div>
-                    </div>
-                    <strong className="text-slate-900 font-extrabold">
-                      ₹{(item.price * item.quantity).toLocaleString('en-IN')}
-                    </strong>
-                  </div>
-                ))}
-              </div>
-
-              <div className="pt-2 border-t border-slate-100 flex justify-between items-center font-bold text-slate-900">
-                <span>Grand Total Paid:</span>
-                <span className="text-sm font-black">₹{order.totalAmount?.toLocaleString('en-IN')}</span>
-              </div>
+            <div className="space-y-1">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2">Shopping</span>
+              <Link
+                to="/wishlist"
+                className="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition"
+              >
+                <Heart className="w-4 h-4 text-rose-500" />
+                <span>Wishlist</span>
+              </Link>
+              <Link
+                to="/stores"
+                className="flex items-center gap-3 px-3 py-2 rounded-xl text-slate-700 hover:bg-slate-50 hover:text-slate-900 transition"
+              >
+                <Store className="w-4 h-4 text-purple-500" />
+                <span>Followed Stores</span>
+              </Link>
             </div>
           </div>
         </div>
-      ) : null}
+
+        {/* CENTER COLUMN: Order Tracking Card & Timeline (lg:col-span-6 matching Screenshot 3) */}
+        <div className="lg:col-span-6 space-y-4">
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">Order Tracking</h1>
+            {order && (
+              <span className="px-3 py-1 rounded-full bg-purple-50 text-purple-700 border border-purple-200 font-mono font-bold text-xs">
+                {order.invoiceNumber || order._id} • {order.deliveryStatus || 'Confirmed'}
+              </span>
+            )}
+          </div>
+
+          {/* If order is delivered, show note as requested: tracking only for live placed & not delivered */}
+          {isDelivered && (
+            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between text-xs text-emerald-800">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+                <span>This order has already been successfully delivered to your address!</span>
+              </div>
+              <Link to="/orders" className="font-bold underline hover:text-emerald-950">
+                View in Orders
+              </Link>
+            </div>
+          )}
+
+          {/* Main Tracking Details Card */}
+          {order ? (
+            <div className="glow-card p-5 sm:p-6 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-6">
+              {/* Top Header Row with Status Badge */}
+              <div className="flex flex-wrap items-start justify-between gap-3 pb-4 border-b border-slate-100">
+                <div>
+                  <h2 className="text-base sm:text-lg font-black text-slate-900">
+                    Order {order.invoiceNumber || order._id}
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Placed{' '}
+                    {new Date(order.createdAt).toLocaleDateString('en-IN', {
+                      day: 'numeric',
+                      month: 'short',
+                      year: 'numeric',
+                    })}
+                  </p>
+                  <div className="text-xl font-black text-slate-900 mt-2">
+                    ₹{order.totalAmount?.toLocaleString('en-IN')}
+                  </div>
+                </div>
+
+                <span className="px-3 py-1 rounded-md bg-amber-100 text-amber-900 font-bold text-xs border border-amber-300">
+                  {order.deliveryStatus || 'Confirmed'}
+                </span>
+              </div>
+
+              {/* 3 Metric Summary Pillars matching Screenshot 3 */}
+              <div className="grid grid-cols-3 gap-3 p-3.5 bg-slate-50/80 rounded-2xl border border-slate-100 text-xs">
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Items</span>
+                  <strong className="text-slate-900 text-sm font-black">{order.items?.length || 1}</strong>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Payment</span>
+                  <strong className="text-slate-900 text-xs font-bold uppercase">{order.paymentMethod || 'COD'}</strong>
+                </div>
+                <div>
+                  <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Delivery</span>
+                  <strong className="text-emerald-700 text-xs font-bold">In Transit</strong>
+                </div>
+              </div>
+
+              {/* Stepper Timeline matching Screenshot 3 */}
+              <div className="space-y-4 pt-1">
+                <h3 className="font-extrabold text-xs text-slate-900 uppercase tracking-wider">Tracking Timeline</h3>
+
+                <div className="relative pl-7 space-y-6">
+                  {/* Vertical Guide Line */}
+                  <div className="absolute left-3 top-2 bottom-2 w-0.5 bg-slate-200" />
+
+                  {trackingSteps.map((step) => {
+                    const isPassed = currentStep > step.id;
+                    const isCurrent = currentStep === step.id;
+
+                    return (
+                      <div key={step.id} className="relative flex items-start gap-4">
+                        {/* Circle Bullet with Check or Number */}
+                        <div
+                          className={`absolute -left-7 top-0.5 w-6 h-6 rounded-full flex items-center justify-center text-xs font-black shadow-xs transition-all ${
+                            isPassed || isCurrent
+                              ? 'bg-purple-600 text-white ring-4 ring-purple-100'
+                              : 'bg-white border-2 border-slate-300 text-slate-400'
+                          }`}
+                        >
+                          {isPassed ? (
+                            <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          ) : isCurrent ? (
+                            <Check className="w-3.5 h-3.5 stroke-[3]" />
+                          ) : (
+                            step.id
+                          )}
+                        </div>
+
+                        {/* Step Details */}
+                        <div className="space-y-0.5 min-w-0">
+                          <p
+                            className={`text-xs sm:text-sm font-extrabold leading-tight ${
+                              isCurrent ? 'text-purple-700' : isPassed ? 'text-slate-900' : 'text-slate-400'
+                            }`}
+                          >
+                            {step.label}
+                          </p>
+                          {isCurrent && (
+                            <span className="text-[10px] font-bold text-purple-600 block">Current status</span>
+                          )}
+                          <p className="text-[11px] text-slate-400 leading-snug">{step.desc}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* View Full Order Details Link */}
+              <div className="pt-2 border-t border-slate-100">
+                <Link
+                  to="/orders"
+                  className="text-xs font-bold text-purple-700 hover:text-purple-900 hover:underline flex items-center gap-1"
+                >
+                  <span>View full order details</span>
+                  <ArrowRight className="w-3 h-3" />
+                </Link>
+              </div>
+            </div>
+          ) : (
+            <div className="glow-card p-12 text-center space-y-3 bg-white">
+              <Truck className="w-10 h-10 text-slate-300 mx-auto" />
+              <h3 className="text-base font-bold text-slate-800">No Live Active Orders</h3>
+              <p className="text-xs text-slate-400">Live order tracking is displayed only for active non-delivered orders.</p>
+              <Link
+                to="/products"
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-[#0c2a5e] text-white font-bold text-xs"
+              >
+                <span>Shop Marketplace</span>
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* RIGHT COLUMN: Edit Profile Card, Need Help & Status (lg:col-span-3 matching Screenshot 3) */}
+        <div className="lg:col-span-3 space-y-5">
+          {/* Gradient User Card with Edit Profile */}
+          <div className="p-5 rounded-3xl bg-gradient-to-r from-purple-600 to-indigo-700 text-white shadow-lg space-y-3">
+            <div>
+              <span className="text-[10px] text-purple-200 block uppercase font-bold tracking-wider">Signed in as</span>
+              <strong className="text-sm font-extrabold block truncate">
+                {user?.phone ? `+91 ${user.phone}` : user?.name || '+918978239929'}
+              </strong>
+            </div>
+            <Link
+              to="/profile"
+              className="block w-full text-center py-2 px-4 rounded-xl bg-white/20 hover:bg-white/30 text-white font-bold text-xs backdrop-blur-md transition shadow-xs"
+            >
+              Edit Profile
+            </Link>
+          </div>
+
+          {/* Quick Links */}
+          <div className="glow-card p-5 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-3 text-xs">
+            <h4 className="font-extrabold text-slate-900 uppercase tracking-wider text-[11px]">Quick Links</h4>
+            <div className="space-y-2">
+              <Link to="/orders" className="flex items-center gap-2.5 text-slate-700 hover:text-purple-700 transition">
+                <Package className="w-3.5 h-3.5 text-amber-600" />
+                <span>My Orders</span>
+              </Link>
+              <Link to="/profile?tab=addresses" className="flex items-center gap-2.5 text-slate-700 hover:text-purple-700 transition">
+                <MapPin className="w-3.5 h-3.5 text-rose-500" />
+                <span>Saved Addresses</span>
+              </Link>
+              <Link to="/wishlist" className="flex items-center gap-2.5 text-slate-700 hover:text-purple-700 transition">
+                <Heart className="w-3.5 h-3.5 text-rose-500" />
+                <span>Wishlist</span>
+              </Link>
+              <Link to="/profile?tab=returns" className="flex items-center gap-2.5 text-slate-700 hover:text-purple-700 transition">
+                <RotateCcw className="w-3.5 h-3.5 text-blue-500" />
+                <span>Returns &amp; Refunds</span>
+              </Link>
+            </div>
+          </div>
+
+          {/* Need Help Card matching Screenshot 3 */}
+          <div className="glow-card p-5 rounded-3xl bg-white border border-slate-200/90 shadow-sm space-y-3 text-xs">
+            <h4 className="font-extrabold text-slate-900 uppercase tracking-wider text-[11px]">Need Help?</h4>
+            <div className="space-y-2.5">
+              <Link to="/contact" className="flex items-center gap-2.5 text-slate-700 hover:text-purple-700 transition">
+                <Phone className="w-3.5 h-3.5 text-slate-400" />
+                <span>Contact Support</span>
+              </Link>
+              <Link to="/profile?tab=returns" className="flex items-center gap-2.5 text-slate-700 hover:text-purple-700 transition">
+                <RotateCcw className="w-3.5 h-3.5 text-blue-500" />
+                <span>Return an Order</span>
+              </Link>
+              <Link to="/track-order" className="flex items-center gap-2.5 text-slate-700 hover:text-purple-700 transition">
+                <Truck className="w-3.5 h-3.5 text-amber-500" />
+                <span>Track Your Order</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

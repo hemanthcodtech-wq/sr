@@ -68,9 +68,6 @@ const BottomNav = () => {
           >
             <div className="relative">
               <Home className={`w-5 h-5 transition-transform duration-200 ${isHomeActive ? 'stroke-[2.5]' : ''}`} />
-              {isHomeActive && (
-                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-[#0f8a48] rounded-full" />
-              )}
             </div>
             <span className="text-[11px] mt-1 tracking-tight">Home</span>
           </Link>
@@ -85,9 +82,6 @@ const BottomNav = () => {
           >
             <div className="relative">
               <LayoutGrid className={`w-5 h-5 transition-transform duration-200 ${isCategoriesActive ? 'stroke-[2.5]' : ''}`} />
-              {isCategoriesActive && (
-                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-[#0f8a48] rounded-full" />
-              )}
             </div>
             <span className="text-[11px] mt-1 tracking-tight">Categories</span>
           </button>
@@ -106,9 +100,6 @@ const BottomNav = () => {
                   {wishlistCount}
                 </span>
               )}
-              {isWishlistActive && (
-                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-[#0f8a48] rounded-full" />
-              )}
             </div>
             <span className="text-[11px] mt-1 tracking-tight">Wishlist</span>
           </Link>
@@ -122,9 +113,6 @@ const BottomNav = () => {
           >
             <div className="relative">
               <User className={`w-5 h-5 transition-transform duration-200 ${isAccountActive ? 'stroke-[2.5]' : ''}`} />
-              {isAccountActive && (
-                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-[#0f8a48] rounded-full" />
-              )}
             </div>
             <span className="text-[11px] mt-1 tracking-tight">Account</span>
           </Link>
@@ -139,9 +127,6 @@ const BottomNav = () => {
           >
             <div className="relative">
               <MoreHorizontal className="w-5 h-5" />
-              {moreDrawerOpen && (
-                <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 bg-[#0f8a48] rounded-full" />
-              )}
             </div>
             <span className="text-[11px] mt-1 tracking-tight">More</span>
           </button>
@@ -276,17 +261,17 @@ const BottomNav = () => {
               </Link>
 
               <Link
-                to="/vendor/register"
+                to="/stores"
                 onClick={() => setMoreDrawerOpen(false)}
-                className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-xs my-2"
+                className="flex items-center justify-between p-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 text-white shadow-xs my-2"
               >
                 <div className="flex items-center gap-3">
                   <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-white">
-                    <Sparkles className="w-5 h-5" />
+                    <Store className="w-5 h-5" />
                   </div>
                   <div>
-                    <p className="text-sm font-black text-white">Join Today &amp; Earn ₹1000</p>
-                    <p className="text-[11px] text-emerald-100">Become a certified seller partner</p>
+                    <p className="text-sm font-black text-white">Browse Merchant Stores</p>
+                    <p className="text-[11px] text-emerald-100">Explore products direct from stores</p>
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-white" />

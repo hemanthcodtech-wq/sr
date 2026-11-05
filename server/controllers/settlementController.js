@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Settlement = require('../models/Settlement');
 const User = require('../models/User');
 const WalletTransaction = require('../models/WalletTransaction');
+const { createNotification } = require('./notificationController');
 const { mockSettlements, mockUsers, mockTransactions } = require('../config/mockStore');
 
 // @desc    Get all settlements (Admin)
@@ -55,6 +56,31 @@ exports.processSettlement = async (req, res, next) => {
         if (vendor) vendor.walletBalance += settlement.amount;
       }
 
+      try {
+        const vendorId = settlement.vendor?._id || settlement.vendor;
+        if (status === 'completed') {
+          await createNotification({
+            recipient: vendorId,
+            role: 'vendor',
+            type: 'settlement_payout',
+            title: '💸 Payout Settlement Processed!',
+            message: `Your withdrawal of ₹${settlement.amount.toLocaleString('en-IN')} has been settled. Transaction Ref: ${settlement.transactionReference || 'NEFT-DIRECT'}`,
+            link: '/vendor/wallet',
+            metadata: { settlementId: settlement._id, amount: settlement.amount },
+          });
+        } else if (status === 'rejected') {
+          await createNotification({
+            recipient: vendorId,
+            role: 'vendor',
+            type: 'settlement_payout',
+            title: '⚠️ Settlement Request Rejected',
+            message: `Your withdrawal of ₹${settlement.amount.toLocaleString('en-IN')} was rejected: ${adminNotes || 'Contact Admin'}. Balance refunded to your wallet.`,
+            link: '/vendor/wallet',
+            metadata: { settlementId: settlement._id, amount: settlement.amount },
+          });
+        }
+      } catch (_) {}
+
       return res.status(200).json({
         success: true,
         message: `Settlement status updated to ${status}`,
@@ -100,6 +126,31 @@ exports.processSettlement = async (req, res, next) => {
     }
 
     await settlement.save();
+
+    try {
+      const vendorId = settlement.vendor?._id || settlement.vendor;
+      if (status === 'completed') {
+        await createNotification({
+          recipient: vendorId,
+          role: 'vendor',
+          type: 'settlement_payout',
+          title: '💸 Payout Settlement Processed!',
+          message: `Your withdrawal of ₹${settlement.amount.toLocaleString('en-IN')} has been settled. Transaction Ref: ${settlement.transactionReference || 'NEFT-DIRECT'}`,
+          link: '/vendor/wallet',
+          metadata: { settlementId: settlement._id, amount: settlement.amount },
+        });
+      } else if (status === 'rejected') {
+        await createNotification({
+          recipient: vendorId,
+          role: 'vendor',
+          type: 'settlement_payout',
+          title: '⚠️ Settlement Request Rejected',
+          message: `Your withdrawal of ₹${settlement.amount.toLocaleString('en-IN')} was rejected: ${adminNotes || 'Contact Admin'}. Balance refunded to your wallet.`,
+          link: '/vendor/wallet',
+          metadata: { settlementId: settlement._id, amount: settlement.amount },
+        });
+      }
+    } catch (_) {}
 
     res.status(200).json({
       success: true,

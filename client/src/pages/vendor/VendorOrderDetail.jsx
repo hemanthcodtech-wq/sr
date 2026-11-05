@@ -21,6 +21,13 @@ import {
   Store,
   DollarSign,
   AlertCircle,
+  Hash,
+  ChevronRight,
+  Boxes,
+  Sparkles,
+  Share2,
+  Printer,
+  ChevronDown
 } from 'lucide-react';
 import VendorLayout from '../../components/vendor/VendorLayout';
 import api from '../../services/api';
@@ -103,6 +110,7 @@ const VendorOrderDetail = () => {
         }
         setDispatchModal({ ...dispatchModal, open: false });
         fetchOrderDetail();
+        window.dispatchEvent(new CustomEvent('orders-updated'));
       }
     } catch (err) {
       error(err.response?.data?.message || 'Failed to update order status');
@@ -124,15 +132,15 @@ const VendorOrderDetail = () => {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'Delivered':
-        return 'bg-emerald-500/10 text-emerald-700 border-emerald-300';
+        return 'bg-emerald-500/10 text-emerald-700 border-emerald-300/80';
       case 'Shipped':
-        return 'bg-blue-500/10 text-blue-700 border-blue-300';
+        return 'bg-blue-500/10 text-blue-700 border-blue-300/80';
       case 'Out for Delivery':
-        return 'bg-indigo-500/10 text-indigo-700 border-indigo-300';
+        return 'bg-indigo-500/10 text-indigo-700 border-indigo-300/80';
       case 'Processing':
-        return 'bg-amber-500/10 text-amber-700 border-amber-300';
+        return 'bg-amber-500/10 text-amber-700 border-amber-300/80';
       case 'Cancelled':
-        return 'bg-rose-500/10 text-rose-700 border-rose-300';
+        return 'bg-rose-500/10 text-rose-700 border-rose-300/80';
       default:
         return 'bg-slate-100 text-slate-700 border-slate-300';
     }
@@ -140,13 +148,13 @@ const VendorOrderDetail = () => {
 
   return (
     <VendorLayout
-      title={`Order #${order?.invoiceNumber || id}`}
+      title="Order Details"
       subtitle="Complete merchant order breakdown, shipping destination, tax invoice, and delivery management."
       actions={
         <div className="flex items-center gap-2">
           <button
             onClick={() => navigate('/vendor/orders')}
-            className="px-3.5 py-2 rounded-2xl bg-white border border-slate-200/90 text-slate-700 hover:bg-slate-50 font-bold text-xs transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
+            className="px-3.5 py-2 rounded-2xl bg-white/90 hover:bg-slate-50 border border-slate-200/90 text-slate-700 font-bold text-xs transition-all shadow-2xs hover:shadow-sm flex items-center gap-1.5 cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>Back to Orders</span>
@@ -156,9 +164,9 @@ const VendorOrderDetail = () => {
               href={`http://localhost:5000/api/orders/${order._id}/invoice-preview`}
               target="_blank"
               rel="noreferrer"
-              className="px-4 py-2 rounded-2xl bg-gradient-to-r from-[#0c2a5e] to-[#174896] hover:from-[#091e42] hover:to-[#123875] text-white font-black text-xs transition shadow-sm flex items-center gap-1.5"
+              className="px-4 py-2 rounded-2xl bg-gradient-to-r from-slate-900 to-slate-800 hover:from-black hover:to-slate-900 text-white font-bold text-xs transition-all shadow-sm hover:shadow flex items-center gap-1.5"
             >
-              <FileText className="w-3.5 h-3.5 text-amber-300" />
+              <Printer className="w-3.5 h-3.5 text-amber-300" />
               <span>Print Tax Invoice (PDF)</span>
             </a>
           )}
@@ -167,17 +175,20 @@ const VendorOrderDetail = () => {
     >
       {loading ? (
         <div className="space-y-4">
-          <div className="p-8 rounded-3xl bg-white/70 backdrop-blur-xl border border-white/80 h-64 animate-pulse" />
-          <div className="p-8 rounded-3xl bg-white/70 backdrop-blur-xl border border-white/80 h-96 animate-pulse" />
+          <div className="p-8 rounded-3xl bg-white/70 backdrop-blur-xl border border-white/80 h-48 animate-pulse" />
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <div className="lg:col-span-7 p-8 rounded-3xl bg-white/70 backdrop-blur-xl border border-white/80 h-96 animate-pulse" />
+            <div className="lg:col-span-5 p-8 rounded-3xl bg-white/70 backdrop-blur-xl border border-white/80 h-96 animate-pulse" />
+          </div>
         </div>
       ) : !order ? (
-        <div className="p-16 text-center rounded-3xl bg-white/70 backdrop-blur-xl border border-white/80 shadow-sm space-y-4">
+        <div className="p-16 text-center rounded-3xl bg-white/80 backdrop-blur-xl border border-white/90 shadow-sm space-y-4 max-w-lg mx-auto">
           <AlertCircle className="w-12 h-12 text-rose-500 mx-auto" />
-          <h3 className="text-lg font-black text-slate-900">Order not found</h3>
+          <h3 className="text-lg font-bold text-slate-900">Order not found</h3>
           <p className="text-xs text-slate-500">The requested order ID does not exist or you do not have permission to view it.</p>
           <button
             onClick={() => navigate('/vendor/orders')}
-            className="px-5 py-2.5 rounded-2xl bg-slate-900 text-white font-bold text-xs"
+            className="px-5 py-2.5 rounded-2xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 transition"
           >
             Return to Orders
           </button>
@@ -185,17 +196,25 @@ const VendorOrderDetail = () => {
       ) : (
         <div className="space-y-6">
           {/* Top Order Summary Card */}
-          <div className="bg-white/80 backdrop-blur-xl rounded-3xl border border-white/90 shadow-[0_8px_30px_rgb(0,0,0,0.03)] p-6 sm:p-7 space-y-6">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-slate-100">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-black uppercase tracking-wider text-slate-400">Tax Compliant Order</span>
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">
+          <div className="bg-white/85 backdrop-blur-xl rounded-3xl border border-white/90 shadow-[0_8px_30px_rgb(0,0,0,0.03)] p-6 sm:p-7 space-y-6">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-5 pb-6 border-b border-slate-100">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2.5">
+                  <span className="text-[11px] font-bold tracking-wider text-slate-600 uppercase bg-slate-100 px-2.5 py-0.5 rounded-lg border border-slate-200/60">
+                    Tax Compliant Order
+                  </span>
+                  <span className="px-2.5 py-0.5 rounded-lg text-[11px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
                     {order.paymentStatus || 'Paid'}
                   </span>
                 </div>
-                <h2 className="text-2xl font-black text-slate-900 font-mono">#{order.invoiceNumber}</h2>
-                <div className="flex items-center gap-2 text-xs text-slate-500">
+                
+                <div className="flex items-center gap-2">
+                  <h2 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900 font-sans">
+                    #{order.invoiceNumber}
+                  </h2>
+                </div>
+
+                <div className="flex items-center gap-2 text-xs text-slate-600 font-medium">
                   <Calendar className="w-3.5 h-3.5 text-slate-400" />
                   <span>
                     Placed on {new Date(order.createdAt).toLocaleString('en-IN', {
@@ -206,51 +225,51 @@ const VendorOrderDetail = () => {
                 </div>
               </div>
 
-              <div className="flex flex-wrap items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2.5">
                 <a
                   href={`http://localhost:5000/api/orders/${order._id}/invoice-preview`}
                   target="_blank"
                   rel="noreferrer"
-                  className="px-4 py-2.5 rounded-2xl bg-blue-50 hover:bg-blue-100 text-[#0c2a5e] font-black text-xs border border-blue-200 flex items-center gap-1.5 transition shadow-2xs"
+                  className="px-3.5 py-2 rounded-2xl bg-slate-50 hover:bg-blue-50/70 text-slate-700 hover:text-blue-700 font-bold text-xs border border-slate-200/80 hover:border-blue-200/80 flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
                 >
-                  <FileText className="w-4 h-4 text-blue-600" />
+                  <FileText className="w-3.5 h-3.5 text-blue-600" />
                   <span>Download / Print GST Invoice</span>
                 </a>
                 <Link
                   to={`/order/${order._id}`}
-                  className="px-4 py-2.5 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs flex items-center gap-1.5 transition shadow-sm"
+                  className="px-3.5 py-2 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-sm"
                 >
-                  <Truck className="w-4 h-4 text-amber-400" />
+                  <Truck className="w-3.5 h-3.5 text-amber-400" />
                   <span>Track Live Package</span>
                 </Link>
               </div>
             </div>
 
-            {/* Quick Metrics Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200/60 space-y-1">
-                <span className="text-[11px] font-semibold text-slate-500 block">Payment Method</span>
-                <strong className="text-sm font-bold text-slate-900 block truncate">
+            {/* Quick Metrics Strip */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+              <div className="p-4 rounded-2xl bg-slate-50/60 border border-slate-200/60 flex flex-col justify-between">
+                <span className="text-[11px] font-medium text-slate-600 mb-1">Payment Method</span>
+                <span className="text-sm font-bold text-slate-900 truncate">
                   {order.paymentMethod || 'Online'}
-                </strong>
+                </span>
               </div>
-              <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200/60 space-y-1">
-                <span className="text-[11px] font-semibold text-slate-500 block">Total Items</span>
-                <strong className="text-sm font-bold text-slate-900 block">
+              <div className="p-4 rounded-2xl bg-slate-50/60 border border-slate-200/60 flex flex-col justify-between">
+                <span className="text-[11px] font-medium text-slate-600 mb-1">Total Items</span>
+                <span className="text-sm font-bold text-slate-900">
                   {order.items?.length || 0} Products
-                </strong>
+                </span>
               </div>
-              <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200/60 space-y-1">
-                <span className="text-[11px] font-semibold text-slate-500 block">Grand Total</span>
-                <strong className="text-sm font-black text-slate-900 block">
+              <div className="p-4 rounded-2xl bg-slate-50/60 border border-slate-200/60 flex flex-col justify-between">
+                <span className="text-[11px] font-medium text-slate-600 mb-1">Grand Total</span>
+                <span className="text-sm font-bold text-slate-900">
                   ₹{order.totalAmount?.toLocaleString('en-IN')}
-                </strong>
+                </span>
               </div>
-              <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200/80 space-y-1">
-                <span className="text-[11px] font-semibold text-emerald-700 block">Store Share</span>
-                <strong className="text-sm font-black text-emerald-800 block">
+              <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/70 flex flex-col justify-between">
+                <span className="text-[11px] font-semibold text-emerald-700 mb-1">Store Share</span>
+                <span className="text-sm font-bold text-emerald-800">
                   ₹{(order.vendorSubtotal || order.totalAmount)?.toLocaleString('en-IN')}
-                </strong>
+                </span>
               </div>
             </div>
           </div>
@@ -259,29 +278,30 @@ const VendorOrderDetail = () => {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Products & Fulfillment Management (lg:col-span-7) */}
             <div className="lg:col-span-7 space-y-6">
-              <div className="bg-white/80 backdrop-blur-xl rounded-3xl border border-white/90 shadow-[0_8px_30px_rgb(0,0,0,0.03)] p-6 space-y-5">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                  <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+              <div className="bg-white/85 backdrop-blur-xl rounded-3xl border border-white/90 shadow-[0_8px_30px_rgb(0,0,0,0.03)] p-6 space-y-5">
+                <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                     <Package className="w-4 h-4 text-blue-600" />
                     <span>Order Items &amp; Fulfillment</span>
                   </h3>
-                  <span className="text-xs text-slate-400 font-bold">{order.items?.length || 0} product(s)</span>
+                  <span className="text-xs text-slate-600 font-medium">{order.items?.length || 0} product(s)</span>
                 </div>
 
                 <div className="divide-y divide-slate-100 space-y-4">
                   {order.items?.map((item) => (
-                    <div key={item._id} className="pt-4 first:pt-0 space-y-3">
+                    <div key={item._id} className="pt-4 first:pt-0 space-y-3.5">
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex items-center gap-3.5">
                           <img
-                            src={item.image || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=100&auto=format&fit=crop&q=80'}
+                            src={item.image || '/logo.png'}
+                            onError={(e) => { e.target.onerror = null; e.target.src = '/logo.png'; }}
                             alt={item.title}
-                            className="w-16 h-16 rounded-2xl object-cover border border-slate-200 shadow-2xs shrink-0"
+                            className="w-14 h-14 rounded-2xl object-cover border border-slate-200 shadow-2xs shrink-0 bg-slate-50"
                           />
                           <div>
                             <h4 className="font-bold text-sm text-slate-900 line-clamp-1">{item.title}</h4>
-                            <div className="text-xs text-slate-500 font-medium mt-1">
-                              Quantity: <strong className="text-slate-800">{item.quantity}</strong> × ₹{item.price?.toLocaleString('en-IN')}
+                            <div className="text-xs text-slate-600 font-medium mt-1">
+                              Quantity: <strong className="text-slate-800 font-semibold">{item.quantity}</strong> × ₹{item.price?.toLocaleString('en-IN')}
                             </div>
                             {(item.courierName || item.trackingNumber) && (
                               <div className="text-[11px] text-blue-600 font-semibold mt-1 flex items-center gap-1.5">
@@ -293,18 +313,18 @@ const VendorOrderDetail = () => {
                         </div>
 
                         <div className="text-right">
-                          <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold border block mb-1 ${getStatusBadge(item.deliveryStatus)}`}>
+                          <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border inline-block mb-1 ${getStatusBadge(item.deliveryStatus)}`}>
                             {item.deliveryStatus}
                           </span>
-                          <strong className="text-sm font-black text-slate-900">
+                          <div className="text-sm font-bold text-slate-900">
                             ₹{(item.price * item.quantity).toLocaleString('en-IN')}
-                          </strong>
+                          </div>
                         </div>
                       </div>
 
                       {/* Status Transition Control Strip */}
-                      <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-50/70 p-3 rounded-2xl border border-slate-200/60 text-xs">
-                        <div className="flex items-center gap-1.5 text-slate-500 font-semibold">
+                      <div className="flex flex-wrap items-center justify-between gap-2.5 bg-slate-50/70 p-3 rounded-2xl border border-slate-200/60 text-xs">
+                        <div className="flex items-center gap-1.5 text-slate-600 font-medium">
                           <Clock className="w-3.5 h-3.5 text-slate-400" />
                           <span>Dispatch Action:</span>
                         </div>
@@ -351,22 +371,25 @@ const VendorOrderDetail = () => {
                           )}
 
                           {/* Override dropdown */}
-                          <select
-                            value={item.deliveryStatus}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              if (val === 'Shipped') openDispatch(item);
-                              else handleStatusUpdate(item._id, val);
-                            }}
-                            disabled={updatingId === item._id}
-                            className="px-2.5 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold text-xs focus:outline-none cursor-pointer"
-                          >
-                            {statusOptions.map((opt) => (
-                              <option key={opt} value={opt}>
-                                {opt}
-                              </option>
-                            ))}
-                          </select>
+                          <div className="relative">
+                            <select
+                              value={item.deliveryStatus}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                if (val === 'Shipped') openDispatch(item);
+                                else handleStatusUpdate(item._id, val);
+                              }}
+                              disabled={updatingId === item._id}
+                              className="appearance-none pl-3 pr-7 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold text-xs focus:outline-none cursor-pointer shadow-2xs"
+                            >
+                              {statusOptions.map((opt) => (
+                                <option key={opt} value={opt}>
+                                  {opt}
+                                </option>
+                              ))}
+                            </select>
+                            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -378,9 +401,9 @@ const VendorOrderDetail = () => {
             {/* Right: Customer & Delivery Destination (lg:col-span-5) */}
             <div className="lg:col-span-5 space-y-6">
               {/* Shipping Address Box */}
-              <div className="bg-white/80 backdrop-blur-xl rounded-3xl border border-white/90 shadow-[0_8px_30px_rgb(0,0,0,0.03)] p-6 space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                  <h3 className="text-base font-black text-slate-900 flex items-center gap-2">
+              <div className="bg-white/85 backdrop-blur-xl rounded-3xl border border-white/90 shadow-[0_8px_30px_rgb(0,0,0,0.03)] p-6 space-y-4">
+                <div className="flex items-center justify-between pb-3.5 border-b border-slate-100">
+                  <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                     <MapPin className="w-4 h-4 text-blue-600" />
                     <span>Customer Shipping Address</span>
                   </h3>
@@ -393,30 +416,30 @@ const VendorOrderDetail = () => {
                   </button>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-slate-50/70 border border-slate-200/60 space-y-3 text-xs">
+                <div className="p-4 rounded-2xl bg-slate-50/60 border border-slate-200/60 space-y-3.5 text-xs">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-blue-100 text-blue-700 font-black text-sm flex items-center justify-center shrink-0">
+                    <div className="w-9 h-9 rounded-xl bg-blue-100 text-blue-700 font-bold text-xs flex items-center justify-center shrink-0">
                       {(order.shippingAddress?.fullName || 'C').charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <div className="font-extrabold text-sm text-slate-900">
+                      <div className="font-bold text-sm text-slate-900">
                         {order.shippingAddress?.fullName || order.customer?.name || 'Customer'}
                       </div>
-                      <div className="text-[11px] text-slate-400">Recipient Name</div>
+                      <div className="text-[11px] text-slate-600">Recipient Name</div>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 pt-2 border-t border-slate-200/60 text-slate-700">
+                  <div className="flex items-center gap-2 pt-2.5 border-t border-slate-200/60 text-slate-700">
                     <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                    <span className="font-bold">{order.shippingAddress?.phone || order.customer?.phone || 'N/A'}</span>
+                    <span className="font-semibold">{order.shippingAddress?.phone || order.customer?.phone || 'N/A'}</span>
                   </div>
 
-                  <div className="pt-2 border-t border-slate-200/60 leading-relaxed text-slate-600 font-medium">
-                    <div className="text-slate-900 font-bold">{order.shippingAddress?.street}</div>
+                  <div className="pt-2.5 border-t border-slate-200/60 leading-relaxed text-slate-600 font-medium space-y-0.5">
+                    <div className="text-slate-900 font-semibold">{order.shippingAddress?.street}</div>
                     <div>
                       {order.shippingAddress?.city}, {order.shippingAddress?.state}
                     </div>
-                    <div className="text-slate-900 font-black mt-1">
+                    <div className="text-slate-900 font-bold pt-1">
                       Postal PIN: {order.shippingAddress?.zipCode}
                     </div>
                   </div>
@@ -424,26 +447,26 @@ const VendorOrderDetail = () => {
               </div>
 
               {/* Tax Invoice Direct Card */}
-              <div className="bg-gradient-to-br from-[#0c2a5e] to-[#174896] text-white rounded-3xl p-6 shadow-md border border-blue-900 space-y-4">
+              <div className="bg-gradient-to-br from-[#0c2a5e] to-[#174896] text-white rounded-3xl p-6 shadow-md border border-blue-900/60 space-y-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-white/10 flex items-center justify-center">
-                    <FileText className="w-5 h-5 text-amber-300" />
+                  <div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+                    <FileText className="w-4 h-4 text-amber-300" />
                   </div>
                   <div>
-                    <h4 className="font-extrabold text-sm text-white">Tax Compliant GST Invoice</h4>
-                    <p className="text-xs text-blue-200">Invoice: #{order.invoiceNumber}</p>
+                    <h4 className="font-bold text-sm text-white">Tax Compliant GST Invoice</h4>
+                    <p className="text-xs text-blue-200">Invoice #{order.invoiceNumber}</p>
                   </div>
                 </div>
-                <p className="text-xs text-blue-100/90 leading-relaxed">
+                <p className="text-xs text-blue-100/90 leading-relaxed font-normal">
                   Includes complete merchant GST breakdown, CGST 9% + SGST 9%, HSN details, and digital authorization seal.
                 </p>
                 <a
                   href={`http://localhost:5000/api/orders/${order._id}/invoice-preview`}
                   target="_blank"
                   rel="noreferrer"
-                  className="w-full py-2.5 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs transition shadow-sm text-center flex items-center justify-center gap-2"
+                  className="w-full py-2.5 px-4 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold text-xs transition shadow-sm text-center flex items-center justify-center gap-2 cursor-pointer"
                 >
-                  <ExternalLink className="w-4 h-4" />
+                  <ExternalLink className="w-3.5 h-3.5" />
                   <span>View &amp; Print Full Invoice</span>
                 </a>
               </div>
@@ -458,34 +481,37 @@ const VendorOrderDetail = () => {
           <div className="bg-white/95 backdrop-blur-2xl max-w-md w-full p-6 sm:p-7 rounded-3xl border border-white/80 shadow-2xl space-y-5 animate-in fade-in zoom-in duration-200">
             <div className="border-b border-slate-100 pb-3 flex items-start justify-between">
               <div>
-                <h3 className="text-base font-black text-slate-900">Dispatch Package</h3>
-                <p className="text-xs text-slate-500 font-medium truncate max-w-xs">{dispatchModal.itemTitle}</p>
+                <h3 className="text-base font-bold text-slate-900">Dispatch Package</h3>
+                <p className="text-xs text-slate-600 font-medium truncate max-w-xs">{dispatchModal.itemTitle}</p>
               </div>
               <button
                 onClick={() => setDispatchModal({ ...dispatchModal, open: false })}
-                className="p-1 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600"
+                className="p-1 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 cursor-pointer"
               >
                 ✕
               </button>
             </div>
 
             <div className="space-y-4">
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-700">Courier Partner *</label>
-                <select
-                  value={dispatchModal.courierName}
-                  onChange={(e) => setDispatchModal({ ...dispatchModal, courierName: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/30"
-                >
-                  {popularCouriers.map((courier) => (
-                    <option key={courier} value={courier}>
-                      {courier}
-                    </option>
-                  ))}
-                </select>
+                <div className="relative">
+                  <select
+                    value={dispatchModal.courierName}
+                    onChange={(e) => setDispatchModal({ ...dispatchModal, courierName: e.target.value })}
+                    className="w-full appearance-none pl-3.5 pr-8 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                  >
+                    {popularCouriers.map((courier) => (
+                      <option key={courier} value={courier}>
+                        {courier}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
               </div>
 
-              <div className="space-y-1">
+              <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-700">Tracking / AWB Number *</label>
                 <input
                   type="text"
@@ -494,16 +520,15 @@ const VendorOrderDetail = () => {
                   onChange={(e) => setDispatchModal({ ...dispatchModal, trackingNumber: e.target.value })}
                   placeholder="e.g. AWB123456789"
                   className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/30"
-                >
-                </input>
-                <p className="text-[11px] text-slate-400">This tracking number is sent to the customer for live tracking.</p>
+                />
+                <p className="text-[11px] text-slate-600">This tracking number is sent to the customer for live tracking.</p>
               </div>
 
               <div className="flex items-center gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setDispatchModal({ ...dispatchModal, open: false })}
-                  className="flex-1 py-2.5 rounded-2xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
+                  className="flex-1 py-2.5 rounded-2xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -517,7 +542,7 @@ const VendorOrderDetail = () => {
                       dispatchModal.trackingNumber
                     )
                   }
-                  className="flex-1 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black shadow-md transition"
+                  className="flex-1 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-md transition cursor-pointer"
                 >
                   Confirm Dispatch
                 </button>

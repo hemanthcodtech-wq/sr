@@ -51,6 +51,27 @@ const platformSettingSchema = new mongoose.Schema(
       min: 0,
       max: 500,
     },
+    deodapAffiliateCommissionPercent: {
+      type: Number,
+      default: 10, // 10% commission for vendors promoting DeoDap items
+      min: 0,
+      max: 100,
+    },
+    // Customer-to-Customer Referral Voucher Settings
+    customerReferralDiscountAmount: {
+      type: Number,
+      default: 100, // ₹100 referral discount coupon awarded to referrer
+      min: 0,
+    },
+    customerReferralMinSpend: {
+      type: Number,
+      default: 499, // Minimum purchase amount to use referral coupon
+      min: 0,
+    },
+    customerReferralDiscountType: {
+      type: String,
+      default: 'flat',
+    },
     deodapAutoSync: {
       type: Boolean,
       default: true,

@@ -324,73 +324,148 @@ const Checkout = () => {
     });
   };
 
-  // SUCCESS SCREEN
+  // SUCCESS SCREEN MATCHING REFERENCE (Screenshot 4)
   if (orderSuccess) {
+    const isPaid = orderSuccess.paymentStatus === 'Completed' || orderSuccess.paymentStatus === 'paid';
+    const isCod = orderSuccess.paymentMethod?.toLowerCase().includes('cash') || orderSuccess.paymentMethod?.toLowerCase().includes('cod');
+    const firstItem = orderSuccess.items?.[0];
+    const firstItemImg = firstItem?.product?.images?.[0] || firstItem?.image || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200&auto=format&fit=crop&q=80';
+
     return (
-      <div className="max-w-3xl mx-auto px-4 py-16 text-center space-y-6 select-none">
-        <div className="bg-white p-8 sm:p-12 rounded-3xl border border-emerald-200 space-y-6 shadow-xl">
-          <div className="w-20 h-20 rounded-3xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto shadow-inner">
-            <CheckCircle2 className="w-12 h-12 animate-soft-pulse" />
+      <div className="max-w-xl mx-auto px-4 py-12 text-center space-y-6 select-none animate-in fade-in duration-300">
+        <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200 glow-card space-y-6 shadow-xl">
+          {/* Green checkmark circle */}
+          <div className="w-16 h-16 rounded-full bg-emerald-100 border-4 border-emerald-50 text-emerald-600 flex items-center justify-center mx-auto shadow-md">
+            <CheckCircle2 className="w-9 h-9" />
           </div>
 
-          <div className="space-y-2">
-            <span className="text-xs font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-              Order Confirmed &amp; Verified
-            </span>
-            <h1 className="text-3xl font-black text-slate-900 tracking-tight">Order Placed Successfully!</h1>
-            <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto">
-              Your order <strong className="text-slate-900 font-mono">#{orderSuccess.invoiceNumber}</strong> has been transmitted to independent store merchants for fulfillment.
+          <div className="space-y-1">
+            <h1 className="text-2xl font-black text-slate-900 tracking-tight flex items-center justify-center gap-1.5">
+              <span>Order Confirmed!</span>
+              <span className="text-xl">🥳</span>
+            </h1>
+            <p className="text-xs text-slate-500">
+              {isCod
+                ? 'Your order has been placed. Pay when it arrives at your doorstep.'
+                : 'Your payment was successful and the order is confirmed.'}
             </p>
           </div>
 
-          <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 text-left text-xs text-slate-600 space-y-2.5">
-            <div className="flex justify-between items-center">
-              <span>Customer Name:</span>
-              <strong className="text-slate-900">{orderSuccess.shippingAddress?.fullName}</strong>
+          {/* Reference Order Card */}
+          <div className="rounded-2xl border border-slate-200/90 bg-white p-5 text-left text-xs space-y-3 shadow-2xs">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div>
+                <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">ORDER ID</div>
+                <div className="font-mono font-black text-slate-800 text-xs sm:text-sm">
+                  {orderSuccess.invoiceNumber || orderSuccess._id}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-lg font-black text-slate-900">
+                  ₹{orderSuccess.totalAmount?.toLocaleString('en-IN')}
+                </div>
+              </div>
             </div>
-            <div className="flex justify-between items-center">
-              <span>Payment Mode:</span>
-              <span className="font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200 uppercase text-[10px]">
-                {orderSuccess.paymentMethod} • {orderSuccess.paymentStatus}
-              </span>
+
+            <div className="space-y-2 text-slate-600">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">EXPECTED DELIVERY</span>
+                <span className="font-bold text-slate-800 text-xs">
+                  {orderSuccess.expectedDelivery || 'Arriving within 3-5 business days'}
+                </span>
+              </div>
+
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">PAYMENT STATUS</span>
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className={`w-2 h-2 rounded-full ${isPaid ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                  <span className="font-bold text-slate-800">
+                    {isPaid ? 'Payment Confirmed' : 'Pay on Delivery'}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">PAYMENT METHOD</span>
+                <span className="font-bold text-slate-800 text-xs">
+                  {orderSuccess.paymentMethod || 'Cash on Delivery'}
+                </span>
+              </div>
+
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">DELIVER TO</span>
+                <span className="font-medium text-slate-700 text-xs leading-relaxed">
+                  {orderSuccess.shippingAddress?.fullName}, {orderSuccess.shippingAddress?.street}, {orderSuccess.shippingAddress?.city}, {orderSuccess.shippingAddress?.state} - {orderSuccess.shippingAddress?.zipCode}
+                </span>
+              </div>
             </div>
-            <div className="flex justify-between items-center">
-              <span>Delivery Courier:</span>
-              <strong className="text-blue-900">{orderSuccess.courierName || 'Delhivery Express Logistics'}</strong>
-            </div>
-            <div className="flex justify-between items-center">
-              <span>Tracking AWB Code:</span>
-              <strong className="font-mono text-slate-900">{orderSuccess.trackingNumber || 'AWB892110293'}</strong>
-            </div>
-            <div className="pt-2 border-t border-slate-200 flex justify-between items-center text-sm font-black text-slate-900">
-              <span>Grand Total Paid:</span>
-              <span>₹{orderSuccess.totalAmount?.toLocaleString('en-IN')}</span>
-            </div>
+
+            {/* Items summary */}
+            {orderSuccess.items && orderSuccess.items.length > 0 && (
+              <div className="pt-3 border-t border-slate-100">
+                <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider mb-2">
+                  ITEMS ORDERED ({orderSuccess.items.length})
+                </span>
+                <div className="flex items-center gap-3 p-2 rounded-xl bg-slate-50 border border-slate-100">
+                  <img
+                    src={firstItemImg}
+                    alt={firstItem?.product?.title || 'Product'}
+                    className="w-12 h-12 rounded-lg object-cover bg-white border border-slate-200"
+                  />
+                  <div className="flex-1 min-w-0">
+                    <div className="font-bold text-slate-800 text-xs truncate">
+                      {firstItem?.product?.title || firstItem?.title || 'Ordered Product'}
+                    </div>
+                    <div className="text-[11px] text-slate-500">
+                      Qty: {firstItem?.quantity || 1} • ₹{firstItem?.price?.toLocaleString('en-IN')}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 pt-2">
+          {/* Action Buttons Matching Screenshot 4 */}
+          <div className="space-y-2.5 pt-1">
             <Link
               to={`/order/${orderSuccess._id}`}
-              className="flex-1 py-3 px-4 bg-[#0c2a5e] hover:bg-[#153e85] text-white font-extrabold text-xs sm:text-sm rounded-2xl transition shadow-md flex items-center justify-center gap-2"
+              className="w-full py-3 px-4 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-xs sm:text-sm transition flex items-center justify-center gap-2 shadow-md hover:scale-[1.01] active:scale-95"
             >
               <Truck className="w-4 h-4" />
-              <span>Track Order Live</span>
+              <span>Track Order</span>
             </Link>
+
             <Link
-              to="/profile?tab=orders"
-              className="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 font-extrabold text-xs sm:text-sm rounded-2xl transition"
+              to="/my-orders"
+              className="w-full py-3 px-4 rounded-xl bg-white border border-purple-300 text-purple-700 hover:bg-purple-50 font-black text-xs sm:text-sm transition flex items-center justify-center gap-2"
             >
-              My Order History
+              <span>View Order</span>
             </Link>
-            <a
-              href={`http://localhost:5000/api/orders/${orderSuccess._id}/invoice-preview`}
-              target="_blank"
-              rel="noreferrer"
-              className="py-3 px-4 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 font-bold text-xs sm:text-sm rounded-2xl transition flex items-center justify-center gap-1.5"
+
+            <Link
+              to="/products"
+              className="w-full py-2.5 px-4 rounded-xl bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs sm:text-sm transition flex items-center justify-center"
             >
-              <FileText className="w-4 h-4 text-blue-600" />
-              <span>Tax Invoice</span>
-            </a>
+              <span>Continue Shopping</span>
+            </Link>
+
+            {/* Gated Tax Invoice Button (Only if Paid) */}
+            {isPaid ? (
+              <a
+                href={`http://localhost:5000/api/orders/${orderSuccess._id}/invoice-preview`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-purple-600 hover:text-purple-800 pt-2"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>Download Official Tax Invoice</span>
+              </a>
+            ) : (
+              <div className="text-[11px] text-slate-400 flex items-center justify-center gap-1 pt-2">
+                <Lock className="w-3 h-3" />
+                <span>Tax invoice is unlocked after payment upon delivery</span>
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -44,6 +44,7 @@ const adminRoutes = require('./routes/adminRoutes');
 const contactRoutes = require('./routes/contactRoutes');
 const couponRoutes = require('./routes/couponRoutes');
 const deodapRoutes = require('./routes/deodapRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 const errorHandler = require('./middleware/errorHandler');
 const { syncDeoDapCatalog } = require('./services/deodapService');
 
@@ -58,6 +59,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/coupons', couponRoutes);
 app.use('/api/deodap', deodapRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health Check API
 app.get('/api/health', (req, res) => {

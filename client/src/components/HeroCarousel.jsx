@@ -1,149 +1,277 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, ShieldCheck, ArrowRight, ShoppingCart } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  ShieldCheck,
+  ArrowRight,
+  Flame,
+  Zap,
+  Sparkles,
+  Store,
+  Tag,
+  CheckCircle2,
+} from 'lucide-react';
 
-const slides = [
+const bannerSlides = [
   {
     id: 1,
-    titleSmall: 'Shop from',
-    titleMain: 'Your Favorite',
-    titleAccent: 'Vendors',
-    subLine1: 'Wide Range | Best Prices',
-    subLine2: 'Trusted Sellers',
-    ctaText: 'Shop Now',
-    ctaLink: '/products',
+    badge: "FESTIVE MEGA OFFER",
+    titlePrefix: "Happy",
+    titleMain: "Dhanteras & Diwali",
+    titleAccent: "SPECIAL OFFER",
+    discountBadge: "Up to 50% OFF",
+    subText: "On Selected Festive Collections & Direct Factory Vendors",
+    ctaText: "SHOP NOW",
+    ctaLink: "/products?category=Fashion",
+    bgGradient: "from-[#fff7ed] via-[#fef3c7] to-[#fffbeb]",
+    borderCol: "border-amber-300",
+    theme: "gold",
+    models: [
+      {
+        name: "Banarasi Silk Saree",
+        img: "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=600&auto=format&fit=crop&q=80",
+        tag: "Silk Saree",
+      },
+      {
+        name: "Designer Embroidered Kurti",
+        img: "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=600&auto=format&fit=crop&q=80",
+        tag: "Kurti",
+      },
+      {
+        name: "Bridal Festive Wear",
+        img: "https://images.unsplash.com/photo-1617627143750-d86bc21e42bb?w=600&auto=format&fit=crop&q=80",
+        tag: "Festive",
+      },
+    ],
   },
   {
     id: 2,
-    titleSmall: 'Mega Savings',
-    titleMain: 'Top Electronics &',
-    titleAccent: 'Smartphones',
-    subLine1: 'Up to 45% OFF | Brand Warranty',
-    subLine2: 'Fast Doorstep Express Delivery',
-    ctaText: 'Explore Deals',
-    ctaLink: '/products?category=Electronics',
+    badge: "DIRECT FACTORY DEALS",
+    titlePrefix: "Shop From",
+    titleMain: "Verified Vendors",
+    titleAccent: "MEGA ELECTRONICS SALE",
+    discountBadge: "Flat 40% OFF",
+    subText: "Mobiles, Smart Watches & High-Speed Gadgets",
+    ctaText: "EXPLORE DEALS",
+    ctaLink: "/products?category=Electronics",
+    bgGradient: "from-[#eff6ff] via-[#e0f2fe] to-[#f0fdf4]",
+    borderCol: "border-blue-300",
+    theme: "blue",
+    models: [
+      {
+        name: "Smartphones & 5G",
+        img: "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&auto=format&fit=crop&q=80",
+        tag: "5G Mobiles",
+      },
+      {
+        name: "Noise Cancelling Audio",
+        img: "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80",
+        tag: "Audio",
+      },
+      {
+        name: "Smart Watches",
+        img: "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80",
+        tag: "Wearables",
+      },
+    ],
   },
 ];
 
 const HeroCarousel = () => {
   const [current, setCurrent] = useState(0);
+  const [isPaused, setIsPaused] = useState(false);
 
-  const prevSlide = () => {
-    setCurrent((prev) => (prev === 0 ? slides.length - 1 : prev - 1));
-  };
+  useEffect(() => {
+    if (isPaused) return;
+    const interval = setInterval(() => {
+      setCurrent((prev) => (prev + 1) % bannerSlides.length);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [isPaused]);
 
-  const nextSlide = () => {
-    setCurrent((prev) => (prev + 1) % slides.length);
-  };
-
-  const slide = slides[current];
+  const slide = bannerSlides[current];
 
   return (
-    <div className="relative w-full rounded-2xl sm:rounded-3xl overflow-hidden shadow-md select-none group">
-      {/* Emerald to Forest Green Gradient Background */}
-      <div className="relative w-full min-h-[220px] sm:min-h-[260px] md:min-h-[300px] bg-gradient-to-r from-[#035b36] via-[#047743] to-[#024a2b] p-4 sm:p-7 md:p-8 flex items-center justify-between overflow-hidden">
-        
-        {/* Subtle Ambient Radial Lighting */}
-        <div className="absolute -top-16 -right-16 w-60 h-60 rounded-full bg-emerald-400/20 blur-3xl pointer-events-none" />
-        <div className="absolute -bottom-16 -left-16 w-60 h-60 rounded-full bg-yellow-400/10 blur-3xl pointer-events-none" />
+    <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-3 sm:gap-4 items-stretch select-none">
+      {/* Main Banner Hero Slider (Left Col - 9 cols on desktop) */}
+      <div
+        className="lg:col-span-9 relative rounded-2xl sm:rounded-3xl overflow-hidden border border-amber-200/90 shadow-md group flex flex-col justify-between"
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+      >
+        {/* Banner Canvas */}
+        <div
+          className={`relative w-full min-h-[220px] sm:min-h-[260px] md:min-h-[300px] lg:min-h-[330px] bg-gradient-to-r ${slide.bgGradient} p-4 sm:p-6 md:p-8 flex items-center justify-between overflow-hidden transition-all duration-700`}
+        >
+          {/* Subtle Decorative Arch / Mandap Glow */}
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-200/40 via-transparent to-transparent pointer-events-none" />
+          <div className="absolute -top-16 left-1/2 -translate-x-1/2 w-96 h-36 bg-amber-400/20 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Left Column: Text & Yellow CTA Button */}
-        <div className="relative z-10 flex-1 max-w-[210px] sm:max-w-sm md:max-w-md text-white space-y-1 sm:space-y-2">
-          <div>
-            <span className="block text-sm sm:text-base md:text-lg font-bold text-white/95 tracking-tight">
-              {slide.titleSmall}
+          {/* Left Side: Festive Female Model Cutouts */}
+          <div className="hidden sm:flex items-end gap-1.5 z-10 flex-shrink-0 w-32 md:w-44 lg:w-48 h-full">
+            <div className="relative w-full h-48 md:h-64 rounded-2xl overflow-hidden shadow-lg border-2 border-amber-300/80 transform -rotate-2 hover:rotate-0 transition duration-300">
+              <img
+                src={slide.models[0].img}
+                alt={slide.models[0].name}
+                className="w-full h-full object-cover"
+              />
+              <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 text-[9px] font-black bg-black/70 backdrop-blur-xs text-amber-300 px-2 py-0.5 rounded-full whitespace-nowrap">
+                {slide.models[0].tag}
+              </span>
+            </div>
+          </div>
+
+          {/* Center: Royal Arch Frame with Typography & CTAs (Exact match to reference style) */}
+          <div className="relative z-10 flex-1 max-w-sm sm:max-w-md mx-auto text-center px-2 sm:px-4 py-2">
+            {/* Top Brand Logo Emblem */}
+            <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-white/90 border border-amber-300 shadow-2xs mb-2">
+              <img src="/logo.png" alt="Brand Logo" className="h-5 w-auto object-contain" />
+              <span className="text-[10px] sm:text-xs font-black tracking-wider text-slate-800 uppercase">
+                INDIA'S MULTI-VENDOR MARKETPLACE
+              </span>
+            </div>
+
+            {/* Main Festive Header */}
+            <div className="space-y-0.5">
+              <span className="block text-xs sm:text-sm md:text-base font-extrabold text-amber-700 italic font-serif">
+                {slide.titlePrefix}
+              </span>
+              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-rose-800 tracking-tight leading-none drop-shadow-xs font-serif">
+                {slide.titleMain}
+              </h2>
+
+              {/* Purple Ribbon Bar for SPECIAL OFFER */}
+              <div className="py-1">
+                <div className="inline-block px-4 sm:px-6 py-1 rounded-md bg-gradient-to-r from-purple-800 via-indigo-900 to-purple-800 text-amber-300 font-black text-[10px] sm:text-xs tracking-widest uppercase shadow-md border-y border-amber-300">
+                  ✦ {slide.titleAccent} ✦
+                </div>
+              </div>
+
+              {/* Red Discount Pill (Up to 50% OFF) */}
+              <div className="inline-block mt-1">
+                <span className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black text-rose-600 drop-shadow-xs tracking-tight">
+                  {slide.discountBadge}
+                </span>
+              </div>
+
+              <p className="text-[11px] sm:text-xs font-bold text-slate-700 pt-0.5">
+                {slide.subText}
+              </p>
+            </div>
+
+            {/* Glowing Golden "SHOP NOW >" Pill Button */}
+            <div className="pt-3">
+              <Link
+                to={slide.ctaLink}
+                className="inline-flex items-center gap-1.5 px-6 sm:px-8 py-2 sm:py-2.5 rounded-full bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-400 hover:from-yellow-400 hover:to-amber-500 text-slate-950 font-black text-xs sm:text-sm shadow-md hover:shadow-lg transition-all transform hover:scale-105 active:scale-95 border border-amber-500/50"
+              >
+                <span>{slide.ctaText}</span>
+                <ChevronRight className="w-4 h-4 font-black" />
+              </Link>
+            </div>
+          </div>
+
+          {/* Right Side: Second Model Cutout / Products */}
+          <div className="hidden md:flex items-end gap-2 z-10 flex-shrink-0 w-36 lg:w-44 h-full">
+            <div className="relative w-full h-52 md:h-64 rounded-2xl overflow-hidden shadow-lg border-2 border-amber-300/80 transform rotate-2 hover:rotate-0 transition duration-300">
+              <img
+                src={slide.models[1]?.img || slide.models[0].img}
+                alt={slide.models[1]?.name || "Collection"}
+                className="w-full h-full object-cover"
+              />
+              <span className="absolute bottom-1.5 left-1/2 -translate-x-1/2 text-[9px] font-black bg-black/70 backdrop-blur-xs text-amber-300 px-2 py-0.5 rounded-full whitespace-nowrap">
+                {slide.models[1]?.tag || "Trending"}
+              </span>
+            </div>
+          </div>
+
+          {/* Carousel Arrows */}
+          <button
+            onClick={() => setCurrent((prev) => (prev === 0 ? bannerSlides.length - 1 : prev - 1))}
+            className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition shadow-md z-20 cursor-pointer"
+            aria-label="Previous slide"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => setCurrent((prev) => (prev + 1) % bannerSlides.length)}
+            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition shadow-md z-20 cursor-pointer"
+            aria-label="Next slide"
+          >
+            <ChevronRight className="w-5 h-5" />
+          </button>
+
+          {/* Slide dots */}
+          <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 z-20">
+            {bannerSlides.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrent(i)}
+                className={`h-1.5 rounded-full transition-all cursor-pointer ${
+                  current === i ? 'w-5 bg-amber-600' : 'w-1.5 bg-amber-400/60'
+                }`}
+                aria-label={`Go to slide ${i + 1}`}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Right Column: 2 Static Promotion Cards (Exact Match to Screenshot) */}
+      <div className="lg:col-span-3 flex flex-col sm:flex-row lg:flex-col gap-3 sm:gap-4 justify-between">
+        {/* Card 1: FOR SELLERS (Teal Card) */}
+        <div className="flex-1 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-[#0c5949] to-[#083e33] text-white p-5 sm:p-6 flex flex-col justify-between shadow-md relative overflow-hidden group">
+          <div className="absolute -top-10 -right-10 w-32 h-32 rounded-full bg-emerald-400/20 blur-xl pointer-events-none" />
+
+          <div className="space-y-1.5 z-10">
+            <span className="text-[10px] font-black uppercase tracking-wider text-emerald-300">
+              FOR SELLERS
             </span>
-            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-[40px] font-black tracking-tight leading-[1.08]">
-              <span className="text-white block">{slide.titleMain}</span>
-              <span className="text-[#ffde17] block font-black drop-shadow-sm">{slide.titleAccent}</span>
-            </h2>
+            <h3 className="text-lg sm:text-xl font-black tracking-tight leading-tight">
+              Sell on Amezon
+            </h3>
+            <p className="text-xs text-emerald-100/90 leading-relaxed">
+              Join 50,000+ vendors. 0% commission on your first 3 months with our subscription plan.
+            </p>
           </div>
 
-          <div className="pt-0.5 text-[10.5px] sm:text-xs md:text-sm text-emerald-50/90 font-medium space-y-0.5 leading-snug">
-            <p>{slide.subLine1}</p>
-            <p className="font-semibold">{slide.subLine2}</p>
-          </div>
-
-          {/* Yellow Rounded Pill CTA Button (Exact match) */}
-          <div className="pt-2 sm:pt-3">
+          <div className="pt-4 z-10">
             <Link
-              to={slide.ctaLink}
-              className="inline-flex items-center gap-1.5 px-4 sm:px-6 py-2 sm:py-2.5 rounded-full bg-[#ffde17] hover:bg-[#fed600] active:scale-95 text-slate-950 font-black text-xs sm:text-sm shadow-md transition-all group/btn"
+              to="/vendor/pricing"
+              className="inline-block px-5 py-2 rounded-xl bg-white text-[#0c5949] hover:bg-emerald-50 text-xs font-black transition shadow-sm hover:scale-105 active:scale-95"
             >
-              <span>{slide.ctaText}</span>
-              <ArrowRight className="w-3.5 h-3.5 transition-transform group-hover/btn:translate-x-1" />
+              Register Free
             </Link>
           </div>
         </div>
 
-        {/* Right Column: Visual Graphics Composition */}
-        <div className="relative z-10 flex items-center justify-end flex-shrink-0 w-[150px] sm:w-[260px] md:w-[320px]">
-          {/* SAFE SECURE SHOPPING Badge */}
-          <div className="hidden sm:flex absolute right-1 top-0 items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-950/60 border border-emerald-400/40 text-emerald-100 text-[10px] font-extrabold tracking-wider backdrop-blur-xs shadow-xs">
-            <ShieldCheck className="w-4 h-4 text-emerald-300" />
-            <div className="text-left leading-tight">
-              <span className="block text-[8px] text-emerald-300">SAFE SECURE</span>
-              <span className="block font-black text-white">SHOPPING</span>
-            </div>
+        {/* Card 2: LIMITED TIME (Vibrant Red Card) */}
+        <div className="flex-1 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-[#dc2626] to-[#b91c1c] text-white p-5 sm:p-6 flex flex-col justify-between shadow-md relative overflow-hidden group">
+          <div className="absolute -bottom-10 -right-10 w-32 h-32 rounded-full bg-amber-400/20 blur-xl pointer-events-none" />
+
+          <div className="space-y-1.5 z-10">
+            <span className="text-[10px] font-black uppercase tracking-wider text-amber-200">
+              LIMITED TIME
+            </span>
+            <h3 className="text-lg sm:text-xl font-black tracking-tight leading-tight flex items-center gap-1.5">
+              <span>Today's Deals</span>
+              <Flame className="w-5 h-5 text-amber-300 fill-amber-300 animate-pulse" />
+            </h3>
+            <p className="text-xs text-rose-100/90 leading-relaxed">
+              Flash deals ending soon. Up to 70% off on trending electronics, fashion &amp; footwear.
+            </p>
           </div>
 
-          {/* Artwork: Smartphone + Shopping Cart + Bags */}
-          <div className="relative flex items-center justify-center transform hover:scale-105 transition-transform duration-300 pt-3 sm:pt-6">
-            {/* Background Smartphone */}
-            <div className="w-16 sm:w-24 md:w-28 h-28 sm:h-44 md:h-48 bg-slate-900 border-2 sm:border-3 border-slate-700 rounded-xl sm:rounded-2xl shadow-xl overflow-hidden transform rotate-6 -translate-x-3 sm:-translate-x-6">
-              <div className="w-full h-full bg-[#081e36] p-1.5 flex flex-col justify-between">
-                <div className="w-6 h-1 bg-slate-700 rounded-full mx-auto" />
-                <div className="text-center py-1 sm:py-2">
-                  <img src="/logo.png" alt="SR Logo" className="h-7 sm:h-9 w-auto object-contain mx-auto filter drop-shadow-sm" />
-                  <span className="text-[6px] sm:text-[7.5px] text-amber-300 font-bold block mt-0.5">DREAM • GROW • TOGETHER</span>
-                </div>
-                <div className="w-full bg-emerald-600/40 rounded-lg p-1 text-center">
-                  <span className="text-[7px] sm:text-[9px] text-emerald-200 font-bold">Verified Vendors</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Shopping Cart with Bags */}
-            <div className="absolute -bottom-1 right-0 sm:right-2 flex flex-col items-center">
-              {/* Colorful Shopping Bags inside Cart */}
-              <div className="flex items-end gap-1 -mb-1">
-                <div className="w-5 sm:w-7 h-7 sm:h-10 bg-gradient-to-t from-amber-500 to-yellow-400 rounded-t-md shadow flex items-center justify-center text-[7px] font-black text-slate-950">RS</div>
-                <div className="w-6 sm:w-8 h-9 sm:h-12 bg-gradient-to-t from-purple-600 to-indigo-500 rounded-t-md shadow"></div>
-                <div className="w-5 sm:w-7 h-8 sm:h-11 bg-gradient-to-t from-sky-500 to-cyan-400 rounded-t-md shadow"></div>
-              </div>
-              {/* Cart Container */}
-              <div className="px-2.5 py-1.5 bg-white/20 backdrop-blur-xs rounded-xl border border-white/40 text-white shadow-lg flex items-center justify-center">
-                <ShoppingCart className="w-7 h-7 sm:w-11 sm:h-11 text-white drop-shadow-md" />
-              </div>
-            </div>
+          <div className="pt-4 z-10">
+            <Link
+              to="/products"
+              className="inline-block px-5 py-2 rounded-xl bg-white text-[#dc2626] hover:bg-rose-50 text-xs font-black transition shadow-sm hover:scale-105 active:scale-95"
+            >
+              View Deals
+            </Link>
           </div>
         </div>
-
-        {/* Carousel Indicators (Exact match: 4 dots at bottom center) */}
-        <div className="absolute bottom-2.5 sm:bottom-3 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5">
-          <span className="w-5 h-1.5 rounded-full bg-white shadow-xs" />
-          <span className="w-1.5 h-1.5 rounded-full bg-white/50" />
-          <span className="w-1.5 h-1.5 rounded-full bg-white/50" />
-          <span className="w-1.5 h-1.5 rounded-full bg-white/50" />
-        </div>
-
-        {/* Desktop Previous/Next Arrows */}
-        <button
-          type="button"
-          onClick={prevSlide}
-          aria-label="Previous slide"
-          className="hidden md:flex absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-black/20 hover:bg-black/50 text-white items-center justify-center backdrop-blur-xs opacity-0 group-hover:opacity-100 transition cursor-pointer"
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-        <button
-          type="button"
-          onClick={nextSlide}
-          aria-label="Next slide"
-          className="hidden md:flex absolute right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-black/20 hover:bg-black/50 text-white items-center justify-center backdrop-blur-xs opacity-0 group-hover:opacity-100 transition cursor-pointer"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
       </div>
     </div>
   );

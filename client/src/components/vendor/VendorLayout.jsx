@@ -28,8 +28,11 @@ import {
   FileText,
   Clock,
   Zap,
+  Layers,
+  ArrowUpRight,
 } from 'lucide-react';
 import Logo from '../Logo';
+import NotificationDropdown from '../NotificationDropdown';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import api from '../../services/api';
@@ -69,41 +72,69 @@ const VendorLayout = ({
   const [plansLoading, setPlansLoading] = useState(false);
   const [renewing, setRenewing] = useState(false);
 
+  const [pendingOrdersCount, setPendingOrdersCount] = useState(0);
+
   useEffect(() => {
     fetchStore();
+    fetchPendingOrdersCount();
+
+    // Listen for live order updates
+    const handleOrdersUpdated = () => fetchPendingOrdersCount();
+    window.addEventListener('orders-updated', handleOrdersUpdated);
+    const interval = setInterval(fetchPendingOrdersCount, 12000);
+
+    return () => {
+      window.removeEventListener('orders-updated', handleOrdersUpdated);
+      clearInterval(interval);
+    };
   }, []);
+
+  const fetchPendingOrdersCount = async () => {
+    try {
+      const res = await api.get('/orders/vendor/orders');
+      if (res.data?.success) {
+        const orders = res.data.orders || [];
+        const pending = orders.filter((o) => {
+          if (o.status === 'Processing') return true;
+          return o.items?.some((it) => it.deliveryStatus === 'Processing');
+        }).length;
+        setPendingOrdersCount(pending);
+      }
+    } catch (e) {
+      // quiet fallback
+    }
+  };
 
   const fetchStore = async () => {
     try {
       const res = await api.get('/vendors/my-store');
       if (res.data?.success) {
         setStoreData(res.data);
-        const s = res.data.store;
-        if (s) {
+        if (res.data.store) {
           setStoreFormData({
-            storeName: s.storeName || '',
-            category: s.category || 'General',
-            phone: s.phone || '',
-            description: s.description || '',
+            storeName: res.data.store.storeName || '',
+            category: res.data.store.category || 'Electronics',
+            phone: res.data.store.phone || '',
+            description: res.data.store.description || '',
             address: {
-              street: s.address?.street || '',
-              landmark: s.address?.landmark || '',
-              city: s.address?.city || '',
-              state: s.address?.state || 'Andhra Pradesh',
-              zipCode: s.address?.zipCode || '',
+              street: res.data.store.address?.street || '',
+              landmark: res.data.store.address?.landmark || '',
+              city: res.data.store.address?.city || '',
+              state: res.data.store.address?.state || '',
+              zipCode: res.data.store.address?.zipCode || '',
             },
             bankDetails: {
-              accountHolder: s.bankDetails?.accountHolder || '',
-              bankName: s.bankDetails?.bankName || '',
-              accountNumber: s.bankDetails?.accountNumber || '',
-              ifscCode: s.bankDetails?.ifscCode || '',
-              upiId: s.bankDetails?.upiId || '',
+              accountHolder: res.data.store.bankDetails?.accountHolder || '',
+              bankName: res.data.store.bankDetails?.bankName || '',
+              accountNumber: res.data.store.bankDetails?.accountNumber || '',
+              ifscCode: res.data.store.bankDetails?.ifscCode || '',
+              upiId: res.data.store.bankDetails?.upiId || '',
             },
           });
         }
       }
-    } catch (e) {
-      console.warn('Could not fetch store data:', e);
+    } catch (err) {
+      console.error('Error fetching store in layout:', err);
     }
   };
 
@@ -112,34 +143,24 @@ const VendorLayout = ({
     setPlansLoading(true);
     try {
       const res = await api.get('/plans');
-      if (res.data?.success && Array.isArray(res.data.plans)) {
-        const active = res.data.plans.filter((p) => p.isActive !== false);
-        setPlans(active);
-        if (active.length > 0) {
-          setSelectedPlan(active[0]);
-        }
+      if (res.data?.success && res.data.plans?.length > 0) {
+        setPlans(res.data.plans);
+        setSelectedPlan(res.data.plans[0]);
       }
     } catch (err) {
-      console.warn('Failed to load plans:', err);
+      error('Failed to load subscription plans');
     } finally {
       setPlansLoading(false);
     }
   };
 
   const handleRenewPlan = async () => {
-    if (!selectedPlan) {
-      error('Please select a membership plan to renew');
-      return;
-    }
-
+    if (!selectedPlan) return;
     setRenewing(true);
     try {
-      // Direct renewal endpoint
       const res = await api.post('/vendors/renew-plan', {
         planId: selectedPlan._id,
-        razorpayPaymentId: `sim_pay_${Date.now()}`,
-        razorpayOrderId: `sim_ord_${Date.now()}`,
-        razorpaySignature: 'sim_sig_verified_ok',
+        paymentReference: `RNW-${Date.now().toString().slice(-6)}`,
       });
 
       if (res.data?.success) {
@@ -193,51 +214,75 @@ const VendorLayout = ({
   const navItems = [
     {
       title: 'Dashboard Overview',
+      shortTitle: 'Home',
       path: '/vendor/dashboard',
       icon: LayoutDashboard,
     },
     {
       title: 'Products & Inventory',
+      shortTitle: 'Catalog',
       path: '/vendor/products',
       icon: Package,
     },
     {
       title: 'Orders & Shipments',
+      shortTitle: 'Orders',
       path: '/vendor/orders',
       icon: ShoppingBag,
+      badge: pendingOrdersCount > 0 ? `${pendingOrdersCount} NEW` : null,
+      badgeColor: 'bg-rose-500 text-white animate-pulse',
     },
     {
       title: 'Promote & Earn',
+      shortTitle: 'Promote',
       path: '/vendor/promote',
       icon: Sparkles,
       badge: '50% Cut',
     },
     {
       title: 'Wallet & Bank Payouts',
+      shortTitle: 'Wallet',
       path: '/vendor/wallet',
       icon: Wallet,
+    },
+    {
+      title: 'Store Profile & Bank',
+      shortTitle: 'Profile',
+      path: '/vendor/profile',
+      icon: Store,
     },
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50/30 to-amber-50/20 text-slate-900 flex flex-col font-sans selection:bg-amber-100 selection:text-amber-900 relative">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-sky-50/30 to-amber-50/20 text-slate-900 flex flex-col font-sans selection:bg-amber-100 selection:text-amber-900 relative pb-16 lg:pb-0">
       {/* Decorative ambient background mesh blobs */}
       <div className="fixed top-0 right-1/4 w-96 h-96 bg-blue-300/10 rounded-full blur-3xl pointer-events-none -z-10" />
       <div className="fixed bottom-10 left-1/3 w-80 h-80 bg-amber-200/15 rounded-full blur-3xl pointer-events-none -z-10" />
 
-      {/* 1. Top Vendor Header - Sticky Glassmorphism */}
-      <header className="bg-white/85 backdrop-blur-xl border-b border-white/80 sticky top-0 z-40 px-4 sm:px-6 py-2.5 flex items-center justify-between gap-4 shadow-[0_2px_15px_rgba(0,0,0,0.03)]">
+      {/* 1. Top Vendor Header - Modern, Clean & Fully Responsive */}
+      <header className="bg-white/90 backdrop-blur-xl border-b border-white/90 sticky top-0 z-40 px-3.5 sm:px-6 py-2 sm:py-2.5 flex items-center justify-between gap-3 shadow-[0_2px_15px_rgba(0,0,0,0.03)]">
         {/* Left: Mobile Toggle + Logo + Motto */}
-        <div className="flex items-center gap-3 sm:gap-6">
+        <div className="flex items-center gap-2 sm:gap-4 shrink-0">
           <button
             onClick={() => setMobileDrawerOpen(true)}
-            className="lg:hidden p-2 rounded-xl text-slate-600 hover:bg-slate-100/80 transition cursor-pointer"
+            className="lg:hidden p-1.5 rounded-xl text-slate-600 hover:bg-slate-100/80 transition cursor-pointer"
             aria-label="Open sidebar"
           >
             <Menu className="w-5 h-5" />
           </button>
 
-          <Logo variant="vendor" size="sm" />
+          <Link to="/vendor/dashboard" className="flex items-center gap-2 group">
+            <div className="relative flex items-center">
+              <img
+                src="/logo.png"
+                alt="SR Logo"
+                className="h-9 sm:h-10 w-auto object-contain filter drop-shadow-[0_2px_8px_rgba(245,158,11,0.45)] group-hover:scale-105 transition-transform"
+              />
+            </div>
+            <span className="hidden sm:inline-block px-2 py-0.5 rounded-md text-[9px] font-extrabold uppercase tracking-wider bg-amber-400 text-slate-950 shadow-2xs">
+              Vendor Hub
+            </span>
+          </Link>
 
           <div className="hidden xl:flex items-center gap-2 text-xs font-semibold text-slate-500 border-l border-slate-200/80 pl-4">
             <span className="text-[#0c2a5e]">Sell Products</span>
@@ -249,11 +294,11 @@ const VendorLayout = ({
         </div>
 
         {/* Right: Quick Actions, Wallet Pill, Notifications & Avatar */}
-        <div className="flex items-center gap-2.5 sm:gap-4 text-xs">
+        <div className="flex items-center gap-2 sm:gap-3 text-xs">
           {/* Quick Add Product Button */}
           <Link
             to="/vendor/products"
-            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black shadow-xs transition cursor-pointer"
+            className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-bold shadow-xs transition cursor-pointer"
           >
             <Plus className="w-4 h-4" />
             <span>Add Product</span>
@@ -266,43 +311,48 @@ const VendorLayout = ({
             title="Available Wallet Balance"
           >
             <Wallet className="w-3.5 h-3.5 text-emerald-600" />
-            <span className="font-extrabold">₹{walletBalance.toLocaleString('en-IN')}</span>
+            <span className="font-extrabold text-xs">₹{walletBalance.toLocaleString('en-IN', { maximumFractionDigits: 1 })}</span>
           </Link>
 
-          {/* Store Settings Button */}
-          <button
-            type="button"
-            onClick={() => setStoreSettingsModalOpen(true)}
+          {/* Store Settings Button (Direct Page) */}
+          <Link
+            to="/vendor/profile"
             className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-white/90 border border-slate-200/80 text-slate-700 hover:bg-slate-50 transition cursor-pointer font-bold shadow-2xs"
             title="Store Profile & Settings"
           >
             <Store className="w-3.5 h-3.5 text-[#0c2a5e]" />
             <span>Store Profile</span>
-          </button>
+          </Link>
+
+          {/* Real-time Notification Bell Dropdown */}
+          <NotificationDropdown variant="light" role="vendor" />
 
           {/* Vendor Profile Avatar Pill */}
-          <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#0c2a5e] to-[#174896] text-white flex items-center justify-center shadow-xs overflow-hidden flex-shrink-0 font-black text-xs border border-slate-200">
+          <Link
+            to="/vendor/profile"
+            className="flex items-center gap-2 pl-1.5 sm:pl-2 border-l border-slate-200 hover:opacity-80 transition cursor-pointer"
+          >
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#0c2a5e] to-[#174896] text-white flex items-center justify-center shadow-xs overflow-hidden shrink-0 font-bold text-xs border border-slate-200">
               {(user?.avatar || store?.logo) ? (
                 <img src={user?.avatar || store?.logo} alt="Avatar" className="w-full h-full object-cover rounded-full" />
               ) : (
                 (storeName || user?.name || 'V').slice(0, 2).toUpperCase()
               )}
             </div>
-            <div className="hidden md:block text-left leading-tight">
-              <div className="font-bold text-slate-900 text-xs truncate max-w-[130px]">{storeName}</div>
+            <div className="hidden lg:block text-left leading-tight">
+              <div className="font-bold text-slate-900 text-xs truncate max-w-[120px]">{storeName}</div>
               <div className="text-[10px] text-emerald-600 font-bold flex items-center gap-1">
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                 <span>Verified Merchant</span>
               </div>
             </div>
-          </div>
+          </Link>
         </div>
       </header>
 
       {/* 2. Body Container: Light Frosted Glass Sidebar + Main Content Area */}
       <div className="flex-1 flex min-w-0 items-start">
-        {/* Light Frosted Glass Left Sidebar (Desktop) - Collapsible and Sticky with Smooth Scroll */}
+        {/* Light Frosted Glass Left Sidebar (Desktop) */}
         <aside
           className={`${
             sidebarCollapsed ? 'w-20' : 'w-64'
@@ -332,12 +382,16 @@ const VendorLayout = ({
             </div>
 
             {/* Store Profile Card */}
-            <div className={`p-2.5 rounded-2xl bg-white/90 backdrop-blur-md border border-slate-200/90 shadow-2xs flex items-center ${sidebarCollapsed ? 'justify-center' : 'gap-3'}`}>
-              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#0c2a5e] to-[#174896] text-white font-black text-xs flex items-center justify-center shrink-0 shadow-inner overflow-hidden border border-slate-200">
-                {(user?.avatar || store?.logo) ? (
+            <div
+              className={`p-3 rounded-2xl bg-white/70 border border-slate-200/80 shadow-2xs backdrop-blur-xs flex items-center ${
+                sidebarCollapsed ? 'justify-center' : 'gap-3'
+              }`}
+            >
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-600 text-slate-950 font-black text-xs flex items-center justify-center shrink-0 shadow-2xs overflow-hidden">
+                {store?.logo ? (
                   <img
-                    src={user?.avatar || store?.logo}
-                    alt="Profile / Store Pic"
+                    src={store.logo}
+                    alt={storeName}
                     className="w-full h-full object-cover"
                     onError={(e) => {
                       e.target.style.display = 'none';
@@ -349,7 +403,7 @@ const VendorLayout = ({
               </div>
               {!sidebarCollapsed && (
                 <div className="overflow-hidden leading-tight flex-1">
-                  <div className="font-black text-xs text-slate-900 truncate">{storeName}</div>
+                  <div className="font-bold text-xs text-slate-900 truncate">{storeName}</div>
                   <div className="text-[10px] text-emerald-600 font-bold mt-0.5 flex items-center gap-1">
                     <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                     <span className="truncate">SR Verified Store</span>
@@ -386,7 +440,9 @@ const VendorLayout = ({
                       <span className="truncate flex-1 flex items-center justify-between">
                         <span>{item.title}</span>
                         {item.badge && (
-                          <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-amber-400 text-slate-950 ml-1.5 shadow-2xs">
+                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ml-1.5 shadow-2xs ${
+                            item.badgeColor || 'bg-amber-400 text-slate-950'
+                          }`}>
                             {item.badge}
                           </span>
                         )}
@@ -395,22 +451,9 @@ const VendorLayout = ({
                   </Link>
                 );
               })}
-
-              {/* Store Profile & Bank Details quick modal button */}
-              <button
-                type="button"
-                onClick={() => setStoreSettingsModalOpen(true)}
-                className={`w-full flex items-center ${
-                  sidebarCollapsed ? 'justify-center px-2 py-3' : 'gap-3 px-3 py-2.5'
-                } rounded-xl transition duration-150 text-slate-600 hover:bg-white/80 hover:text-slate-900 cursor-pointer text-left hover:shadow-2xs`}
-                title={sidebarCollapsed ? 'Store Profile & Bank' : undefined}
-              >
-                <Store className="w-4 h-4 text-slate-400 shrink-0" />
-                {!sidebarCollapsed && <span className="truncate">Store Profile &amp; Bank</span>}
-              </button>
             </nav>
 
-            {/* Plan Status & Renewal Card (Collapsed view icon / Full view card) */}
+            {/* Plan Status & Renewal Card */}
             {!sidebarCollapsed ? (
               <div className="p-3.5 rounded-2xl bg-gradient-to-br from-emerald-50/90 via-teal-50/40 to-white/90 border border-emerald-200/80 text-left space-y-2 shadow-2xs backdrop-blur-md">
                 <div className="flex items-center justify-between text-[11px] font-extrabold text-slate-900">
@@ -512,7 +555,12 @@ const VendorLayout = ({
             <div className="fixed inset-y-0 left-0 w-72 bg-white/95 backdrop-blur-2xl text-slate-800 shadow-2xl flex flex-col justify-between z-50 p-4 border-r border-white/60">
               <div className="space-y-4">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-                  <Logo variant="vendor" size="sm" />
+                  <div className="flex items-center gap-2">
+                    <img src="/logo.png" alt="Logo" className="h-8 w-auto object-contain" />
+                    <span className="px-2 py-0.5 rounded-md text-[9px] font-extrabold uppercase bg-amber-400 text-slate-950">
+                      Vendor Hub
+                    </span>
+                  </div>
                   <button
                     onClick={() => setMobileDrawerOpen(false)}
                     className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 cursor-pointer"
@@ -567,21 +615,9 @@ const VendorLayout = ({
                     type="button"
                     onClick={() => {
                       setMobileDrawerOpen(false);
-                      setStoreSettingsModalOpen(true);
-                    }}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-slate-600 hover:bg-slate-100 text-left font-bold"
-                  >
-                    <Store className="w-4 h-4 text-slate-400" />
-                    <span>Store Profile &amp; Bank</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMobileDrawerOpen(false);
                       openRenewModal();
                     }}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-emerald-700 bg-emerald-50 text-left font-bold"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-emerald-700 bg-emerald-50 text-left font-bold cursor-pointer"
                   >
                     <RefreshCw className="w-4 h-4 text-emerald-600" />
                     <span>Renew Store Plan</span>
@@ -611,21 +647,54 @@ const VendorLayout = ({
         )}
 
         {/* Main Content Area - Light Morphism */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto min-w-0">
+        <main className="flex-1 p-3.5 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto min-w-0">
           {/* Header Title & Actions Bar */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 mb-6 border-b border-slate-200/80">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-5 mb-6 border-b border-slate-200/80">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight leading-tight">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">
                 {title}
               </h1>
               {subtitle && <p className="text-xs sm:text-sm text-slate-500 mt-1">{subtitle}</p>}
             </div>
-            {actions && <div className="flex items-center gap-3 shrink-0">{actions}</div>}
+            {actions && <div className="flex items-center gap-2 sm:gap-3 shrink-0">{actions}</div>}
           </div>
 
           {children}
         </main>
       </div>
+
+      {/* 3. Mobile Vendor Bottom Navigation Bar */}
+      <nav
+        aria-label="Vendor Mobile Navigation"
+        className="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-xl border-t border-slate-200/80 shadow-[0_-4px_20px_rgba(0,0,0,0.06)] lg:hidden flex items-center justify-around px-2 py-1.5"
+      >
+        {navItems.map((item) => {
+          const Icon = item.icon;
+          const isActive = location.pathname === item.path;
+
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`flex flex-col items-center justify-center flex-1 py-1 px-1 transition-all rounded-xl relative ${
+                isActive
+                  ? 'text-amber-600 font-bold'
+                  : 'text-slate-500 hover:text-slate-800 font-medium'
+              }`}
+            >
+              <div className="relative">
+                <Icon className={`w-5 h-5 transition-transform ${isActive ? 'scale-110' : ''}`} />
+                {item.badge && (
+                  <span className="absolute -top-1 -right-2 w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
+                )}
+              </div>
+              <span className="text-[10px] mt-0.5 tracking-tight truncate max-w-[58px]">
+                {item.shortTitle || item.title.split(' ')[0]}
+              </span>
+            </Link>
+          );
+        })}
+      </nav>
 
       {/* =====================================================================
           STORE PROFILE & SETTLEMENT BANK SETTINGS MODAL
@@ -668,7 +737,22 @@ const VendorLayout = ({
                     />
                   </div>
                   <div>
-                    <label className="font-bold text-slate-700 block mb-1">Store Phone *</label>
+                    <label className="font-bold text-slate-700 block mb-1">Category</label>
+                    <select
+                      value={storeFormData.category}
+                      onChange={(e) => setStoreFormData({ ...storeFormData, category: e.target.value })}
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
+                    >
+                      <option value="Electronics">Electronics</option>
+                      <option value="Fashion">Fashion &amp; Apparel</option>
+                      <option value="Footwear">Footwear</option>
+                      <option value="Home &amp; Kitchen">Home &amp; Kitchen</option>
+                      <option value="Beauty">Beauty &amp; Personal Care</option>
+                      <option value="General">General Store</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="font-bold text-slate-700 block mb-1">Support Phone *</label>
                     <input
                       type="tel"
                       required
@@ -678,52 +762,85 @@ const VendorLayout = ({
                     />
                   </div>
                 </div>
-                <div>
-                  <label className="font-bold text-slate-700 block mb-1">Store Description</label>
-                  <textarea
-                    rows={2}
-                    value={storeFormData.description}
-                    onChange={(e) => setStoreFormData({ ...storeFormData, description: e.target.value })}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
-                  />
-                </div>
               </div>
 
               {/* Physical Dispatch Address */}
               <div className="space-y-3 pt-3 border-t border-slate-100">
-                <span className="font-black text-slate-800 uppercase tracking-wider text-[11px] block">2. Physical Dispatch Hub Address</span>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="font-bold text-slate-700 block mb-1">Street / Shop Address *</label>
+                <span className="font-black text-slate-800 uppercase tracking-wider text-[11px] block">2. Dispatch &amp; Return Address</span>
+                <div className="space-y-2.5">
+                  <input
+                    type="text"
+                    required
+                    placeholder="Street Address, Unit / Shop No. *"
+                    value={storeFormData.address.street}
+                    onChange={(e) =>
+                      setStoreFormData({
+                        ...storeFormData,
+                        address: { ...storeFormData.address, street: e.target.value },
+                      })
+                    }
+                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
+                  />
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
                     <input
                       type="text"
-                      value={storeFormData.address.street}
-                      onChange={(e) => setStoreFormData({ ...storeFormData, address: { ...storeFormData.address, street: e.target.value } })}
+                      required
+                      placeholder="City *"
+                      value={storeFormData.address.city}
+                      onChange={(e) =>
+                        setStoreFormData({
+                          ...storeFormData,
+                          address: { ...storeFormData.address, city: e.target.value },
+                        })
+                      }
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
                     />
-                  </div>
-                  <div>
-                    <label className="font-bold text-slate-700 block mb-1">City / Town *</label>
                     <input
                       type="text"
-                      value={storeFormData.address.city}
-                      onChange={(e) => setStoreFormData({ ...storeFormData, address: { ...storeFormData.address, city: e.target.value } })}
+                      required
+                      placeholder="State *"
+                      value={storeFormData.address.state}
+                      onChange={(e) =>
+                        setStoreFormData({
+                          ...storeFormData,
+                          address: { ...storeFormData.address, state: e.target.value },
+                        })
+                      }
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
+                    />
+                    <input
+                      type="text"
+                      required
+                      placeholder="Postal PIN *"
+                      value={storeFormData.address.zipCode}
+                      onChange={(e) =>
+                        setStoreFormData({
+                          ...storeFormData,
+                          address: { ...storeFormData.address, zipCode: e.target.value },
+                        })
+                      }
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
                     />
                   </div>
                 </div>
               </div>
 
-              {/* Bank Settlement Details */}
+              {/* Settlement Bank Details */}
               <div className="space-y-3 pt-3 border-t border-slate-100">
-                <span className="font-black text-slate-800 uppercase tracking-wider text-[11px] block">3. Settlement Bank Account Details</span>
+                <span className="font-black text-slate-800 uppercase tracking-wider text-[11px] block">3. Settlement Bank Details</span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="font-bold text-slate-700 block mb-1">Account Holder Name *</label>
                     <input
                       type="text"
+                      required
                       value={storeFormData.bankDetails.accountHolder}
-                      onChange={(e) => setStoreFormData({ ...storeFormData, bankDetails: { ...storeFormData.bankDetails, accountHolder: e.target.value } })}
+                      onChange={(e) =>
+                        setStoreFormData({
+                          ...storeFormData,
+                          bankDetails: { ...storeFormData.bankDetails, accountHolder: e.target.value },
+                        })
+                      }
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
                     />
                   </div>
@@ -731,35 +848,66 @@ const VendorLayout = ({
                     <label className="font-bold text-slate-700 block mb-1">Bank Name *</label>
                     <input
                       type="text"
+                      required
                       value={storeFormData.bankDetails.bankName}
-                      onChange={(e) => setStoreFormData({ ...storeFormData, bankDetails: { ...storeFormData.bankDetails, bankName: e.target.value } })}
+                      onChange={(e) =>
+                        setStoreFormData({
+                          ...storeFormData,
+                          bankDetails: { ...storeFormData.bankDetails, bankName: e.target.value },
+                        })
+                      }
                       className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
                     />
                   </div>
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="font-bold text-slate-700 block mb-1">Account Number *</label>
                     <input
                       type="text"
+                      required
                       value={storeFormData.bankDetails.accountNumber}
-                      onChange={(e) => setStoreFormData({ ...storeFormData, bankDetails: { ...storeFormData.bankDetails, accountNumber: e.target.value } })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
+                      onChange={(e) =>
+                        setStoreFormData({
+                          ...storeFormData,
+                          bankDetails: { ...storeFormData.bankDetails, accountNumber: e.target.value },
+                        })
+                      }
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
                     />
                   </div>
                   <div>
                     <label className="font-bold text-slate-700 block mb-1">IFSC Code *</label>
                     <input
                       type="text"
+                      required
                       value={storeFormData.bankDetails.ifscCode}
-                      onChange={(e) => setStoreFormData({ ...storeFormData, bankDetails: { ...storeFormData.bankDetails, ifscCode: e.target.value.toUpperCase() } })}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl font-mono uppercase focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
+                      onChange={(e) =>
+                        setStoreFormData({
+                          ...storeFormData,
+                          bankDetails: { ...storeFormData.bankDetails, ifscCode: e.target.value.toUpperCase() },
+                        })
+                      }
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl uppercase focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="font-bold text-slate-700 block mb-1">UPI ID (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. storename@okaxis"
+                      value={storeFormData.bankDetails.upiId}
+                      onChange={(e) =>
+                        setStoreFormData({
+                          ...storeFormData,
+                          bankDetails: { ...storeFormData.bankDetails, upiId: e.target.value },
+                        })
+                      }
+                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
                     />
                   </div>
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setStoreSettingsModalOpen(false)}
@@ -770,9 +918,9 @@ const VendorLayout = ({
                 <button
                   type="submit"
                   disabled={savingStore}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#0c2a5e] to-[#174896] text-white font-black shadow-md hover:from-[#092048] hover:to-[#123875] transition cursor-pointer disabled:bg-slate-400"
+                  className="px-6 py-2.5 rounded-xl bg-[#0c2a5e] hover:bg-[#174896] text-white font-black shadow-md transition cursor-pointer disabled:bg-slate-400"
                 >
-                  {savingStore ? 'Saving Details...' : 'Save Store Details'}
+                  {savingStore ? 'Saving Changes...' : 'Save Store Details'}
                 </button>
               </div>
             </form>
@@ -781,49 +929,44 @@ const VendorLayout = ({
       )}
 
       {/* =====================================================================
-          PLAN SUBSCRIPTION RENEWAL MODAL
+          STORE SUBSCRIPTION PLAN RENEWAL MODAL
          ===================================================================== */}
       {renewModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
-          <div className="bg-white/95 backdrop-blur-2xl rounded-3xl border border-white/80 shadow-2xl max-w-2xl w-full p-6 sm:p-8 space-y-6">
+          <div className="bg-white/95 backdrop-blur-2xl rounded-3xl border border-white/80 shadow-2xl max-w-xl w-full p-6 sm:p-7 space-y-5">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-amber-50 text-amber-700">
+                <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
                   <RefreshCw className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-slate-900">Renew Store Subscription Plan</h3>
-                  <p className="text-xs text-slate-500">Extend your marketplace listing validity and maintain public store visibility</p>
+                  <h3 className="text-base font-black text-slate-900">Renew Store Listing Plan</h3>
+                  <p className="text-xs text-slate-500">Keep your products active on the SR Marketplace portal</p>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setRenewModalOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100"
+                className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {plansLoading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {[1, 2].map((i) => (
-                  <div key={i} className="h-36 rounded-2xl bg-slate-100 animate-pulse" />
-                ))}
-              </div>
+              <div className="p-8 text-center text-xs text-slate-500">Loading available plans...</div>
             ) : plans.length > 0 ? (
               <div className="space-y-4">
-                <label className="text-xs font-bold text-slate-700">Choose Membership Plan:</label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {plans.map((p) => {
                     const isSelected = selectedPlan?._id === p._id;
                     return (
                       <div
                         key={p._id}
                         onClick={() => setSelectedPlan(p)}
-                        className={`p-4 rounded-2xl border-2 transition cursor-pointer flex flex-col justify-between ${
+                        className={`p-4 rounded-2xl border-2 transition cursor-pointer ${
                           isSelected
-                            ? 'border-[#0c2a5e] bg-blue-50/70 shadow-sm'
+                            ? 'border-[#0c2a5e] bg-blue-50/50 shadow-xs'
                             : 'border-slate-200 bg-white hover:border-slate-300'
                         }`}
                       >

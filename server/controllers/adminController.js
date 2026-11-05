@@ -8,6 +8,7 @@ const Subscription = require('../models/Subscription');
 const Settlement = require('../models/Settlement');
 const PlatformSetting = require('../models/PlatformSetting');
 const WalletTransaction = require('../models/WalletTransaction');
+const { createNotification } = require('./notificationController');
 const {
   sendEmail,
   getStoreApprovalEmailTemplate,
@@ -50,6 +51,17 @@ const creditReferralBonusIfNeeded = async (store, setting) => {
         });
       }
       store.referralBonusCredited = true;
+      try {
+        await createNotification({
+          recipient: referrer._id,
+          role: 'vendor',
+          type: 'vendor_referral',
+          title: '🤝 Vendor Referral Reward Credited!',
+          message: `₹${bonusAmount} referral bonus credited to your wallet for merchant invite "${store.storeName}"!`,
+          link: '/vendor/wallet',
+          metadata: { storeId: store._id, amount: bonusAmount },
+        });
+      } catch (_) {}
       return { rewarded: true, referrer, bonusAmount };
     }
     return false;
@@ -76,6 +88,18 @@ const creditReferralBonusIfNeeded = async (store, setting) => {
 
     store.referralBonusCredited = true;
     await store.save();
+
+    try {
+      await createNotification({
+        recipient: referrer._id,
+        role: 'vendor',
+        type: 'vendor_referral',
+        title: '🤝 Vendor Referral Reward Credited!',
+        message: `₹${bonusAmount} referral bonus credited to your wallet for merchant invite "${store.storeName}"!`,
+        link: '/vendor/wallet',
+        metadata: { storeId: store._id, amount: bonusAmount },
+      });
+    } catch (_) {}
 
     // Send email notification to referrer
     try {
@@ -750,12 +774,32 @@ exports.getPlatformSettings = async (req, res, next) => {
 // @access  Private (Admin)
 exports.updatePlatformSettings = async (req, res, next) => {
   try {
-    const { referralBonusAmount, commissionRatePercent, minWithdrawalAmount, platformName, supportEmail } = req.body;
+    const {
+      referralBonusAmount,
+      commissionRatePercent,
+      minWithdrawalAmount,
+      platformName,
+      supportEmail,
+      customerReferralDiscountAmount,
+      customerReferralMinSpend,
+      customerReferralDiscountType,
+      deodapAffiliateCommissionPercent,
+      deodapProfitMarginPercent,
+      enrollmentFee,
+      planDurationDays,
+    } = req.body;
 
     if (mongoose.connection.readyState !== 1) {
       if (referralBonusAmount !== undefined) mockSettings.referralBonusAmount = Number(referralBonusAmount);
       if (commissionRatePercent !== undefined) mockSettings.commissionRatePercent = Number(commissionRatePercent);
       if (minWithdrawalAmount !== undefined) mockSettings.minWithdrawalAmount = Number(minWithdrawalAmount);
+      if (customerReferralDiscountAmount !== undefined) mockSettings.customerReferralDiscountAmount = Number(customerReferralDiscountAmount);
+      if (customerReferralMinSpend !== undefined) mockSettings.customerReferralMinSpend = Number(customerReferralMinSpend);
+      if (customerReferralDiscountType !== undefined) mockSettings.customerReferralDiscountType = customerReferralDiscountType;
+      if (deodapAffiliateCommissionPercent !== undefined) mockSettings.deodapAffiliateCommissionPercent = Number(deodapAffiliateCommissionPercent);
+      if (deodapProfitMarginPercent !== undefined) mockSettings.deodapProfitMarginPercent = Number(deodapProfitMarginPercent);
+      if (enrollmentFee !== undefined) mockSettings.enrollmentFee = Number(enrollmentFee);
+      if (planDurationDays !== undefined) mockSettings.planDurationDays = Number(planDurationDays);
       if (platformName) mockSettings.platformName = platformName;
       if (supportEmail) mockSettings.supportEmail = supportEmail;
 
@@ -774,6 +818,13 @@ exports.updatePlatformSettings = async (req, res, next) => {
     if (referralBonusAmount !== undefined) settings.referralBonusAmount = Number(referralBonusAmount);
     if (commissionRatePercent !== undefined) settings.commissionRatePercent = Number(commissionRatePercent);
     if (minWithdrawalAmount !== undefined) settings.minWithdrawalAmount = Number(minWithdrawalAmount);
+    if (customerReferralDiscountAmount !== undefined) settings.customerReferralDiscountAmount = Number(customerReferralDiscountAmount);
+    if (customerReferralMinSpend !== undefined) settings.customerReferralMinSpend = Number(customerReferralMinSpend);
+    if (customerReferralDiscountType !== undefined) settings.customerReferralDiscountType = customerReferralDiscountType;
+    if (deodapAffiliateCommissionPercent !== undefined) settings.deodapAffiliateCommissionPercent = Number(deodapAffiliateCommissionPercent);
+    if (deodapProfitMarginPercent !== undefined) settings.deodapProfitMarginPercent = Number(deodapProfitMarginPercent);
+    if (enrollmentFee !== undefined) settings.enrollmentFee = Number(enrollmentFee);
+    if (planDurationDays !== undefined) settings.planDurationDays = Number(planDurationDays);
     if (platformName) settings.platformName = platformName;
     if (supportEmail) settings.supportEmail = supportEmail;
 
@@ -803,6 +854,66 @@ exports.settleVendorWallet = async (req, res, next) => {
     const settleAmount = Number(amount);
     if (!settleAmount || settleAmount <= 0) {
       return res.status(400).json({ success: false, message: 'Valid settlement amount is required' });
+    }
+
+    if (mongoose.connection.readyState !== 1) {
+      const vendor = mockUsers.find((u) => u._id === vendorId || u.id === vendorId);
+      if (!vendor) {
+        return res.status(404).json({ success: false, message: 'Vendor user not found' });
+      }
+
+      if ((vendor.walletBalance || 0) < settleAmount) {
+        return res.status(400).json({
+          success: false,
+          message: `Cannot settle ₹${settleAmount}. Vendor available balance is ₹${vendor.walletBalance || 0}`,
+        });
+      }
+
+      vendor.walletBalance -= settleAmount;
+      const store = mockStores.find((s) => s.vendor === vendor._id || s.vendor?._id === vendor._id);
+      const settlement = {
+        _id: `settle_${Date.now()}`,
+        vendor: vendor._id,
+        store: store?._id,
+        amount: settleAmount,
+        status: 'completed',
+        transactionReference: transactionReference || `TXN-ADM-${Date.now()}`,
+        adminNotes: notes || 'Direct bank settlement processed by Administrator',
+        bankDetails: store?.bankDetails || {},
+        settledAt: new Date(),
+        createdAt: new Date(),
+      };
+      mockSettlements.unshift(settlement);
+      mockTransactions.unshift({
+        _id: `tx_${Date.now()}`,
+        vendor: vendor._id,
+        type: 'settlement_payout',
+        amount: -settleAmount,
+        description: `Direct Bank Settlement Disbursement: ₹${settleAmount} (Ref: ${settlement.transactionReference})`,
+        referenceId: settlement._id,
+        status: 'completed',
+        balanceAfter: vendor.walletBalance,
+        createdAt: new Date(),
+      });
+
+      try {
+        await createNotification({
+          recipient: vendor._id,
+          role: 'vendor',
+          type: 'settlement_payout',
+          title: '💸 Direct Bank Settlement Processed',
+          message: `₹${settleAmount.toLocaleString('en-IN')} has been settled to your bank account. Ref: ${settlement.transactionReference}`,
+          link: '/vendor/wallet',
+          metadata: { settlementId: settlement._id, amount: settleAmount },
+        });
+      } catch (_) {}
+
+      return res.status(200).json({
+        success: true,
+        message: `Successfully settled ₹${settleAmount} for ${vendor.name}! Wallet balance reduced to ₹${vendor.walletBalance}.`,
+        remainingBalance: vendor.walletBalance,
+        settlement,
+      });
     }
 
     const vendor = await User.findById(vendorId);
@@ -845,6 +956,18 @@ exports.settleVendorWallet = async (req, res, next) => {
       status: 'completed',
       balanceAfter: vendor.walletBalance,
     });
+
+    try {
+      await createNotification({
+        recipient: vendor._id,
+        role: 'vendor',
+        type: 'settlement_payout',
+        title: '💸 Direct Bank Settlement Processed',
+        message: `₹${settleAmount.toLocaleString('en-IN')} has been settled to your bank account. Ref: ${settlement.transactionReference}`,
+        link: '/vendor/wallet',
+        metadata: { settlementId: settlement._id, amount: settleAmount },
+      });
+    } catch (_) {}
 
     res.status(200).json({
       success: true,

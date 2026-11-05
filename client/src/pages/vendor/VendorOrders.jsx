@@ -25,6 +25,10 @@ import {
   Eye,
   X,
   Volume2,
+  TrendingUp,
+  ShoppingBag,
+  DollarSign,
+  Activity,
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import VendorLayout from '../../components/vendor/VendorLayout';
@@ -60,28 +64,16 @@ const VendorOrders = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(5);
 
-  // Notification for incoming / new orders
+  // Live order incoming alerts
   const [newOrderAlert, setNewOrderAlert] = useState(null);
   const previousOrderCount = useRef(null);
 
-  // Modal for tracking / courier assignment
-  const [dispatchModal, setDispatchModal] = useState({
-    open: false,
-    orderId: null,
-    itemId: null,
-    itemTitle: '',
-    targetStatus: 'Shipped',
-    courierName: 'Delhivery Express',
-    trackingNumber: '',
-  });
-  const [updatingId, setUpdatingId] = useState(null);
-
+  // Polling for live updates & alerts
   useEffect(() => {
     fetchOrders(true);
-    // Poll for new orders every 12 seconds to trigger live notification
     const interval = setInterval(() => {
       fetchOrders(false);
-    }, 12000);
+    }, 10000); // 10s auto refresh for live notifications
     return () => clearInterval(interval);
   }, []);
 
@@ -92,7 +84,7 @@ const VendorOrders = () => {
       if (res.data?.success) {
         const fetchedOrders = res.data.orders || [];
 
-        // Check if new order arrived compared to last poll
+        // Check if a new order arrived compared to last poll
         if (
           previousOrderCount.current !== null &&
           fetchedOrders.length > previousOrderCount.current
@@ -104,11 +96,12 @@ const VendorOrders = () => {
             amount: newest.vendorSubtotal || newest.totalAmount,
             time: new Date(),
           });
-          info(`🔔 New Order Received! Invoice #${newest.invoiceNumber}`);
+          info(`🔔 New Customer Order Received! Invoice #${newest.invoiceNumber}`);
         }
 
         previousOrderCount.current = fetchedOrders.length;
         setOrders(fetchedOrders);
+        window.dispatchEvent(new CustomEvent('orders-updated'));
       }
     } catch (err) {
       console.error('Failed to load vendor orders:', err);
@@ -117,56 +110,19 @@ const VendorOrders = () => {
     }
   };
 
-  const openDispatchModal = (e, orderId, item, targetStatus) => {
-    e.stopPropagation();
-    setDispatchModal({
-      open: true,
-      orderId,
-      itemId: item._id,
-      itemTitle: item.title,
-      targetStatus,
-      courierName: item.courierName || 'Delhivery Express',
-      trackingNumber: item.trackingNumber || `AWB${Math.floor(100000000 + Math.random() * 900000000)}`,
-    });
-  };
+  // Live Quick Analytics computed across all vendor orders
+  const totalVolume = orders.reduce((sum, o) => sum + (o.vendorSubtotal || o.totalAmount || 0), 0);
+  const deliveredCount = orders.filter((o) =>
+    o.items?.some((i) => i.deliveryStatus === 'Delivered')
+  ).length;
+  const inTransitCount = orders.filter((o) =>
+    o.items?.some((i) => i.deliveryStatus === 'Shipped' || i.deliveryStatus === 'Out for Delivery')
+  ).length;
+  const pendingCount = orders.filter((o) =>
+    o.items?.some((i) => i.deliveryStatus === 'Processing' || !i.deliveryStatus)
+  ).length;
 
-  const handleStatusUpdate = async (e, orderId, itemId, newStatus, courierName = null, trackingNumber = null) => {
-    if (e && e.stopPropagation) e.stopPropagation();
-    setUpdatingId(itemId);
-    try {
-      const payload = { status: newStatus };
-      if (courierName) payload.courierName = courierName;
-      if (trackingNumber) payload.trackingNumber = trackingNumber;
-
-      const res = await api.put(`/orders/${orderId}/items/${itemId}/delivery-status`, payload);
-
-      if (res.data?.success) {
-        if (newStatus === 'Delivered') {
-          success(`Marked as Delivered! Net order earnings credited directly to your Vendor Wallet.`);
-        } else {
-          info(`Order item status updated to "${newStatus}"!`);
-        }
-        setDispatchModal({ ...dispatchModal, open: false });
-        fetchOrders(false);
-      }
-    } catch (err) {
-      error(err.response?.data?.message || 'Could not update delivery status');
-    } finally {
-      setUpdatingId(null);
-    }
-  };
-
-  const handleCopyAddress = (e, orderId, address) => {
-    e.stopPropagation();
-    if (!address) return;
-    const text = `${address.fullName}\n${address.phone}\n${address.street}, ${address.city}, ${address.state} - ${address.zipCode}`;
-    navigator.clipboard.writeText(text);
-    setCopiedId(orderId);
-    info('Customer shipping address copied to clipboard!');
-    setTimeout(() => setCopiedId(null), 2500);
-  };
-
-  // Filter orders by search, status, and date range
+  // Filter orders by search query, status tab, and date range
   const filteredOrders = orders.filter((order) => {
     const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
@@ -181,7 +137,9 @@ const VendorOrders = () => {
 
     // Status filter
     if (activeTab !== 'All') {
-      const hasStatus = order.items?.some((i) => i.deliveryStatus?.toLowerCase() === activeTab.toLowerCase());
+      const hasStatus = order.items?.some(
+        (i) => (i.deliveryStatus || 'Processing').toLowerCase() === activeTab.toLowerCase()
+      );
       if (!hasStatus) return false;
     }
 
@@ -210,7 +168,6 @@ const VendorOrders = () => {
   const startIndex = (currentPage - 1) * pageSize;
   const paginatedOrders = filteredOrders.slice(startIndex, startIndex + pageSize);
 
-  // Reset page when search or tab changes
   useEffect(() => {
     setCurrentPage(1);
   }, [searchQuery, activeTab, dateFilter, pageSize]);
@@ -218,17 +175,17 @@ const VendorOrders = () => {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'Delivered':
-        return 'bg-emerald-500/10 text-emerald-700 border-emerald-300';
+        return 'bg-emerald-500/15 text-emerald-800 border-emerald-300 font-black';
       case 'Shipped':
-        return 'bg-blue-500/10 text-blue-700 border-blue-300';
+        return 'bg-blue-500/15 text-blue-800 border-blue-300 font-black';
       case 'Out for Delivery':
-        return 'bg-indigo-500/10 text-indigo-700 border-indigo-300';
+        return 'bg-indigo-500/15 text-indigo-800 border-indigo-300 font-black';
       case 'Processing':
-        return 'bg-amber-500/10 text-amber-700 border-amber-300';
+        return 'bg-amber-500/15 text-amber-800 border-amber-300 font-black';
       case 'Cancelled':
-        return 'bg-rose-500/10 text-rose-700 border-rose-300';
+        return 'bg-rose-500/15 text-rose-800 border-rose-300 font-black';
       default:
-        return 'bg-slate-100 text-slate-700 border-slate-300';
+        return 'bg-slate-100 text-slate-700 border-slate-300 font-semibold';
     }
   };
 
@@ -240,7 +197,7 @@ const VendorOrders = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={() => fetchOrders(true)}
-            className="px-3.5 py-2 rounded-2xl bg-white border border-slate-200/90 text-slate-700 hover:bg-slate-50 font-bold text-xs transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
+            className="px-4 py-2 rounded-2xl bg-white/90 backdrop-blur-md border border-slate-200/90 text-slate-700 hover:bg-white font-bold text-xs transition shadow-2xs flex items-center gap-1.5 cursor-pointer active:scale-95"
           >
             <Clock className="w-3.5 h-3.5 text-slate-500" />
             <span>Refresh</span>
@@ -248,8 +205,8 @@ const VendorOrders = () => {
         </div>
       }
     >
-      <div className="space-y-6">
-        {/* Live Incoming Order Alert Toast / Notification Card */}
+      <div className="space-y-5">
+        {/* Live Incoming Order Alert Toast */}
         {newOrderAlert && (
           <div className="p-4 sm:p-5 rounded-3xl bg-gradient-to-r from-emerald-600 via-teal-600 to-blue-700 text-white shadow-xl flex items-center justify-between gap-4 animate-in slide-in-from-top-4 duration-300 border border-emerald-400/40">
             <div className="flex items-center gap-3.5">
@@ -258,11 +215,11 @@ const VendorOrders = () => {
               </div>
               <div className="space-y-0.5">
                 <div className="font-black text-sm flex items-center gap-2">
-                  <span>🔔 New Order Received!</span>
+                  <span>🔔 Live Order Received!</span>
                   <span className="font-mono bg-white/20 px-2 py-0.5 rounded-lg text-xs">#{newOrderAlert.invoice}</span>
                 </div>
                 <p className="text-xs text-emerald-100">
-                  Buyer <strong>{newOrderAlert.customer}</strong> placed an order worth <strong>₹{newOrderAlert.amount?.toLocaleString('en-IN')}</strong>.
+                  Buyer <strong>{newOrderAlert.customer}</strong> ordered worth <strong>₹{newOrderAlert.amount?.toLocaleString('en-IN')}</strong>.
                 </p>
               </div>
             </div>
@@ -270,7 +227,7 @@ const VendorOrders = () => {
             <div className="flex items-center gap-2 shrink-0">
               <Link
                 to={`/vendor/orders/${newOrderAlert.invoice}`}
-                className="px-3.5 py-1.5 rounded-xl bg-white text-slate-900 font-extrabold text-xs shadow-sm hover:bg-slate-100 transition"
+                className="px-3.5 py-1.5 rounded-xl bg-white text-slate-900 font-black text-xs shadow-sm hover:bg-slate-100 transition"
               >
                 View Order
               </Link>
@@ -284,7 +241,54 @@ const VendorOrders = () => {
           </div>
         )}
 
-        {/* Settlement Info Notice - Frosted Morphism */}
+        {/* 1. Official Live Orders Analytics Strip (Morphism) */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+          <div className="bg-white/80 backdrop-blur-xl p-4 rounded-3xl border border-white/90 shadow-2xs glow-card flex items-center justify-between">
+            <div>
+              <span className="text-[10.5px] uppercase font-bold text-slate-400 tracking-wider">Total Orders</span>
+              <div className="text-xl sm:text-2xl font-black text-slate-900 mt-0.5">{orders.length}</div>
+              <span className="text-[10px] text-emerald-600 font-bold">₹{totalVolume.toLocaleString('en-IN')} value</span>
+            </div>
+            <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 border border-emerald-200/60 flex items-center justify-center shrink-0">
+              <ShoppingBag className="w-5 h-5" />
+            </div>
+          </div>
+
+          <div className="bg-white/80 backdrop-blur-xl p-4 rounded-3xl border border-white/90 shadow-2xs glow-card flex items-center justify-between">
+            <div>
+              <span className="text-[10.5px] uppercase font-bold text-slate-400 tracking-wider">Pending Fulfillment</span>
+              <div className="text-xl sm:text-2xl font-black text-amber-600 mt-0.5">{pendingCount}</div>
+              <span className="text-[10px] text-amber-600 font-bold">Needs dispatch</span>
+            </div>
+            <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 border border-amber-200/60 flex items-center justify-center shrink-0">
+              <Clock className="w-5 h-5" />
+            </div>
+          </div>
+
+          <div className="bg-white/80 backdrop-blur-xl p-4 rounded-3xl border border-white/90 shadow-2xs glow-card flex items-center justify-between">
+            <div>
+              <span className="text-[10.5px] uppercase font-bold text-slate-400 tracking-wider">In Transit</span>
+              <div className="text-xl sm:text-2xl font-black text-blue-600 mt-0.5">{inTransitCount}</div>
+              <span className="text-[10px] text-blue-600 font-bold">Courier active</span>
+            </div>
+            <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 border border-blue-200/60 flex items-center justify-center shrink-0">
+              <Truck className="w-5 h-5" />
+            </div>
+          </div>
+
+          <div className="bg-white/80 backdrop-blur-xl p-4 rounded-3xl border border-white/90 shadow-2xs glow-card flex items-center justify-between">
+            <div>
+              <span className="text-[10.5px] uppercase font-bold text-slate-400 tracking-wider">Delivered &amp; Settled</span>
+              <div className="text-xl sm:text-2xl font-black text-emerald-700 mt-0.5">{deliveredCount}</div>
+              <span className="text-[10px] text-emerald-600 font-bold">100% Credited</span>
+            </div>
+            <div className="w-10 h-10 rounded-2xl bg-teal-50 text-teal-600 border border-teal-200/60 flex items-center justify-center shrink-0">
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+          </div>
+        </div>
+
+        {/* 2. Settlement Notice Card (Matching Screenshot) */}
         <div className="p-5 rounded-3xl bg-white/70 backdrop-blur-xl border border-white/80 shadow-[0_8px_30px_rgb(0,0,0,0.02)] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-start gap-3.5">
             <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200/80 text-amber-600 flex items-center justify-center shrink-0">
@@ -313,11 +317,11 @@ const VendorOrders = () => {
           </div>
         </div>
 
-        {/* Filter Bar, Status Tabs & Search Controls */}
-        <div className="bg-white/80 backdrop-blur-md border border-white/90 p-4 rounded-3xl shadow-xs space-y-3">
+        {/* 3. Filter Bar, Status Tabs & Search Controls (Matching Reference Screenshot) */}
+        <div className="bg-white/80 backdrop-blur-md border border-white/90 p-3.5 sm:p-4 rounded-3xl shadow-xs space-y-3">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
             {/* Status Tabs */}
-            <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-2xl overflow-x-auto">
+            <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-2xl overflow-x-auto scrollbar-none">
               {['All', 'Processing', 'Shipped', 'Out for Delivery', 'Delivered'].map((tab) => (
                 <button
                   key={tab}
@@ -358,13 +362,13 @@ const VendorOrders = () => {
                   placeholder="Search invoice, customer, city..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-3.5 py-2 bg-slate-50/80 border border-slate-200 rounded-2xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]/30 shadow-2xs"
+                  className="w-full pl-9 pr-3.5 py-2 bg-slate-50/80 border border-slate-200 rounded-2xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f8a48]/30 shadow-2xs"
                 />
               </div>
             </div>
           </div>
 
-          {/* Result summary row */}
+          {/* Result summary row with Rows Per Page selector */}
           <div className="flex items-center justify-between text-xs text-slate-500 px-1 pt-1 border-t border-slate-100">
             <span>
               Showing <strong>{paginatedOrders.length}</strong> of <strong>{totalOrders}</strong> matching orders
@@ -386,27 +390,27 @@ const VendorOrders = () => {
           </div>
         </div>
 
-        {/* Orders Listing */}
+        {/* 4. Orders Listing */}
         {loading ? (
           <div className="space-y-4">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="p-6 rounded-3xl bg-white/60 backdrop-blur-md border border-white/80 h-48 animate-pulse" />
+              <div key={i} className="p-6 rounded-3xl bg-white/60 backdrop-blur-md border border-white/80 h-36 animate-pulse" />
             ))}
           </div>
         ) : paginatedOrders.length > 0 ? (
-          <div className="space-y-5">
+          <div className="space-y-4">
             {paginatedOrders.map((order) => (
               <div
                 key={order._id}
                 onClick={() => navigate(`/vendor/orders/${order._id}`)}
-                className="bg-white/80 backdrop-blur-xl rounded-3xl border border-white/90 shadow-[0_8px_30px_rgb(0,0,0,0.03)] overflow-hidden transition duration-200 hover:shadow-lg hover:border-blue-200/80 cursor-pointer group"
+                className="bg-white/85 backdrop-blur-xl rounded-3xl border border-white/90 shadow-[0_8px_30px_rgb(0,0,0,0.03)] overflow-hidden transition-all duration-200 hover:shadow-lg hover:border-emerald-300/80 cursor-pointer group"
               >
                 {/* Header bar */}
-                <div className="px-5 py-4 bg-slate-50/70 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
-                  <div className="flex flex-wrap items-center gap-3.5 text-slate-600">
+                <div className="px-5 py-3.5 bg-slate-50/70 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                  <div className="flex flex-wrap items-center gap-3 text-slate-600">
                     <div>
                       <span className="text-slate-400 font-medium">Invoice: </span>
-                      <strong className="text-[#0c2a5e] font-mono font-bold group-hover:underline">
+                      <strong className="text-slate-900 font-mono font-black group-hover:text-[#0f8a48] transition">
                         #{order.invoiceNumber}
                       </strong>
                     </div>
@@ -444,20 +448,20 @@ const VendorOrders = () => {
                       target="_blank"
                       rel="noreferrer"
                       onClick={(e) => e.stopPropagation()}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-[#0c2a5e] font-bold text-xs hover:bg-blue-50 transition shadow-2xs"
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 hover:text-emerald-700 transition shadow-2xs"
                       title="View & Download PDF Invoice"
                     >
                       <FileText className="w-3.5 h-3.5 text-blue-600" />
                       <span>Invoice</span>
                     </a>
 
-                    <span className="p-1 rounded-xl bg-slate-100 group-hover:bg-[#0c2a5e] group-hover:text-white transition text-slate-500">
+                    <span className="p-1.5 rounded-xl bg-slate-100 group-hover:bg-[#0f8a48] group-hover:text-white transition text-slate-500">
                       <Eye className="w-3.5 h-3.5" />
                     </span>
                   </div>
                 </div>
 
-                {/* Compact Order Body: Product Thumbnails, Status, Destination City & Action */}
+                {/* Compact Order Body matching reference screenshot */}
                 <div className="p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
                   {/* Left: Product preview */}
                   <div className="flex items-center gap-3.5 min-w-0">
@@ -473,8 +477,8 @@ const VendorOrders = () => {
                     </div>
 
                     <div className="min-w-0">
-                      <h4 className="font-bold text-sm text-slate-900 truncate">
-                        {order.items?.[0]?.title || 'Order Product'}
+                      <h4 className="font-bold text-sm text-slate-900 truncate group-hover:text-[#0f8a48] transition">
+                        {order.items?.[0]?.title || 'Order Item'}
                         {order.items?.length > 1 && (
                           <span className="text-xs text-slate-400 font-medium ml-1.5">
                             +{order.items.length - 1} more
@@ -491,40 +495,40 @@ const VendorOrders = () => {
                     </div>
                   </div>
 
-                  {/* Middle: Customer Recipient & Destination city */}
+                  {/* Middle: Recipient, Destination, Stage */}
                   <div className="flex items-center gap-6 text-xs text-slate-600 border-t md:border-t-0 md:border-l border-slate-100 pt-3 md:pt-0 md:pl-6">
                     <div className="space-y-0.5">
-                      <span className="text-[10.5px] uppercase font-bold text-slate-400 block tracking-wider">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
                         Recipient
                       </span>
-                      <strong className="text-slate-900 font-bold block truncate max-w-[140px]">
+                      <strong className="text-slate-900 font-bold block truncate max-w-[130px]">
                         {order.shippingAddress?.fullName || 'Customer'}
                       </strong>
                     </div>
 
                     <div className="space-y-0.5">
-                      <span className="text-[10.5px] uppercase font-bold text-slate-400 block tracking-wider flex items-center gap-1">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider flex items-center gap-1">
                         <MapPin className="w-3 h-3 text-blue-600" />
                         <span>Destination</span>
                       </span>
-                      <strong className="text-slate-800 font-semibold block truncate max-w-[150px]">
+                      <strong className="text-slate-800 font-semibold block truncate max-w-[140px]">
                         {order.shippingAddress?.city ? `${order.shippingAddress.city}, ${order.shippingAddress.state || ''}` : 'India'}
                       </strong>
                     </div>
 
                     <div className="space-y-0.5">
-                      <span className="text-[10.5px] uppercase font-bold text-slate-400 block tracking-wider">
+                      <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">
                         Stage
                       </span>
-                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10.5px] font-bold border ${getStatusBadge(order.items?.[0]?.deliveryStatus || 'Processing')}`}>
+                      <span className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] border ${getStatusBadge(order.items?.[0]?.deliveryStatus || 'Processing')}`}>
                         {order.items?.[0]?.deliveryStatus || 'Processing'}
                       </span>
                     </div>
                   </div>
 
-                  {/* Right: Quick CTA */}
+                  {/* Right: Quick Action CTA */}
                   <div className="flex items-center gap-2 justify-end pt-2 md:pt-0">
-                    <span className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 group-hover:bg-[#0c2a5e] text-white font-bold text-xs transition shadow-2xs">
+                    <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-900 group-hover:bg-[#0f8a48] text-white font-black text-xs transition shadow-2xs">
                       <span>View Details</span>
                       <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition" />
                     </span>
@@ -550,7 +554,6 @@ const VendorOrders = () => {
                     <span>Previous</span>
                   </button>
 
-                  {/* Page numbers */}
                   <div className="flex items-center gap-1">
                     {Array.from({ length: totalPages }, (_, i) => i + 1).map((num) => (
                       <button
@@ -558,7 +561,7 @@ const VendorOrders = () => {
                         onClick={() => setCurrentPage(num)}
                         className={`w-8 h-8 rounded-xl font-bold transition text-xs cursor-pointer ${
                           currentPage === num
-                            ? 'bg-[#0c2a5e] text-white shadow-xs'
+                            ? 'bg-[#0f8a48] text-white shadow-xs'
                             : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
                         }`}
                       >
@@ -598,82 +601,6 @@ const VendorOrders = () => {
             >
               Reset Filters
             </button>
-          </div>
-        )}
-
-        {/* Dispatch & Tracking Modal */}
-        {dispatchModal.open && (
-          <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-            <div className="bg-white/95 backdrop-blur-2xl max-w-md w-full p-6 sm:p-7 rounded-3xl border border-white/80 shadow-2xl space-y-5 animate-in fade-in zoom-in duration-200">
-              <div className="border-b border-slate-100 pb-3 flex items-start justify-between">
-                <div>
-                  <h3 className="text-base font-black text-slate-900">Dispatch Package</h3>
-                  <p className="text-xs text-slate-500 font-medium truncate max-w-xs">{dispatchModal.itemTitle}</p>
-                </div>
-                <button
-                  onClick={() => setDispatchModal({ ...dispatchModal, open: false })}
-                  className="p-1 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600"
-                >
-                  ✕
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700">Courier Partner *</label>
-                  <select
-                    value={dispatchModal.courierName}
-                    onChange={(e) => setDispatchModal({ ...dispatchModal, courierName: e.target.value })}
-                    className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/30"
-                  >
-                    {popularCouriers.map((courier) => (
-                      <option key={courier} value={courier}>
-                        {courier}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-1">
-                  <label className="text-xs font-bold text-slate-700">Tracking / AWB Number *</label>
-                  <input
-                    type="text"
-                    required
-                    value={dispatchModal.trackingNumber}
-                    onChange={(e) => setDispatchModal({ ...dispatchModal, trackingNumber: e.target.value })}
-                    placeholder="e.g. AWB123456789"
-                    className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-800 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-500/30"
-                  />
-                  <p className="text-[11px] text-slate-400">This tracking number is sent to the customer for live tracking.</p>
-                </div>
-
-                <div className="flex items-center gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setDispatchModal({ ...dispatchModal, open: false })}
-                    className="flex-1 py-2.5 rounded-2xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 transition"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    onClick={(e) =>
-                      handleStatusUpdate(
-                        e,
-                        dispatchModal.orderId,
-                        dispatchModal.itemId,
-                        'Shipped',
-                        dispatchModal.courierName,
-                        dispatchModal.trackingNumber
-                      )
-                    }
-                    className="flex-1 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-black shadow-md transition"
-                  >
-                    Confirm Dispatch
-                  </button>
-                </div>
-              </div>
-            </div>
           </div>
         )}
       </div>

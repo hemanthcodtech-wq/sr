@@ -414,43 +414,44 @@ const Profile = () => {
 
   return (
     <div className="w-full max-w-[1920px] mx-auto px-4 sm:px-6 lg:px-10 2xl:px-14 py-8 select-none">
-      {/* Top Breadcrumb & User Header */}
-      <div className="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 pb-5">
-        <div>
-          <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
-            <Link to="/" className="hover:text-[#0c2a5e]">Home</Link>
-            <ChevronRight className="w-3 h-3 text-slate-400" />
-            <span className="text-slate-900 font-semibold">Customer Account Portal</span>
+      {/* Top Banner Card - Modern Premium Look */}
+      <div className="mb-8 bg-gradient-to-r from-[#06182c] via-[#0c2a5e] to-[#174896] rounded-3xl p-6 sm:p-8 text-white relative overflow-hidden shadow-xl border border-slate-700/60 flex flex-col md:flex-row md:items-center justify-between gap-6">
+        <div className="absolute right-0 top-0 w-80 h-80 bg-emerald-400/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="relative z-10 space-y-1.5 max-w-xl">
+          <div className="flex items-center gap-2 text-xs text-blue-200 mb-1">
+            <Link to="/" className="hover:text-white transition">Home</Link>
+            <ChevronRight className="w-3 h-3 text-blue-300" />
+            <span className="text-white font-bold">My Account</span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-black text-white tracking-tight">
             Customer Dashboard &amp; Settings
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
-            Manage your personal profile, real-time order tracking, address book, and referral rewards.
+          <p className="text-xs sm:text-sm text-blue-100/90 leading-relaxed">
+            Manage your personal profile, live order tracking, address book, and shopping vouchers.
           </p>
         </div>
 
         {/* Quick Top Stats Pill */}
-        <div className="flex items-center gap-3 bg-white p-2.5 rounded-2xl border border-slate-200 shadow-2xs">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-xl">
-            <Wallet className="w-4 h-4 text-[#0c2a5e]" />
+        <div className="relative z-10 flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2.5 px-4 py-2.5 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 text-white shadow-xs">
+            <Wallet className="w-4 h-4 text-amber-300" />
             <div className="text-left">
-              <span className="text-[10px] text-slate-500 block leading-tight">Wallet Balance</span>
-              <strong className="text-sm font-extrabold text-[#0c2a5e]">₹{(user?.walletBalance || 0).toLocaleString('en-IN')}</strong>
+              <span className="text-[10px] text-blue-200 block leading-tight">Wallet Balance</span>
+              <strong className="text-sm font-black text-white">₹{(user?.walletBalance || 0).toLocaleString('en-IN')}</strong>
             </div>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-rose-50 rounded-xl">
-            <Heart className="w-4 h-4 text-rose-500" />
+          <div className="flex items-center gap-2.5 px-4 py-2.5 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 text-white shadow-xs">
+            <Heart className="w-4 h-4 text-rose-300" />
             <div className="text-left">
-              <span className="text-[10px] text-slate-500 block leading-tight">Wishlist</span>
-              <strong className="text-sm font-extrabold text-rose-600">{wishlistItems.length}</strong>
+              <span className="text-[10px] text-blue-200 block leading-tight">Wishlist</span>
+              <strong className="text-sm font-black text-white">{wishlistItems.length} items</strong>
             </div>
           </div>
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-50 rounded-xl">
-            <Package className="w-4 h-4 text-emerald-600" />
+          <div className="flex items-center gap-2.5 px-4 py-2.5 bg-white/10 backdrop-blur-md rounded-2xl border border-white/20 text-white shadow-xs">
+            <Package className="w-4 h-4 text-emerald-300" />
             <div className="text-left">
-              <span className="text-[10px] text-slate-500 block leading-tight">Total Orders</span>
-              <strong className="text-sm font-extrabold text-emerald-700">{orders.length}</strong>
+              <span className="text-[10px] text-blue-200 block leading-tight">Total Orders</span>
+              <strong className="text-sm font-black text-white">{orders.length} orders</strong>
             </div>
           </div>
         </div>

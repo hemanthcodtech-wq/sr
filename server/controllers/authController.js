@@ -2,9 +2,11 @@ const mongoose = require('mongoose');
 const User = require('../models/User');
 const Store = require('../models/Store');
 const Coupon = require('../models/Coupon');
+const PlatformSetting = require('../models/PlatformSetting');
 const jwt = require('jsonwebtoken');
-const { mockUsers, mockStores } = require('../config/mockStore');
+const { mockUsers, mockStores, mockCoupons, mockSettings } = require('../config/mockStore');
 const { uploadToCloudinary } = require('../config/cloudinary');
+const { createNotification } = require('./notificationController');
 
 // Helper to generate JWT token
 const sendTokenResponse = (user, statusCode, res, extraData = {}) => {
@@ -459,6 +461,66 @@ exports.register = async (req, res, next) => {
       console.log(`[Amezon Auth] OTP for ${role} ${email}: ${registrationOtp}`);
       console.log(`======================================================\n`);
 
+      // Customer Referral Coupon Awarding in Mock Mode
+      if (referredBy && role === 'customer') {
+        const referrerUser = mockUsers.find((u) => u._id === referredBy);
+        const refDiscount = mockSettings.customerReferralDiscountAmount || 100;
+        const refMinSpend = mockSettings.customerReferralMinSpend || 499;
+        const refCode = `REF${refDiscount}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+        if (Array.isArray(mockCoupons)) {
+          mockCoupons.push({
+            _id: `cpn_ref_${Date.now()}`,
+            code: refCode,
+            discountType: 'flat',
+            discountAmount: refDiscount,
+            minOrderAmount: refMinSpend,
+            assignedTo: referredBy,
+            isReferralReward: true,
+            referredUser: newUser._id,
+            description: `₹${refDiscount} Referral Reward Voucher! Your friend ${newUser.name} joined the platform`,
+            badge: 'Referral Reward Voucher',
+            isActive: true,
+            expiresAt: new Date(Date.now() + 60 * 86400000),
+          });
+        }
+        createNotification({
+          recipient: referredBy,
+          role: 'customer',
+          type: 'customer_referral',
+          title: '🎟️ Referral Voucher Earned!',
+          message: `Your friend ${newUser.name} joined! You received a ₹${refDiscount} discount voucher (${refCode}).`,
+          link: '/profile',
+          metadata: { couponCode: refCode, discountAmount: refDiscount },
+        }).catch(() => {});
+
+        // Welcome voucher for new customer
+        const welcomeCode = `WELCOME100-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+        if (Array.isArray(mockCoupons)) {
+          mockCoupons.push({
+            _id: `cpn_wel_${Date.now()}`,
+            code: welcomeCode,
+            discountType: 'flat',
+            discountAmount: 100,
+            minOrderAmount: 299,
+            assignedTo: newUser._id,
+            isReferralReward: false,
+            description: `Welcome ₹100 Gift Voucher for joining via referral invite from ${referrerUser?.name || 'a friend'}!`,
+            badge: 'Welcome Gift Voucher',
+            isActive: true,
+            expiresAt: new Date(Date.now() + 30 * 86400000),
+          });
+        }
+        createNotification({
+          recipient: newUser._id,
+          role: 'customer',
+          type: 'customer_referral',
+          title: '🎉 Welcome ₹100 Discount Voucher!',
+          message: `Welcome to Amezon! Use coupon code ${welcomeCode} on orders above ₹299.`,
+          link: '/products',
+          metadata: { couponCode: welcomeCode, discountAmount: 100 },
+        }).catch(() => {});
+      }
+
       mockUsers.push(newUser);
       return sendTokenResponse(newUser, 201, res, {
         otpSent: true,
@@ -534,30 +596,46 @@ exports.register = async (req, res, next) => {
 
     // Customer Referral Coupon Awarding: ONLY when referred by another customer
     try {
-      if (referredBy) {
+      if (referredBy && role === 'customer') {
+        const settings = await PlatformSetting.findOne();
+        const refDiscount = settings?.customerReferralDiscountAmount || 100;
+        const refMinSpend = settings?.customerReferralMinSpend || 499;
+
         // Find referrer user to fetch their details
         const referrerUser = await User.findById(referredBy);
 
         // 1. Reward coupon awarded to the REFERRER for referring this customer
         const refSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+        const refCode = `REF${refDiscount}-${refSuffix}`;
         await Coupon.create({
-          code: `REF200-${refSuffix}`,
+          code: refCode,
           discountType: 'flat',
-          discountAmount: 200,
-          minOrderAmount: 499,
+          discountAmount: refDiscount,
+          minOrderAmount: refMinSpend,
           assignedTo: referredBy,
           isReferralReward: true,
           referredUser: user._id,
-          description: `₹200 Referral Reward! Your friend ${user.name} joined Amezon.online`,
-          badge: 'Referral Reward',
+          description: `₹${refDiscount} Referral Reward Voucher! Your friend ${user.name} joined the platform`,
+          badge: 'Referral Reward Voucher',
           isActive: true,
           usageLimit: 1,
         });
 
+        await createNotification({
+          recipient: referredBy,
+          role: 'customer',
+          type: 'customer_referral',
+          title: '🎟️ Referral Voucher Earned!',
+          message: `Your friend ${user.name} joined! You received a ₹${refDiscount} discount voucher (${refCode}).`,
+          link: '/profile',
+          metadata: { couponCode: refCode, discountAmount: refDiscount },
+        });
+
         // 2. Welcome bonus voucher for the new friend who registered
         const welcomeSuffix = user._id.toString().slice(-4).toUpperCase();
+        const welcomeCode = `WELCOME100-${welcomeSuffix}`;
         await Coupon.create({
-          code: `WELCOME100-${welcomeSuffix}`,
+          code: welcomeCode,
           discountType: 'flat',
           discountAmount: 100,
           minOrderAmount: 299,
@@ -567,6 +645,16 @@ exports.register = async (req, res, next) => {
           badge: 'Welcome Gift',
           isActive: true,
           usageLimit: 1,
+        });
+
+        await createNotification({
+          recipient: user._id,
+          role: 'customer',
+          type: 'customer_referral',
+          title: '🎉 Welcome ₹100 Discount Voucher!',
+          message: `Welcome to Amezon! Use coupon code ${welcomeCode} on orders above ₹299.`,
+          link: '/products',
+          metadata: { couponCode: welcomeCode, discountAmount: 100 },
         });
       }
     } catch (couponErr) {

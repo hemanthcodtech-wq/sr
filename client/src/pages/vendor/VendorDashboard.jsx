@@ -92,8 +92,8 @@ const VendorDashboard = () => {
   const liveProductsCount = analytics?.totalProducts ?? vendorProducts.length;
   const totalStock = analytics?.totalStock ?? 0;
   const totalReferrals = analytics?.totalReferrals ?? 0;
-  const referralBonusEarned = analytics?.referralBonusEarned ?? (totalReferrals * 200);
-  const referralBonusPerStore = analytics?.referralBonusPerStore || 200;
+  const referralBonusPerStore = analytics?.referralBonusPerStore || 500;
+  const referralBonusEarned = analytics?.referralBonusEarned ?? (totalReferrals * referralBonusPerStore);
   const weeklyChart = analytics?.weeklyChart || [];
   const recentOrdersList = analytics?.recentOrders?.length ? analytics.recentOrders : vendorOrders.slice(0, 5);
 

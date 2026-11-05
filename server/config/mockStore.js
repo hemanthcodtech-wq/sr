@@ -727,14 +727,135 @@ let mockTransactions = [
 ];
 
 let mockSettings = {
-  referralBonusAmount: 500,
+  referralBonusAmount: 500, // ₹500 fixed vendor referral bonus
   enrollmentFee: 999,
   planDurationDays: 365,
   commissionRatePercent: 10,
   minWithdrawalAmount: 500,
-  platformName: 'Amezon Multi-Vendor Marketplace',
-  supportEmail: 'support@amezon.online',
+  platformName: 'SR Multi-Vendor Marketplace',
+  supportEmail: 'support@srmarketplace.online',
+  customerReferralDiscountAmount: 100, // ₹100 discount voucher for customer referrals
+  customerReferralMinSpend: 499,
+  customerReferralDiscountType: 'flat',
+  deodapAffiliateCommissionPercent: 10, // 10% affiliate commission for vendors promoting DeoDap
+  deodapProfitMarginPercent: 30, // 30% markup on wholesale DeoDap prices
 };
+
+let mockNotifications = [
+  {
+    _id: 'notif_admin_deodap_1',
+    role: 'admin',
+    type: 'deodap_order',
+    title: '🛒 New DeoDap Order #INV-89104',
+    message: 'Customer placed order for "LED Torchlight - USB Rechargeable". Action required: Place order in DeoDap software for delivery to Bengaluru.',
+    link: '/admin/dropshipping',
+    isRead: false,
+    createdAt: new Date(Date.now() - 10 * 60 * 1000), // 10m ago
+  },
+  {
+    _id: 'notif_admin_vendor_1',
+    role: 'admin',
+    type: 'system',
+    title: '🏪 New Vendor Application',
+    message: 'Merchant "SV Fashion" registered and activated their store under Starter Plan.',
+    link: '/admin/vendors',
+    isRead: false,
+    createdAt: new Date(Date.now() - 45 * 60 * 1000), // 45m ago
+  },
+  {
+    _id: 'notif_vendor_order_1',
+    role: 'vendor',
+    type: 'store_order',
+    title: '📦 New Store Order Received',
+    message: 'Customer placed order #INV-89021 for "Handcrafted Banarasi Silk Saree". Please pack and deliver to customer address in Hyderabad.',
+    link: '/vendor/orders',
+    isRead: false,
+    createdAt: new Date(Date.now() - 25 * 60 * 1000), // 25m ago
+  },
+  {
+    _id: 'notif_vendor_ref_1',
+    role: 'vendor',
+    type: 'vendor_referral',
+    title: '🎉 ₹500 Referral Bonus Credited!',
+    message: 'Your referred vendor "Tech World" purchased a merchant plan. ₹500 has been credited to your wallet.',
+    link: '/vendor/wallet',
+    isRead: false,
+    createdAt: new Date(Date.now() - 2 * 3600 * 1000), // 2h ago
+  },
+  {
+    _id: 'notif_vendor_aff_1',
+    role: 'vendor',
+    type: 'deodap_affiliate',
+    title: '✨ DeoDap Affiliate Commission: ₹120',
+    message: 'Customer purchased a DeoDap item through your unique promotional link. Net commission credited to wallet!',
+    link: '/vendor/wallet',
+    isRead: false,
+    createdAt: new Date(Date.now() - 4 * 3600 * 1000), // 4h ago
+  },
+  {
+    _id: 'notif_customer_coupon_1',
+    role: 'customer',
+    type: 'customer_referral',
+    title: '🎟️ Referral Voucher Earned!',
+    message: 'Your friend Priya registered using your referral code. You earned a ₹100 discount voucher (REF-GIFT-100)!',
+    link: '/profile',
+    isRead: false,
+    createdAt: new Date(Date.now() - 1 * 3600 * 1000), // 1h ago
+  },
+  {
+    _id: 'notif_customer_status_1',
+    role: 'customer',
+    type: 'order_status',
+    title: '🚚 Order Dispatched',
+    message: 'Your order #INV-89012 has been dispatched via Delhivery Express (AWB: DEL49201948).',
+    link: '/track-order',
+    isRead: false,
+    createdAt: new Date(Date.now() - 5 * 3600 * 1000), // 5h ago
+  },
+];
+
+let mockCoupons = [
+  {
+    _id: 'coupon_starter_1',
+    code: 'SRWELCOME10',
+    discountType: 'percent',
+    discountAmount: 10,
+    minOrderAmount: 499,
+    maxDiscountAmount: 500,
+    description: '10% Instant Marketplace Discount on orders above ₹499',
+    badge: 'Welcome Promo',
+    isReferralReward: false,
+    isActive: true,
+    assignedTo: null,
+    expiresAt: new Date(Date.now() + 180 * 86400000),
+  },
+  {
+    _id: 'coupon_festive_2',
+    code: 'DASARA1000',
+    discountType: 'flat',
+    discountAmount: 1000,
+    minOrderAmount: 2999,
+    description: 'Festive Special: Flat ₹1,000 OFF on orders above ₹2,999',
+    badge: 'Festive Offer',
+    isReferralReward: false,
+    isActive: true,
+    assignedTo: null,
+    expiresAt: new Date(Date.now() + 90 * 86400000),
+  },
+  {
+    _id: 'coupon_ref_reward_3',
+    code: 'REF-GIFT-100',
+    discountType: 'flat',
+    discountAmount: 100,
+    minOrderAmount: 499,
+    description: 'Referral Reward Voucher: Flat ₹100 OFF for inviting a friend',
+    badge: 'Friend Referral Voucher',
+    isReferralReward: true,
+    isActive: true,
+    assignedTo: null,
+    expiresAt: new Date(Date.now() + 60 * 86400000),
+  },
+];
 
 module.exports = {
   mockPlans,
@@ -745,4 +866,6 @@ module.exports = {
   mockSettlements,
   mockTransactions,
   mockSettings,
+  mockNotifications,
+  mockCoupons,
 };

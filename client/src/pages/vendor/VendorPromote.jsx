@@ -20,6 +20,8 @@ import {
   HelpCircle,
   ArrowRight,
   MessageCircle,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import VendorLayout from '../../components/vendor/VendorLayout';
 import api from '../../services/api';

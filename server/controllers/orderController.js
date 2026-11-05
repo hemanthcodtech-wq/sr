@@ -8,6 +8,72 @@ const { createRazorpayOrder, verifyRazorpaySignature } = require('../config/razo
 const { generateInvoice } = require('../utils/invoiceGenerator');
 const { dispatchToDeoDap } = require('../utils/dropshipAutomator');
 const { mockOrders, mockProducts, mockUsers, mockTransactions, mockSettings } = require('../config/mockStore');
+const { createNotification } = require('./notificationController');
+
+// Helper to notify admin, vendors, and customer on order placement
+const dispatchOrderNotifications = async (order) => {
+  try {
+    if (!order || !order.items) return;
+    const hasDeoDap = order.items.some((i) => i.isDropshipped && (i.sourcePlatform === 'deodap' || !i.sourcePlatform));
+    if (hasDeoDap) {
+      await createNotification({
+        role: 'admin',
+        type: 'deodap_order',
+        title: `🛒 New DeoDap Dropship Order #${order.invoiceNumber}`,
+        message: `Action required: Place order in DeoDap software for delivery to ${order.shippingAddress?.fullName || 'customer'} (${order.shippingAddress?.city || ''}, ${order.shippingAddress?.state || ''}).`,
+        link: '/admin/dropshipping',
+        metadata: { orderId: order._id },
+      });
+    }
+
+    // Notify vendors of their store items
+    const notifiedVendors = new Set();
+    for (const item of order.items) {
+      const vId = item.vendor?._id || item.vendor;
+      if (vId && !notifiedVendors.has(vId.toString()) && !item.isDropshipped) {
+        notifiedVendors.add(vId.toString());
+        await createNotification({
+          recipient: vId,
+          role: 'vendor',
+          type: 'store_order',
+          title: `📦 New Store Order #${order.invoiceNumber}`,
+          message: `Customer ${order.shippingAddress?.fullName || 'buyer'} placed an order for "${item.title}". Please pack and deliver to customer address in ${order.shippingAddress?.city || ''}.`,
+          link: '/vendor/orders',
+          metadata: { orderId: order._id },
+        });
+      }
+
+      // If promoted by vendor affiliate
+      if (item.isAffiliateSale && item.promotedByVendor) {
+        await createNotification({
+          recipient: item.promotedByVendor,
+          role: 'vendor',
+          type: 'deodap_affiliate',
+          title: `✨ DeoDap Affiliate Commission Earned!`,
+          message: `Customer bought "${item.title}" via your promotional link. Net commission credited to your wallet!`,
+          link: '/vendor/wallet',
+          metadata: { orderId: order._id },
+        });
+      }
+    }
+
+    // Notify customer
+    const custId = order.customer?._id || order.customer;
+    if (custId) {
+      await createNotification({
+        recipient: custId,
+        role: 'customer',
+        type: 'order_status',
+        title: `✅ Order Placed Successfully #${order.invoiceNumber}`,
+        message: `Your payment was verified. Items are being prepared for delivery to ${order.shippingAddress?.city || ''}.`,
+        link: '/orders',
+        metadata: { orderId: order._id },
+      });
+    }
+  } catch (notifErr) {
+    console.warn('[Order Notification Warning]:', notifErr.message);
+  }
+};
 
 // Helper to enrich order items with dropshipping metadata
 const enrichItemsWithDropship = async (items, defaultTrackingNum = '') => {
@@ -266,6 +332,7 @@ exports.verifyAndCreateOrder = async (req, res, next) => {
         createdAt: new Date(),
       };
       await autoDispatchDeoDapItems(order);
+      await dispatchOrderNotifications(order);
       mockOrders.unshift(order);
 
       return res.status(201).json({
@@ -322,6 +389,7 @@ exports.verifyAndCreateOrder = async (req, res, next) => {
 
     // Automatically dispatch dropshipped DeoDap products for fulfillment
     await autoDispatchDeoDapItems(order);
+    await dispatchOrderNotifications(order);
     if (mongoose.connection.readyState === 1) {
       await order.save();
     }
@@ -402,6 +470,7 @@ exports.createCodOrWalletOrder = async (req, res, next) => {
         createdAt: new Date(),
       };
       await autoDispatchDeoDapItems(order);
+      await dispatchOrderNotifications(order);
       mockOrders.unshift(order);
 
       return res.status(201).json({
@@ -465,6 +534,7 @@ exports.createCodOrWalletOrder = async (req, res, next) => {
 
     // Automatically dispatch dropshipped DeoDap products for fulfillment
     await autoDispatchDeoDapItems(order);
+    await dispatchOrderNotifications(order);
     if (mongoose.connection.readyState === 1) {
       await order.save();
     }
@@ -769,6 +839,21 @@ exports.updateVendorDeliveryStatus = async (req, res, next) => {
     }
 
     await order.save();
+
+    // Auto-mark notification as read for this vendor order once status is advanced past Processing
+    try {
+      const Notification = require('../models/Notification');
+      if (Notification && (status === 'Shipped' || status === 'Delivered' || status === 'Processing')) {
+        await Notification.updateMany(
+          {
+            recipient: req.user._id,
+            'metadata.orderId': order._id,
+            isRead: false,
+          },
+          { isRead: true }
+        );
+      }
+    } catch (_) {}
 
     res.status(200).json({
       success: true,

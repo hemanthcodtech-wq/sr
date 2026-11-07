@@ -3,16 +3,18 @@ const multer = require('multer');
 // Configure memory storage
 const storage = multer.memoryStorage();
 
-// File filter: accept images (JPEG, PNG, WEBP, SVG) and PDF documents
+// File filter: accept images (JPEG, PNG, WEBP, SVG), PDF documents, and CSV spreadsheets
 const fileFilter = (req, file, cb) => {
   if (
     file.mimetype.startsWith('image/') ||
     file.mimetype === 'application/pdf' ||
-    file.originalname.match(/\.(jpg|jpeg|png|webp|pdf)$/i)
+    file.mimetype === 'text/csv' ||
+    file.mimetype === 'application/vnd.ms-excel' ||
+    file.originalname.match(/\.(jpg|jpeg|png|webp|pdf|csv)$/i)
   ) {
     cb(null, true);
   } else {
-    cb(new Error('Only image files (JPG, PNG, WEBP) and PDF documents are allowed!'), false);
+    cb(new Error('Only image files (JPG, PNG, WEBP), PDF documents, and CSV spreadsheets are allowed!'), false);
   }
 };
 

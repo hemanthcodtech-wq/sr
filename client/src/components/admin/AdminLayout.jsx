@@ -23,6 +23,8 @@ import {
   Tag,
   Boxes,
   Banknote,
+  Layers,
+  Image as ImageIcon,
 } from 'lucide-react';
 import Logo from '../Logo';
 import NotificationDropdown from '../NotificationDropdown';
@@ -123,10 +125,16 @@ const AdminLayout = ({ children, title = 'Dashboard Overview', subtitle = '', on
       badgeAlert: pendingApprovalsCount > 0,
     },
     {
-      title: 'Store Products',
-      shortTitle: 'Catalog',
+      title: 'DeoDap Products',
+      shortTitle: 'DeoDap',
       path: '/admin/products',
       icon: Package,
+    },
+    {
+      title: 'Vendor Products',
+      shortTitle: 'Vendor Prods',
+      path: '/admin/vendor-products',
+      icon: Layers,
     },
     {
       title: 'Dropship Orders',
@@ -151,6 +159,12 @@ const AdminLayout = ({ children, title = 'Dashboard Overview', subtitle = '', on
       shortTitle: 'Coupons',
       path: '/admin/coupons',
       icon: Tag,
+    },
+    {
+      title: 'Hero Banners',
+      shortTitle: 'Banners',
+      path: '/admin/banners',
+      icon: ImageIcon,
     },
     {
       title: 'Vendor Payouts',

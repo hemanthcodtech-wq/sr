@@ -12,6 +12,8 @@ const {
   uploadProductImages,
   scrapeProductPreview,
   getSourcingTemplatesController,
+  getProductAnalytics,
+  addProductReview,
 } = require('../controllers/productController');
 const { protect, authorize } = require('../middleware/auth');
 const upload = require('../middleware/upload');
@@ -21,7 +23,9 @@ router.get('/categories', getCategories);
 router.get('/sourcing-templates', protect, authorize('vendor', 'admin'), getSourcingTemplatesController);
 router.get('/vendor/mine', protect, authorize('vendor', 'admin'), getVendorProducts);
 router.get('/vendor/my-products', protect, authorize('vendor', 'admin'), getVendorProducts);
+router.get('/:id/analytics', protect, authorize('vendor', 'admin'), getProductAnalytics);
 router.get('/:id', getProductById);
+router.post('/:id/reviews', addProductReview);
 
 router.post('/scrape-preview', protect, authorize('vendor', 'admin'), scrapeProductPreview);
 router.post('/', protect, authorize('vendor', 'admin'), createProduct);

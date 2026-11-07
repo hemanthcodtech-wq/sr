@@ -287,10 +287,11 @@ exports.getAllVendors = async (req, res, next) => {
       return res.status(200).json({ success: true, count: vendors.length, vendors });
     }
 
-    const vendors = await User.find({ role: 'vendor' })
+    const vendors = await User.find({ role: 'vendor', email: { $ne: 'admin@amazon.com' } })
       .populate({
         path: 'store',
         match: {
+          storeName: { $ne: 'Official Flagship Store' },
           $or: [
             { enrollmentFeePaid: { $gt: 0 } },
             { status: { $in: ['active', 'rejected', 'suspended'] } },
@@ -301,8 +302,8 @@ exports.getAllVendors = async (req, res, next) => {
       .populate('referredBy', 'name email referralCode')
       .sort({ createdAt: -1 });
 
-    // Only return vendors whose store has paid the enrollment fee
-    const validVendors = vendors.filter((v) => v.store);
+    // Only return actual vendors whose store is approved/enrolled and not admin
+    const validVendors = vendors.filter((v) => v.store && v.role === 'vendor');
 
     res.status(200).json({
       success: true,
@@ -337,21 +338,29 @@ exports.getMerchantApplications = async (req, res, next) => {
       });
     }
 
-    // Live MongoDB: Only return applications where enrollment fee has been paid (or active/rejected)
+    // Live MongoDB: Only return applications of real vendors (never admin) where enrollment fee has been paid (or active/rejected)
+    // Find admin users to strictly exclude
+    const adminUsers = await User.find({ role: 'admin' }).select('_id');
+    const adminIds = adminUsers.map((a) => a._id);
+
     const applications = await Store.find({
+      vendor: { $nin: adminIds },
       $or: [
         { enrollmentFeePaid: { $gt: 0 } },
         { status: { $in: ['active', 'rejected', 'suspended'] } },
       ],
     })
-      .populate('vendor', 'name email phone avatar createdAt referralCode')
+      .populate('vendor', 'name email phone avatar createdAt referralCode role')
       .populate('activePlan')
       .sort({ createdAt: -1 });
 
+    // Filter out any potential admin stores
+    const filteredApps = applications.filter((app) => app.vendor && app.vendor.role === 'vendor');
+
     res.status(200).json({
       success: true,
-      count: applications.length,
-      applications,
+      count: filteredApps.length,
+      applications: filteredApps,
     });
   } catch (err) {
     next(err);

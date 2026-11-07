@@ -36,14 +36,14 @@ const BottomNav = () => {
   const isCategoriesActive = currentPath.includes('/products') || categoriesDrawerOpen;
 
   const categoriesList = [
-    { name: 'Mobiles & Accessories', query: 'Electronics', color: 'bg-blue-50 text-blue-600' },
+    { name: 'Fitness & Sports', query: 'Fitness', color: 'bg-emerald-50 text-emerald-600' },
+    { name: 'Home & Kitchen', query: 'Home & Kitchen', color: 'bg-amber-50 text-amber-600' },
+    { name: 'Kids Toys & Games', query: 'Toys', color: 'bg-purple-50 text-purple-600' },
+    { name: 'Electronics & Mobiles', query: 'Electronics', color: 'bg-blue-50 text-blue-600' },
     { name: "Men's Fashion", query: 'Fashion', color: 'bg-indigo-50 text-indigo-600' },
     { name: "Women's Fashion", query: 'Fashion', color: 'bg-rose-50 text-rose-600' },
-    { name: 'Footwear & Sports', query: 'Footwear', color: 'bg-emerald-50 text-emerald-600' },
-    { name: 'Home & Kitchen', query: 'Home & Kitchen', color: 'bg-amber-50 text-amber-600' },
     { name: 'Beauty & Personal Care', query: 'Beauty', color: 'bg-pink-50 text-pink-600' },
-    { name: 'Electronics & Laptops', query: 'Electronics', color: 'bg-sky-50 text-sky-600' },
-    { name: 'Groceries & Essentials', query: 'Grocery', color: 'bg-green-50 text-green-600' },
+    { name: 'Footwear & Accessories', query: 'Footwear', color: 'bg-cyan-50 text-cyan-600' },
   ];
 
   const handleCategoryClick = (query) => {

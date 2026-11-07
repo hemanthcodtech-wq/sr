@@ -46,12 +46,16 @@ import AdminOrders from '../pages/admin/AdminOrders';
 import AdminDropshipOrders from '../pages/admin/AdminDropshipOrders';
 import AdminVendorOrders from '../pages/admin/AdminVendorOrders';
 import AdminProducts from '../pages/admin/AdminProducts';
+import AdminProductEdit from '../pages/admin/AdminProductEdit';
+import AdminProductAnalytics from '../pages/admin/AdminProductAnalytics';
+import AdminVendorProducts from '../pages/admin/AdminVendorProducts';
 import AdminPlans from '../pages/admin/AdminPlans';
 import AdminVendors from '../pages/admin/AdminVendors';
 import AdminVendorDetail from '../pages/admin/AdminVendorDetail';
 import AdminSettlements from '../pages/admin/AdminSettlements';
 import AdminSettings from '../pages/admin/AdminSettings';
 import AdminCoupons from '../pages/admin/AdminCoupons';
+import AdminBanners from '../pages/admin/AdminBanners';
 
 const AppRoutes = () => {
   return (
@@ -266,6 +270,30 @@ const AppRoutes = () => {
         }
       />
       <Route
+        path="/admin/products/edit/:id"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminProductEdit />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/products/analytics/:id"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminProductAnalytics />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/vendor-products"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminVendorProducts />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/admin/plans"
         element={
           <ProtectedRoute allowedRoles={['admin']}>
@@ -294,6 +322,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute allowedRoles={['admin']}>
             <AdminSettings />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/banners"
+        element={
+          <ProtectedRoute allowedRoles={['admin']}>
+            <AdminBanners />
           </ProtectedRoute>
         }
       />

@@ -40,11 +40,15 @@ exports.getSourcingTemplatesController = (req, res) => {
 // @access  Public
 exports.getProducts = async (req, res, next) => {
   try {
-    const { keyword, category, minPrice, maxPrice, sort, page = 1, limit = 20, featured } = req.query;
+    const { keyword, category, minPrice, maxPrice, sort, page = 1, limit = 20, featured, sourcePlatform, vendorType } = req.query;
 
     // Use MockStore if MongoDB is offline
     if (mongoose.connection.readyState !== 1) {
       let filtered = [...mockProducts];
+
+      if (sourcePlatform) {
+        filtered = filtered.filter((p) => p.sourcePlatform === sourcePlatform);
+      }
 
       if (keyword) {
         const kw = keyword.toLowerCase();
@@ -87,10 +91,16 @@ exports.getProducts = async (req, res, next) => {
 
     const query = {};
 
+    // Source platform filter (e.g. 'deodap', 'in_house', etc.)
+    if (sourcePlatform) {
+      query.sourcePlatform = sourcePlatform;
+    }
+
     if (keyword) {
       query.$or = [
         { title: { $regex: keyword, $options: 'i' } },
         { description: { $regex: keyword, $options: 'i' } },
+        { sku: { $regex: keyword, $options: 'i' } },
         { tags: { $in: [new RegExp(keyword, 'i')] } },
       ];
     }
@@ -113,29 +123,31 @@ exports.getProducts = async (req, res, next) => {
       if (maxPrice) query.price.$lte = Number(maxPrice);
     }
 
+    // Specific vendor type filter:
+    // 'vendor': products uploaded by independent vendors (non-admin)
+    // 'dropship' or 'admin': products managed directly by admin (e.g. DeoDap dropship catalog)
+    if (vendorType === 'vendor') {
+      const adminUsers = await mongoose.model('User').find({ role: 'admin' }).select('_id');
+      const adminIds = adminUsers.map((a) => a._id);
+      query.vendor = { $nin: adminIds };
+      query.sourcePlatform = { $ne: 'deodap' };
+    } else if (vendorType === 'dropship') {
+      query.sourcePlatform = 'deodap';
+    }
+
     let sortOption = { createdAt: -1 };
     if (sort === 'price-asc') sortOption = { price: 1 };
     else if (sort === 'price-desc') sortOption = { price: -1 };
     else if (sort === 'rating') sortOption = { rating: -1 };
-
-    // Active, non-expired stores query
-    const activeStores = await Store.find({
-      status: 'active',
-      $or: [
-        { planExpiresAt: { $exists: false } },
-        { planExpiresAt: null },
-        { planExpiresAt: { $gt: new Date() } },
-      ],
-    }).select('_id');
-
-    const activeStoreIds = activeStores.map((s) => s._id);
-    query.store = { $in: activeStoreIds };
+    else if (sort === 'stock-asc') sortOption = { stock: 1 };
+    else if (sort === 'stock-desc') sortOption = { stock: -1 };
 
     const skip = (Number(page) - 1) * Number(limit);
 
     const [products, total] = await Promise.all([
       Product.find(query)
         .populate('store', 'storeName logo rating numReviews')
+        .populate('vendor', 'name email role')
         .sort(sortOption)
         .skip(skip)
         .limit(Number(limit)),
@@ -461,6 +473,165 @@ exports.uploadProductImages = async (req, res, next) => {
     res.status(200).json({
       success: true,
       urls,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Get detailed sales report and orders analytics for a single product
+// @route   GET /api/products/:id/analytics
+// @access  Private (Admin / Vendor)
+exports.getProductAnalytics = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const Order = require('../models/Order');
+
+    if (mongoose.connection.readyState !== 1) {
+      return res.status(200).json({
+        success: true,
+        product: { _id: id, title: 'Product Preview' },
+        analytics: {
+          totalOrders: 0,
+          totalUnitsSold: 0,
+          totalRevenue: 0,
+          totalProfit: 0,
+          recentOrders: [],
+        },
+      });
+    }
+
+    const product = await Product.findById(id).populate('store', 'storeName slug logo');
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+
+    // Find all orders that contain this product
+    const orders = await Order.find({ 'items.product': id })
+      .populate('customer', 'name email phone avatar')
+      .sort({ createdAt: -1 });
+
+    let totalUnitsSold = 0;
+    let totalRevenue = 0;
+    let totalProfit = 0;
+    const orderReports = [];
+
+    for (const ord of orders) {
+      const matchedItems = ord.items.filter(
+        (it) => it.product && it.product.toString() === id.toString()
+      );
+
+      for (const item of matchedItems) {
+        const itemRevenue = (item.price || 0) * (item.quantity || 1);
+        const itemCost = (item.sourcePrice || product.costPrice || 0) * (item.quantity || 1);
+        const itemProfit = Math.max(0, itemRevenue - itemCost);
+
+        totalUnitsSold += item.quantity || 1;
+        totalRevenue += itemRevenue;
+        totalProfit += itemProfit;
+
+        orderReports.push({
+          orderId: ord._id,
+          invoiceNumber: ord.invoiceNumber || `ORD-${ord._id.toString().slice(-6).toUpperCase()}`,
+          orderDate: ord.createdAt,
+          paymentStatus: ord.paymentStatus,
+          deliveryStatus: item.deliveryStatus || 'Processing',
+          quantity: item.quantity,
+          unitSellingPrice: item.price,
+          unitCostPrice: item.sourcePrice || product.costPrice || 0,
+          itemRevenue,
+          itemProfit,
+          customer: {
+            name: ord.customer?.name || ord.shippingAddress?.fullName || 'Anonymous Customer',
+            email: ord.customer?.email || 'N/A',
+            phone: ord.customer?.phone || ord.shippingAddress?.phone || 'N/A',
+            city: ord.shippingAddress?.city || 'N/A',
+            state: ord.shippingAddress?.state || 'N/A',
+          },
+        });
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      product: {
+        _id: product._id,
+        title: product.title,
+        price: product.price,
+        sellingPrice: product.sellingPrice || product.price,
+        costPrice: product.costPrice || product.sourcePrice || 0,
+        profitMargin: product.profitMargin || 0,
+        stock: product.stock,
+        category: product.category,
+        sku: product.sku,
+        images: product.images,
+        deliveryChargeIncluded: product.deliveryChargeIncluded || 0,
+        vendorName: product.vendorName,
+        store: product.store,
+      },
+      analytics: {
+        totalOrders: orders.length,
+        totalUnitsSold,
+        totalRevenue,
+        totalProfit,
+        recentOrders: orderReports,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Submit a review / rating for a product
+// @route   POST /api/products/:id/reviews
+// @access  Private / Public
+exports.addProductReview = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { rating, comment, name, city } = req.body;
+
+    if (!rating || !comment) {
+      return res.status(400).json({ success: false, message: 'Rating (1-5) and review comment are required' });
+    }
+
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+
+    const reviewerName = req.user?.name || name || 'Verified Customer';
+    const reviewerCity = city || req.user?.city || 'India';
+
+    const reviewObj = {
+      user: req.user?._id || null,
+      name: reviewerName,
+      rating: Number(rating),
+      comment: comment.trim(),
+      city: reviewerCity,
+      isVerifiedPurchase: true,
+      createdAt: new Date(),
+    };
+
+    if (!Array.isArray(product.reviews)) {
+      product.reviews = [];
+    }
+
+    product.reviews.unshift(reviewObj);
+
+    // Update aggregate rating & numReviews
+    const totalStars = product.reviews.reduce((sum, r) => sum + (r.rating || 5), 0);
+    product.rating = Number((totalStars / product.reviews.length).toFixed(1));
+    product.numReviews = product.reviews.length;
+
+    await product.save();
+
+    res.status(201).json({
+      success: true,
+      message: 'Review submitted successfully!',
+      review: reviewObj,
+      rating: product.rating,
+      numReviews: product.numReviews,
+      reviews: product.reviews,
     });
   } catch (err) {
     next(err);

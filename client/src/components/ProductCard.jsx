@@ -4,7 +4,18 @@ import { ShoppingCart, Heart, Star, Store } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useToast } from '../context/ToastContext';
 
-const ProductCard = ({ product, showVendorBadge = true }) => {
+const categoryFallbacks = {
+  'Fitness': 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=400&auto=format&fit=crop&q=80',
+  'Home & Kitchen': 'https://images.unsplash.com/photo-1585515320310-259814833e62?w=400&auto=format&fit=crop&q=80',
+  'Toys': 'https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?w=400&auto=format&fit=crop&q=80',
+  'Electronics': 'https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&auto=format&fit=crop&q=80',
+  'Fashion': 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=400&auto=format&fit=crop&q=80',
+  'Beauty': 'https://images.unsplash.com/photo-1556228720-195a672e8a03?w=400&auto=format&fit=crop&q=80',
+  'Footwear': 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&auto=format&fit=crop&q=80',
+};
+const defaultFallback = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&auto=format&fit=crop&q=80';
+
+const ProductCard = ({ product, showVendorBadge = true, mobileCols = 4 }) => {
   const { addToCart, toggleWishlist, isInWishlist } = useCart();
   const { showToast } = useToast();
 
@@ -19,16 +30,16 @@ const ProductCard = ({ product, showVendorBadge = true }) => {
   const inWishlist = isInWishlist(product._id);
 
   const imageSrc =
-    product.images && product.images.length > 0
+    product.images && product.images.length > 0 && product.images[0]
       ? product.images[0]
-      : product.image || 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600&auto=format&fit=crop&q=80';
+      : product.image || categoryFallbacks[product.category] || defaultFallback;
 
   const vendorName =
     product.vendorName ||
     product.store?.storeName ||
     product.vendor?.store?.storeName ||
     product.vendor?.name ||
-    'Verified Seller';
+    'Shoppinest';
 
   const handleAddToCart = (e) => {
     e.preventDefault();
@@ -46,89 +57,105 @@ const ProductCard = ({ product, showVendorBadge = true }) => {
   };
 
   return (
-    <div className="bg-white rounded-xl sm:rounded-2xl border border-slate-100 shadow-[0_2px_10px_rgba(0,0,0,0.04)] hover:shadow-md transition-all duration-300 flex flex-col justify-between p-2.5 sm:p-3 group relative select-none">
-      {/* Top Header: Vendor Mini Badge (left) & Red Discount Badge / Wishlist (right) */}
-      <div className="flex items-center justify-between w-full mb-1.5 gap-1.5 min-h-[22px]">
+    <div className="bg-white rounded-md sm:rounded-xl border border-slate-200/90 shadow-2xs hover:shadow-xs transition-all duration-200 p-1 sm:p-2 flex flex-col justify-between group relative select-none">
+      {/* Top Header: Vendor Mini Badge (left) & Discount Badge / Wishlist (right) */}
+      <div className="flex items-center justify-between w-full mb-0.5 gap-0.5 leading-none">
         {showVendorBadge ? (
-          <div className="flex items-center gap-1 bg-slate-50 border border-slate-100 px-1.5 py-0.5 rounded-full text-[9.5px] font-bold text-slate-700 max-w-[65%] truncate">
-            <Store className="w-2.5 h-2.5 text-slate-500 flex-shrink-0" />
+          <div className="flex items-center gap-0.5 bg-slate-50 border border-slate-100 px-1 py-0.2 rounded text-[6.5px] sm:text-[8px] font-bold text-slate-500 max-w-[55%] truncate">
+            <Store className="w-2 h-2 text-slate-400 flex-shrink-0" />
             <span className="truncate">{vendorName}</span>
           </div>
         ) : (
           <div />
         )}
 
-        <div className="flex items-center gap-1 flex-shrink-0">
+        <div className="flex items-center gap-0.5 flex-shrink-0">
           {discountPercent > 0 && (
-            <span className="bg-[#e11d48] text-white text-[9px] sm:text-[9.5px] font-black px-1.5 py-0.5 rounded-full shadow-2xs leading-none">
+            <span className="bg-[#e11d48] text-white text-[6.5px] sm:text-[7.5px] font-black px-1 py-0.2 rounded leading-none shadow-2xs">
               {discountPercent}% OFF
             </span>
           )}
           <button
             type="button"
             onClick={handleToggleWishlist}
-            className={`w-5.5 h-5.5 rounded-full flex items-center justify-center transition cursor-pointer ${
-              inWishlist
-                ? 'bg-rose-50 text-rose-600'
-                : 'text-slate-400 hover:text-rose-500 hover:bg-slate-50'
-            }`}
+            className="w-4 h-4 sm:w-5 sm:h-5 rounded-full flex items-center justify-center text-slate-400 hover:text-rose-500 transition cursor-pointer"
             aria-label="Wishlist"
           >
-            <Heart className={`w-3 h-3 ${inWishlist ? 'fill-rose-600 text-rose-600' : ''}`} />
+            <Heart className={`w-2.5 h-2.5 sm:w-3 sm:h-3 ${inWishlist ? 'fill-rose-600 text-rose-600' : ''}`} />
           </button>
         </div>
       </div>
 
-      {/* Product Image */}
-      <div className="w-full aspect-square max-h-36 sm:max-h-44 overflow-hidden rounded-lg sm:rounded-xl bg-slate-50/80 flex items-center justify-center mb-1.5 sm:mb-2 p-1.5 sm:p-2">
+      {/* Product Image: Ultra-compact fixed height */}
+      <div className="w-full h-16 sm:h-24 md:h-32 overflow-hidden rounded bg-[#f8fafc] flex items-center justify-center p-0.5 sm:p-1 relative mb-0.5 sm:mb-1">
         <Link to={`/products/${product._id}`} className="w-full h-full flex items-center justify-center">
           <img
             src={imageSrc}
             alt={product.title}
-            className="w-full h-full object-contain group-hover:scale-108 transition-transform duration-300 filter drop-shadow-xs"
+            className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 filter drop-shadow-xs"
             loading="lazy"
+            onError={(e) => {
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = categoryFallbacks[product.category] || defaultFallback;
+            }}
           />
         </Link>
       </div>
 
       {/* Product Information */}
-      <div className="flex flex-col flex-1 justify-between text-left space-y-1.5">
-        <div>
-          <Link
-            to={`/products/${product._id}`}
-            className="text-xs sm:text-[13px] font-bold text-slate-900 hover:text-[#0f8a48] line-clamp-1 transition block"
-            title={product.title}
-          >
-            {product.title}
-          </Link>
+      <div className="space-y-0.5 mb-0.5 flex-1 flex flex-col justify-between text-left">
+        <Link
+          to={`/products/${product._id}`}
+          className="text-[8.5px] sm:text-xs font-semibold text-slate-800 hover:text-[#0f8a48] line-clamp-2 transition block leading-tight h-[22px] sm:h-[28px] overflow-hidden"
+          title={product.title}
+        >
+          {product.title}
+        </Link>
 
-          {/* Pricing Row: Green bold price + line-through original price */}
-          <div className="flex items-baseline gap-1.5 mt-0.5">
-            <span className="text-xs sm:text-sm md:text-base font-extrabold text-[#0f8a48]">
+        {/* Pricing & Rating Row */}
+        <div className="flex items-center justify-between gap-0.5 pt-0.5 leading-none">
+          <div className="flex items-baseline gap-0.5">
+            <span className="text-[10px] sm:text-xs md:text-sm font-extrabold text-slate-900 leading-none">
               ₹{displayPrice.toLocaleString('en-IN')}
             </span>
             {hasDiscount && (
-              <span className="text-[10px] sm:text-[11px] text-slate-400 line-through font-medium">
+              <span className="text-[6.5px] sm:text-[8.5px] text-slate-400 line-through font-medium hidden xs:inline">
                 ₹{price.toLocaleString('en-IN')}
               </span>
             )}
           </div>
+          <span className="inline-flex items-center gap-0.5 bg-[#0f8a48] text-white text-[6.5px] sm:text-[8px] font-bold px-0.5 py-0.2 rounded flex-shrink-0 leading-none">
+            <span>★</span>
+            <span>{Number(product.rating) || 4.8}</span>
+          </span>
         </div>
 
-        {/* Add to Cart Button (Vibrant Emerald Green rounded button) */}
-        <button
-          onClick={handleAddToCart}
-          disabled={product.stock === 0}
-          className={`w-full py-1.5 sm:py-2 px-2.5 rounded-lg sm:rounded-xl text-[11px] sm:text-xs font-bold flex items-center justify-center gap-1.5 transition cursor-pointer shadow-xs ${
-            product.stock === 0
-              ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-              : 'bg-[#0f8a48] hover:bg-[#0c723b] text-white active:scale-98'
-          }`}
-        >
-          <ShoppingCart className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-          <span>{product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}</span>
-        </button>
+        {/* Free Delivery Tag */}
+        <div className="flex items-center justify-between text-[6.5px] sm:text-[8px] pt-0.5 leading-none">
+          <span className="font-bold text-emerald-700 bg-emerald-50 px-0.5 py-0.2 rounded">
+            Free Delivery
+          </span>
+          <span className="text-slate-400 truncate max-w-[45%] hidden sm:inline">
+            {vendorName}
+          </span>
+        </div>
       </div>
+
+      {/* Compact Add to Cart Button */}
+      <button
+        type="button"
+        onClick={handleAddToCart}
+        disabled={product.stock === 0}
+        className={`w-full h-5 sm:h-6.5 rounded font-bold flex items-center justify-center gap-0.5 transition cursor-pointer shadow-2xs mt-0.5 ${
+          product.stock === 0
+            ? 'bg-slate-100 text-slate-400 cursor-not-allowed text-[7px] sm:text-[9.5px]'
+            : 'bg-[#0f8a48] hover:bg-[#0c723b] text-white active:scale-95 text-[7.5px] sm:text-[10.5px]'
+        }`}
+      >
+        <ShoppingCart className="w-2.5 h-2.5 flex-shrink-0" />
+        <span className="sm:hidden">{mobileCols === 4 ? 'Add' : 'Add to Cart'}</span>
+        <span className="hidden sm:inline">{product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}</span>
+      </button>
     </div>
   );
 };

@@ -1,4 +1,5 @@
 const deodapService = require('../services/deodapService');
+const deodapCsvService = require('../services/deodapCsvService');
 
 // @desc    Get DeoDap dropshipping connection status, settings & stats
 // @route   GET /api/deodap/stats
@@ -78,4 +79,58 @@ exports.previewDeoDapProducts = async (req, res, next) => {
     next(err);
   }
 };
+
+// @desc    Upload DeoDap CSV file to import / update products in database
+// @route   POST /api/deodap/upload-csv
+// @access  Private (Admin)
+exports.uploadDeoDapCsvController = async (req, res, next) => {
+  try {
+    if (!req.file && !req.body.csvText) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please upload a CSV file or provide csvText content.',
+      });
+    }
+
+    let csvContent = '';
+    if (req.file) {
+      csvContent = req.file.buffer.toString('utf-8');
+    } else if (req.body.csvText) {
+      csvContent = req.body.csvText;
+    }
+
+    if (!csvContent || csvContent.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'The uploaded CSV file is empty.',
+      });
+    }
+
+    const {
+      profitMarginPercent = 30,
+      deliveryCharge = 30,
+      defaultStock = 25,
+      updateExisting = true,
+      storeId = null,
+    } = req.body;
+
+    const result = await deodapCsvService.importDeoDapCSV(csvContent, {
+      profitMarginPercent: Number(profitMarginPercent) || 30,
+      deliveryCharge: Number(deliveryCharge) !== undefined ? Number(deliveryCharge) : 30,
+      defaultStock: Number(defaultStock) || 25,
+      updateExisting: updateExisting === 'false' || updateExisting === false ? false : true,
+      adminUser: req.user,
+      storeId,
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `DeoDap CSV processed: ${result.createdCount} products created, ${result.updatedCount} products updated!`,
+      data: result,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 

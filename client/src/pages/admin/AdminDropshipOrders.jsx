@@ -1,34 +1,36 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
-  ShoppingBag,
+  Truck,
   Search,
   Calendar,
   RotateCcw,
   CheckCircle2,
   Clock,
-  Truck,
   AlertCircle,
   Eye,
   Filter,
   DollarSign,
   TrendingUp,
-  Globe,
   Copy,
-  ExternalLink,
   Check,
-  X,
   Package,
   MapPin,
   User,
   Phone,
-  Send,
-  HelpCircle,
+  Mail,
+  Download,
+  FileSpreadsheet,
+  FileText,
+  ExternalLink,
+  ChevronLeft,
+  ChevronRight,
   ChevronDown,
-  ChevronUp,
+  X,
   Zap,
-  Sparkles,
-  ArrowRight,
-  Store,
+  Building,
+  Archive,
+  ArrowUpDown,
+  ShoppingBag,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AdminLayout from '../../components/admin/AdminLayout';
@@ -37,21 +39,29 @@ import { useToast } from '../../context/ToastContext';
 
 const AdminDropshipOrders = () => {
   const { success, error, info } = useToast();
+
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
-  const [selectedSource, setSelectedSource] = useState('all');
-  const [guideOpen, setGuideOpen] = useState(false);
-  const [dispatchingDeoDap, setDispatchingDeoDap] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState('all'); // 'all' | 'YYYY-MM'
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [copiedAddressId, setCopiedAddressId] = useState(null);
+  const [copiedField, setCopiedField] = useState(null);
 
-  // Dropship Fulfillment Modal
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8;
+
+  // Fulfillment Modal
   const [fulfillModal, setFulfillModal] = useState(null); // { order, item }
   const [sourceOrderId, setSourceOrderId] = useState('');
   const [sourceTrackingNumber, setSourceTrackingNumber] = useState('');
   const [fulfillmentStatus, setFulfillmentStatus] = useState('ordered_on_source');
   const [submittingFulfillment, setSubmittingFulfillment] = useState(false);
-  const [copiedAddress, setCopiedAddress] = useState(false);
 
   useEffect(() => {
     fetchOrders();
@@ -74,24 +84,24 @@ const AdminDropshipOrders = () => {
     }
   };
 
-  const handleAutoDispatchDeoDap = async (order, item) => {
-    try {
-      setDispatchingDeoDap(true);
-      const res = await api.post(`/orders/${order._id}/items/${item._id}/auto-dispatch-deodap`);
-      if (res.data?.success) {
-        success(`⚡ Dispatched to DeoDap! Supplier Order #${res.data.sourceOrderId}`);
-        fetchOrders();
-        if (fulfillModal) {
-          setSourceOrderId(res.data.sourceOrderId || '');
-          setSourceTrackingNumber(res.data.sourceTrackingNumber || '');
-          setFulfillmentStatus('ordered_on_source');
-        }
-      }
-    } catch (err) {
-      error(err.response?.data?.message || 'Failed to auto-dispatch to DeoDap');
-    } finally {
-      setDispatchingDeoDap(false);
-    }
+  // Copy helper for single values (e.g. phone, pin, name, sku)
+  const handleCopySingle = (text, fieldKey) => {
+    if (!text) return;
+    navigator.clipboard.writeText(String(text));
+    setCopiedField(fieldKey);
+    success(`Copied: ${text}`);
+    setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  // Copy full customer shipping address formatted for DeoDap checkout paste
+  const handleCopyCustomerAddress = (order) => {
+    const addr = order.shippingAddress;
+    if (!addr) return;
+    const formatted = `Name: ${addr.fullName}\nPhone: ${addr.phone}\nAddress: ${addr.street}\nCity: ${addr.city}\nState: ${addr.state}\nPIN: ${addr.zipCode}\nCountry: ${addr.country || 'India'}`;
+    navigator.clipboard.writeText(formatted);
+    setCopiedAddressId(order._id);
+    success('Customer shipping address copied in DeoDap checkout format!');
+    setTimeout(() => setCopiedAddressId(null), 2500);
   };
 
   const handleOpenFulfillment = (order, item) => {
@@ -99,17 +109,6 @@ const AdminDropshipOrders = () => {
     setSourceOrderId(item.sourceOrderId || '');
     setSourceTrackingNumber(item.sourceTrackingNumber || '');
     setFulfillmentStatus(item.fulfillmentStatus || 'ordered_on_source');
-    setCopiedAddress(false);
-  };
-
-  const handleCopyCustomerAddress = (order) => {
-    const addr = order.shippingAddress;
-    if (!addr) return;
-    const formatted = `Name: ${addr.fullName}\nPhone: ${addr.phone}\nStreet: ${addr.street}\nCity: ${addr.city}\nState: ${addr.state}\nPIN: ${addr.zipCode}\nCountry: ${addr.country || 'India'}`;
-    navigator.clipboard.writeText(formatted);
-    setCopiedAddress(true);
-    success('Customer shipping address copied to clipboard!');
-    setTimeout(() => setCopiedAddress(false), 3000);
   };
 
   const handleSaveDropshipFulfillment = async () => {
@@ -125,7 +124,7 @@ const AdminDropshipOrders = () => {
       });
 
       if (res.data?.success) {
-        success('Source fulfillment status updated!');
+        success('DeoDap supplier fulfillment status updated!');
         setFulfillModal(null);
         fetchOrders();
       }
@@ -136,499 +135,906 @@ const AdminDropshipOrders = () => {
     }
   };
 
-  // Filter ONLY dropship orders (items with isDropshipped or sourced from amazon, flipkart, meesho, deodap)
-  const dropshipOrdersList = orders.map((order) => {
-    const dropshipItems = (order.items || []).filter(
-      (item) => item.isDropshipped || ['amazon', 'flipkart', 'meesho', 'deodap', 'other'].includes(item.sourcePlatform)
-    );
-    const dropshipTotal = dropshipItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
-    const dropshipCost = dropshipItems.reduce((sum, i) => sum + (i.sourcePrice || 0) * i.quantity, 0);
-    const dropshipMargin = dropshipItems.reduce((sum, i) => sum + (i.profitMargin || 0), 0);
+  // Filter dropship / DeoDap orders only
+  const dropshipOrdersList = useMemo(() => {
+    return orders
+      .map((order) => {
+        const dropshipItems = (order.items || []).filter(
+          (item) => item.isDropshipped || ['deodap', 'amazon', 'flipkart', 'meesho', 'other'].includes(item.sourcePlatform)
+        );
+        const dropshipTotal = dropshipItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
+        const dropshipCost = dropshipItems.reduce((sum, i) => sum + (i.sourcePrice || 0) * i.quantity, 0);
+        const dropshipMargin = dropshipItems.reduce((sum, i) => sum + (i.profitMargin || 0), 0);
 
-    return {
-      ...order,
-      dropshipItems,
-      dropshipTotal,
-      dropshipCost,
-      dropshipMargin,
-    };
-  }).filter((order) => order.dropshipItems.length > 0);
+        return {
+          ...order,
+          dropshipItems,
+          dropshipTotal,
+          dropshipCost,
+          dropshipMargin,
+        };
+      })
+      .filter((order) => order.dropshipItems.length > 0);
+  }, [orders]);
 
-  const filteredOrders = dropshipOrdersList.filter((order) => {
-    const orderNum = (order.invoiceNumber || order._id || '').toLowerCase();
-    const custName = (order.customer?.name || order.shippingAddress?.fullName || '').toLowerCase();
-    const matchesSearch = orderNum.includes(searchQuery.toLowerCase()) || custName.includes(searchQuery.toLowerCase());
+  // Extract distinct months for the month-wise filter dropdown
+  const availableMonths = useMemo(() => {
+    const months = new Set();
+    dropshipOrdersList.forEach((ord) => {
+      if (ord.createdAt) {
+        const d = new Date(ord.createdAt);
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        months.add(`${yyyy}-${mm}`);
+      }
+    });
+    return Array.from(months).sort().reverse();
+  }, [dropshipOrdersList]);
 
-    const matchesStatus =
-      selectedStatus === 'all' ||
-      (order.dropshipItems && order.dropshipItems.some((i) => i.deliveryStatus?.toLowerCase() === selectedStatus.toLowerCase()));
+  // Filtered orders by Search, Status, Month, and Date Range
+  const filteredOrders = useMemo(() => {
+    return dropshipOrdersList.filter((order) => {
+      const orderNum = (order.invoiceNumber || order._id || '').toLowerCase();
+      const custName = (order.customer?.name || order.shippingAddress?.fullName || '').toLowerCase();
+      const phone = (order.shippingAddress?.phone || '').toLowerCase();
+      const city = (order.shippingAddress?.city || '').toLowerCase();
 
-    const matchesSource =
-      selectedSource === 'all' ||
-      (order.dropshipItems && order.dropshipItems.some((i) => (i.sourcePlatform || 'deodap') === selectedSource));
+      const matchesSearch =
+        !searchQuery ||
+        orderNum.includes(searchQuery.toLowerCase()) ||
+        custName.includes(searchQuery.toLowerCase()) ||
+        phone.includes(searchQuery.toLowerCase()) ||
+        city.includes(searchQuery.toLowerCase());
 
-    return matchesSearch && matchesStatus && matchesSource;
-  });
+      const matchesStatus =
+        selectedStatus === 'all' ||
+        order.dropshipItems.some((i) => (i.fulfillmentStatus || 'unfulfilled').toLowerCase() === selectedStatus.toLowerCase());
 
-  // Calculate Aggregates
-  const totalGross = dropshipOrdersList.reduce((sum, o) => sum + o.dropshipTotal, 0);
-  const totalMarginEarned = dropshipOrdersList.reduce((sum, o) => sum + o.dropshipMargin, 0);
-  const totalSourceCost = dropshipOrdersList.reduce((sum, o) => sum + o.dropshipCost, 0);
+      // Date Filtering
+      const orderDate = new Date(order.createdAt);
 
-  const pendingFulfillCount = dropshipOrdersList.reduce((count, o) => {
-    const unfulfilledItems = (o.dropshipItems || []).filter(
-      (i) => i.fulfillmentStatus === 'unfulfilled' || !i.fulfillmentStatus
-    );
-    return count + unfulfilledItems.length;
-  }, 0);
+      let matchesMonth = true;
+      if (selectedMonth !== 'all') {
+        const yyyy = orderDate.getFullYear();
+        const mm = String(orderDate.getMonth() + 1).padStart(2, '0');
+        matchesMonth = `${yyyy}-${mm}` === selectedMonth;
+      }
 
-  const platformBadges = {
-    amazon: 'bg-amber-100 text-amber-900 border-amber-300',
-    flipkart: 'bg-blue-100 text-blue-900 border-blue-300',
-    meesho: 'bg-pink-100 text-pink-900 border-pink-300',
-    deodap: 'bg-emerald-100 text-emerald-900 border-emerald-300',
-    other: 'bg-purple-100 text-purple-900 border-purple-300',
+      let matchesDateRange = true;
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        if (orderDate < start) matchesDateRange = false;
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        if (orderDate > end) matchesDateRange = false;
+      }
+
+      return matchesSearch && matchesStatus && matchesMonth && matchesDateRange;
+    });
+  }, [dropshipOrdersList, searchQuery, selectedStatus, selectedMonth, startDate, endDate]);
+
+  // Export / Backup to CSV formatted for DeoDap Official Order Entry
+  const handleExportCSV = () => {
+    if (filteredOrders.length === 0) {
+      error('No orders available to export');
+      return;
+    }
+
+    const headers = [
+      'Order ID / Invoice',
+      'Order Date',
+      'Product Title',
+      'SKU',
+      'Quantity',
+      'Supplier Cost Price',
+      'Customer Selling Price',
+      'Profit Margin',
+      'Customer Name',
+      'Customer Phone',
+      'Delivery Street',
+      'Delivery City',
+      'Delivery State',
+      'Delivery PIN Code',
+      'Country',
+      'DeoDap Order ID',
+      'Tracking Number',
+      'Fulfillment Status',
+      'Payment Status',
+    ];
+
+    const rows = [];
+
+    filteredOrders.forEach((ord) => {
+      const addr = ord.shippingAddress || {};
+      ord.dropshipItems.forEach((item) => {
+        rows.push([
+          `"${ord.invoiceNumber || ord._id}"`,
+          `"${new Date(ord.createdAt).toISOString().split('T')[0]}"`,
+          `"${(item.title || '').replace(/"/g, '""')}"`,
+          `"${item.sku || ''}"`,
+          item.quantity || 1,
+          item.sourcePrice || 0,
+          item.price || 0,
+          item.profitMargin || 0,
+          `"${(addr.fullName || '').replace(/"/g, '""')}"`,
+          `"${addr.phone || ''}"`,
+          `"${(addr.street || '').replace(/"/g, '""')}"`,
+          `"${(addr.city || '').replace(/"/g, '""')}"`,
+          `"${(addr.state || '').replace(/"/g, '""')}"`,
+          `"${addr.zipCode || ''}"`,
+          `"${addr.country || 'India'}"`,
+          `"${item.sourceOrderId || ''}"`,
+          `"${item.sourceTrackingNumber || ''}"`,
+          `"${item.fulfillmentStatus || 'unfulfilled'}"`,
+          `"${ord.paymentStatus || 'paid'}"`,
+        ]);
+      });
+    });
+
+    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    const dateStr = new Date().toISOString().slice(0, 10);
+    link.setAttribute('download', `DeoDap_Orders_Backup_${selectedMonth !== 'all' ? selectedMonth : dateStr}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    success(`Exported ${rows.length} order items to CSV!`);
   };
+
+  // Export / Print to Clean Formatted PDF Report
+  const handleExportPDF = () => {
+    if (filteredOrders.length === 0) {
+      error('No orders available to export to PDF');
+      return;
+    }
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      error('Please allow popups to generate the PDF report');
+      return;
+    }
+
+    const dateStr = new Date().toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+
+    const monthLabel =
+      selectedMonth !== 'all'
+        ? new Date(`${selectedMonth}-01`).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+        : 'All Months';
+
+    const orderRowsHtml = filteredOrders
+      .map((ord, idx) => {
+        const addr = ord.shippingAddress || {};
+        return ord.dropshipItems
+          .map(
+            (item) => `
+          <tr style="border-bottom: 1px solid #e2e8f0; font-size: 11px;">
+            <td style="padding: 10px 8px; font-family: monospace; font-weight: bold; color: #0c2a5e;">
+              ${ord.invoiceNumber || ord._id.slice(-6).toUpperCase()}
+              <div style="font-size: 9px; color: #64748b; font-family: sans-serif; font-weight: normal;">
+                ${new Date(ord.createdAt).toLocaleDateString('en-IN')}
+              </div>
+            </td>
+            <td style="padding: 10px 8px;">
+              <strong>${item.title}</strong>
+              <div style="font-size: 10px; color: #64748b; font-family: monospace;">SKU: ${item.sku || 'N/A'}</div>
+            </td>
+            <td style="padding: 10px 8px; text-align: center; font-weight: bold;">
+              ${item.quantity || 1}
+            </td>
+            <td style="padding: 10px 8px; font-family: monospace; text-align: right;">
+              ${Number(item.sourcePrice || 0).toLocaleString('en-IN')}
+            </td>
+            <td style="padding: 10px 8px; font-family: monospace; text-align: right; font-weight: bold; color: #047857;">
+              ${Number(item.price || 0).toLocaleString('en-IN')}
+            </td>
+            <td style="padding: 10px 8px; font-family: monospace; text-align: right; font-weight: bold; color: #1d4ed8;">
+              +${Number(item.profitMargin || 0).toLocaleString('en-IN')}
+            </td>
+            <td style="padding: 10px 8px; line-height: 1.4;">
+              <strong>${addr.fullName || 'N/A'}</strong> (${addr.phone || 'N/A'})
+              <div style="font-size: 10px; color: #475569;">
+                ${addr.street || ''}, ${addr.city || ''}, ${addr.state || ''} - ${addr.zipCode || ''}
+              </div>
+            </td>
+            <td style="padding: 10px 8px; text-align: center;">
+              <span style="display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 9px; font-weight: bold; background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0;">
+                ${item.fulfillmentStatus || 'Unfulfilled'}
+              </span>
+            </td>
+          </tr>
+        `
+          )
+          .join('');
+      })
+      .join('');
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>DeoDap_Orders_Report_${selectedMonth !== 'all' ? selectedMonth : 'Full'}</title>
+          <meta charset="utf-8" />
+          <style>
+            @media print {
+              @page { size: A4 landscape; margin: 12mm; }
+              body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              .no-print { display: none !important; }
+            }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+              color: #0f172a;
+              margin: 0;
+              padding: 20px;
+              background: #ffffff;
+            }
+            .header-bar {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+              border-bottom: 2px solid #0c2a5e;
+              padding-bottom: 14px;
+              margin-bottom: 16px;
+            }
+            .title-area h1 {
+              margin: 0;
+              font-size: 20px;
+              font-weight: 900;
+              color: #0c2a5e;
+            }
+            .title-area p {
+              margin: 4px 0 0 0;
+              font-size: 11px;
+              color: #64748b;
+            }
+            .stats-bar {
+              display: grid;
+              grid-template-columns: repeat(4, 1fr);
+              gap: 12px;
+              margin-bottom: 16px;
+            }
+            .stat-box {
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 12px;
+              padding: 10px 14px;
+            }
+            .stat-label {
+              font-size: 9px;
+              text-transform: uppercase;
+              font-weight: bold;
+              color: #64748b;
+            }
+            .stat-val {
+              font-size: 16px;
+              font-weight: 900;
+              font-family: monospace;
+              margin-top: 2px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              text-align: left;
+            }
+            th {
+              background: #f1f5f9;
+              padding: 10px 8px;
+              font-size: 10px;
+              text-transform: uppercase;
+              font-weight: 800;
+              color: #475569;
+              border-bottom: 2px solid #cbd5e1;
+            }
+            .print-btn {
+              background: #0c2a5e;
+              color: white;
+              border: none;
+              padding: 10px 20px;
+              font-weight: bold;
+              border-radius: 8px;
+              cursor: pointer;
+              font-size: 12px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header-bar">
+            <div class="title-area">
+              <h1>DeoDap Dropship Orders &amp; Fulfillment Statement</h1>
+              <p>Period: ${monthLabel} • Generated On: ${dateStr} • Total Orders: ${filteredOrders.length}</p>
+            </div>
+            <div class="no-print">
+              <button class="print-btn" onclick="window.print()">Print / Save as PDF</button>
+            </div>
+          </div>
+
+          <div class="stats-bar">
+            <div class="stat-box">
+              <div class="stat-label">Total Filtered Orders</div>
+              <div class="stat-val" style="color: #0c2a5e;">${filteredOrders.length}</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Gross Customer Revenue</div>
+              <div class="stat-val" style="color: #047857;">${totalGross.toLocaleString('en-IN')}</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Net Profit Margin</div>
+              <div class="stat-val" style="color: #1d4ed8;">+${totalMargin.toLocaleString('en-IN')}</div>
+            </div>
+            <div class="stat-box">
+              <div class="stat-label">Pending Supplier Placement</div>
+              <div class="stat-val" style="color: #b45309;">${totalPendingFulfill}</div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 12%;">Invoice / Date</th>
+                <th style="width: 25%;">Product Title &amp; SKU</th>
+                <th style="width: 5%; text-align: center;">Qty</th>
+                <th style="width: 9%; text-align: right;">Cost</th>
+                <th style="width: 9%; text-align: right;">Selling Price</th>
+                <th style="width: 9%; text-align: right;">Profit Margin</th>
+                <th style="width: 21%;">Customer Shipping Details</th>
+                <th style="width: 10%; text-align: center;">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${orderRowsHtml}
+            </tbody>
+          </table>
+
+          <div style="margin-top: 24px; padding-top: 12px; border-top: 1px solid #e2e8f0; font-size: 10px; color: #94a3b8; text-align: center;">
+            Official DeoDap Fulfillment Report • Generated automatically by Multi-Vendor Ecommerce Platform
+          </div>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+
+    // Auto-prompt print dialog after content paints
+    setTimeout(() => {
+      printWindow.focus();
+      printWindow.print();
+    }, 400);
+
+    success('PDF export dialog opened!');
+  };
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage) || 1;
+  const paginatedOrders = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredOrders.slice(start, start + itemsPerPage);
+  }, [filteredOrders, currentPage, itemsPerPage]);
+
+  // Aggregate Metrics
+  const totalGross = filteredOrders.reduce((sum, o) => sum + o.dropshipTotal, 0);
+  const totalMargin = filteredOrders.reduce((sum, o) => sum + o.dropshipMargin, 0);
+  const totalPendingFulfill = filteredOrders.reduce((count, o) => {
+    const unfulfilled = (o.dropshipItems || []).filter(
+      (i) => !i.fulfillmentStatus || i.fulfillmentStatus === 'unfulfilled'
+    );
+    return count + unfulfilled.length;
+  }, 0);
 
   return (
     <AdminLayout
-      title="Dropshipping Sourcing & Fulfillment Hub"
-      subtitle="Fulfill customer orders via Amazon, Meesho & DeoDap with automated 1-click address copy and source tracking"
+      title="DeoDap Orders & Supplier Fulfillment"
+      subtitle="Copy buyer shipping addresses, export monthly backup files, and place orders directly on DeoDap"
       onRefresh={fetchOrders}
     >
-      <div className="space-y-6 animate-fadeIn pb-12 font-sans">
-        {/* TOP NAVIGATION TOGGLE (Dropship vs Vendor Orders) */}
-        <div className="bg-white rounded-2xl p-1.5 border border-slate-200/90 shadow-2xs flex flex-wrap gap-2 items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Link
-              to="/admin/dropshipping"
-              className="px-4 py-2 rounded-xl text-xs sm:text-sm font-black bg-[#0c2a5e] text-white shadow-sm flex items-center gap-2"
-            >
-              <Truck className="w-4 h-4 text-amber-300" />
-              <span>Dropshipping Orders (Amazon/Meesho/DeoDap)</span>
-              <span className="text-[10px] bg-amber-400 text-slate-950 font-black px-2 py-0.5 rounded-full ml-1">
-                {dropshipOrdersList.length}
-              </span>
-            </Link>
-            <Link
-              to="/admin/vendor-orders"
-              className="px-4 py-2 rounded-xl text-xs sm:text-sm font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition flex items-center gap-2"
-            >
-              <Store className="w-4 h-4 text-slate-500" />
-              <span>Vendor Marketplace Orders &amp; Payouts</span>
-            </Link>
-          </div>
-
-          <div className="flex items-center gap-2 px-2">
-            <span className="text-[11px] font-bold text-slate-500">DeoDap Auto-Dispatch:</span>
-            <span className="text-xs font-black px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1">
-              <Zap className="w-3 h-3 text-emerald-600" />
-              API Ready
-            </span>
-          </div>
-        </div>
-
-        {/* HERO BANNER */}
-        <div className="bg-gradient-to-r from-[#071d42] via-[#0c2a5e] to-[#153e85] rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
-          <div className="absolute right-0 top-0 -mt-10 -mr-10 w-64 h-64 bg-amber-400/10 rounded-full blur-3xl pointer-events-none" />
-
-          <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div className="flex items-center gap-4">
-              <div className="w-14 h-14 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-amber-300 shadow-inner flex-shrink-0">
-                <Truck className="w-7 h-7" />
+      <div className="space-y-6 max-w-7xl mx-auto pb-16 font-sans">
+        {/* TOP CONTROLS & EXPORT BAR */}
+        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-slate-200 shadow-2xs space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                <Truck className="w-6 h-6" />
               </div>
               <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <h2 className="text-xl sm:text-2xl font-black tracking-tight">Assisted Supplier Dropship Fulfillment</h2>
-                  <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30">
-                    Auto-Address Copy Active
-                  </span>
-                </div>
-                <p className="text-xs sm:text-sm text-blue-200 mt-1 max-w-xl">
-                  When a customer orders an item sourced from Meesho or DeoDap, 1-click copy their address, order on the wholesale platform, and pocket your gross margin!
+                <h1 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
+                  DeoDap Wholesale Orders Hub
+                </h1>
+                <p className="text-xs text-slate-500">
+                  Ready-to-copy buyer shipping details for manual or API order placement on DeoDap
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
-              <button
-                onClick={fetchOrders}
-                className="p-3 rounded-2xl bg-white/10 hover:bg-white/15 text-white/90 hover:text-white border border-white/15 backdrop-blur-md transition cursor-pointer"
-                title="Refresh Orders"
+            {/* Export & External Link Actions */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <a
+                href="https://deodap.in"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold text-xs transition"
               >
-                <RotateCcw className={`w-4 h-4 ${loading ? 'animate-spin text-amber-300' : ''}`} />
+                <span>Open DeoDap Website</span>
+                <ExternalLink className="w-3.5 h-3.5 text-slate-400" />
+              </a>
+
+              <button
+                onClick={handleExportCSV}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 active:scale-98 transition cursor-pointer"
+                title="Download CSV Spreadsheet backup of all filtered orders"
+              >
+                <Download className="w-4 h-4" />
+                <span>Export Orders Backup (CSV)</span>
+              </button>
+
+              <button
+                onClick={handleExportPDF}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-[#0c2a5e] hover:bg-[#153e85] text-white font-bold text-xs shadow-md shadow-blue-900/15 active:scale-98 transition cursor-pointer"
+                title="Print or Save clean landscape PDF statement of all filtered orders"
+              >
+                <FileText className="w-4 h-4 text-amber-300" />
+                <span>Export Orders (PDF)</span>
               </button>
             </div>
           </div>
-        </div>
 
-        {/* DROPSHIP FULFILLMENT WORKFLOW GUIDE ACCORDION */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden transition-all">
-          <button
-            type="button"
-            onClick={() => setGuideOpen(!guideOpen)}
-            className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-50 transition cursor-pointer"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-blue-100 text-[#0c2a5e] flex items-center justify-center font-bold">
-                <HelpCircle className="w-5 h-5" />
+          {/* Quick Metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+            <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-200/80">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Filtered Orders</span>
+              <div className="text-xl font-black text-slate-900 mt-0.5 font-mono">{filteredOrders.length}</div>
+              <span className="text-[10px] text-slate-400">Total matched transactions</span>
+            </div>
+
+            <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-200/80">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Customer Sales</span>
+              <div className="text-xl font-black text-slate-900 mt-0.5 font-mono">
+                {totalGross.toLocaleString('en-IN')}
               </div>
-              <div>
-                <h4 className="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-2">
-                  <span>How to Fulfill Orders on Amazon, Meesho &amp; DeoDap</span>
-                  <span className="text-[10px] bg-emerald-50 text-emerald-800 font-bold px-2 py-0.5 rounded-full border border-emerald-200">
-                    Live Dropshipping Flow
-                  </span>
-                </h4>
-                <p className="text-[11px] text-slate-500">
-                  {guideOpen ? 'Click to minimize fulfillment guide' : 'Click to see how customer orders are placed at wholesale cost and delivered directly to their address'}
-                </p>
+              <span className="text-[10px] text-emerald-600 font-bold">Gross revenue</span>
+            </div>
+
+            <div className="bg-emerald-50/40 rounded-2xl p-3.5 border border-emerald-200">
+              <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Net Margin Earned</span>
+              <div className="text-xl font-black text-emerald-700 mt-0.5 font-mono">
+                +{totalMargin.toLocaleString('en-IN')}
               </div>
+              <span className="text-[10px] text-emerald-600 font-medium">Auto-credited profit</span>
             </div>
-            <div className="p-1 rounded-lg text-slate-400 hover:text-slate-600">
-              {guideOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-            </div>
-          </button>
 
-          {guideOpen && (
-            <div className="p-5 border-t border-slate-100 bg-gradient-to-b from-slate-50/60 to-white grid grid-cols-1 md:grid-cols-4 gap-4 animate-fadeIn text-xs">
-              <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-[#0c2a5e] text-white font-mono font-bold text-xs flex items-center justify-center">1</span>
-                  <span className="font-bold text-slate-800">1-Click Copy Address</span>
-                </div>
-                <p className="text-[11px] text-slate-600 leading-relaxed">
-                  Click <strong>"Copy Customer Address"</strong> on the order. Name, phone number, street, city, state, and pincode are copied to your clipboard formatted perfectly.
-                </p>
-              </div>
-
-              <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-blue-600 text-white font-mono font-bold text-xs flex items-center justify-center">2</span>
-                  <span className="font-bold text-slate-800">Order on Source</span>
-                </div>
-                <p className="text-[11px] text-slate-600 leading-relaxed">
-                  Click <strong>"Open Product"</strong> to go straight to the supplier item on Amazon, Meesho, or DeoDap. Paste customer address as delivery address &amp; pay the wholesale cost.
-                </p>
-              </div>
-
-              <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-emerald-600 text-white font-mono font-bold text-xs flex items-center justify-center">3</span>
-                  <span className="font-bold text-slate-800">DeoDap API Automation</span>
-                </div>
-                <p className="text-[11px] text-slate-600 leading-relaxed">
-                  For DeoDap sourced products, click <strong>"⚡ Auto-Dispatch DeoDap"</strong>. The system programmatically transmits the customer's order to DeoDap without manual ordering!
-                </p>
-              </div>
-
-              <div className="p-4 rounded-xl bg-white border border-slate-200 shadow-2xs space-y-2">
-                <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-amber-600 text-white font-mono font-bold text-xs flex items-center justify-center">4</span>
-                  <span className="font-bold text-slate-800">Direct Delivery &amp; Profit</span>
-                </div>
-                <p className="text-[11px] text-slate-600 leading-relaxed">
-                  Supplier platform ships the parcel directly to customer. Customer tracks live on your website, and you keep <strong>100% of the commission profit</strong>!
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* 4 KPI METRICS TILES */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs flex items-center justify-between">
-            <div className="space-y-1">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">DROPSHIP ORDERS</span>
-              <div className="text-2xl sm:text-3xl font-black text-slate-900 font-mono">{dropshipOrdersList.length}</div>
-              <span className="text-[11px] text-slate-400 block">External supplier items</span>
-            </div>
-            <div className="w-11 h-11 rounded-2xl bg-blue-50 text-[#0c2a5e] flex items-center justify-center font-bold">
-              <Truck className="w-5 h-5" />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs flex items-center justify-between">
-            <div className="space-y-1">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">GROSS CUSTOMER REVENUE</span>
-              <div className="text-2xl sm:text-3xl font-black text-slate-900 font-mono">₹{totalGross.toLocaleString('en-IN')}</div>
-              <span className="text-[11px] text-emerald-600 font-bold block">Paid by customers</span>
-            </div>
-            <div className="w-11 h-11 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
-              <DollarSign className="w-5 h-5" />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs flex items-center justify-between">
-            <div className="space-y-1">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">NET DROPSHIP MARGIN</span>
-              <div className="text-2xl sm:text-3xl font-black text-emerald-600 font-mono">₹{totalMarginEarned.toLocaleString('en-IN')}</div>
-              <span className="text-[11px] text-emerald-600 font-bold block">Profit retained</span>
-            </div>
-            <div className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
-              <TrendingUp className="w-5 h-5" />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs flex items-center justify-between">
-            <div className="space-y-1">
-              <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">PENDING DISPATCH</span>
-              <div className="text-2xl sm:text-3xl font-black text-amber-600 font-mono">{pendingFulfillCount}</div>
-              <span className="text-[11px] text-amber-600 font-bold block">Requires supplier order</span>
-            </div>
-            <div className="w-11 h-11 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
-              <Clock className="w-5 h-5" />
+            <div className="bg-amber-50/40 rounded-2xl p-3.5 border border-amber-200">
+              <span className="text-[10px] font-bold text-amber-700 uppercase tracking-wider block">Pending On DeoDap</span>
+              <div className="text-xl font-black text-amber-700 mt-0.5 font-mono">{totalPendingFulfill}</div>
+              <span className="text-[10px] text-amber-600 font-medium">Requires placement</span>
             </div>
           </div>
         </div>
 
-        {/* SEARCH & FILTERS BAR */}
-        <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs flex flex-col md:flex-row items-center justify-between gap-3">
-          <div className="relative w-full md:w-96">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              placeholder="Search invoice number, customer name..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]/20 focus:border-[#0c2a5e]"
-            />
+        {/* SEARCH & MULTI-FILTER BAR (Date-wise, Month-wise, Status) */}
+        <div className="bg-white rounded-3xl p-5 border border-slate-200 shadow-2xs space-y-3">
+          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+            {/* Search Input */}
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                placeholder="Search by invoice #, buyer name, phone, city..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:bg-white focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            {/* Month-Wise Dropdown */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-xs">
+                <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                <span className="text-[11px] font-bold text-slate-500">Month:</span>
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => {
+                    setSelectedMonth(e.target.value);
+                    setCurrentPage(1);
+                  }}
+                  className="bg-transparent font-bold text-slate-800 focus:outline-none cursor-pointer"
+                >
+                  <option value="all">All Months</option>
+                  {availableMonths.map((m) => (
+                    <option key={m} value={m}>
+                      {new Date(`${m}-01`).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Status Filter */}
+              <select
+                value={selectedStatus}
+                onChange={(e) => {
+                  setSelectedStatus(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+              >
+                <option value="all">All Statuses</option>
+                <option value="unfulfilled">Unfulfilled (Need to Order)</option>
+                <option value="ordered_on_source">Ordered on DeoDap</option>
+                <option value="shipped_by_source">Shipped by Courier</option>
+                <option value="delivered_to_customer">Delivered</option>
+              </select>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-            {/* Source Platform Filter */}
-            <select
-              value={selectedSource}
-              onChange={(e) => setSelectedSource(e.target.value)}
-              className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]/20"
-            >
-              <option value="all">All Sources</option>
-              <option value="deodap">DeoDap Wholesale</option>
-              <option value="meesho">Meesho</option>
-              <option value="amazon">Amazon</option>
-              <option value="flipkart">Flipkart</option>
-            </select>
+          {/* Date-Range Pickers */}
+          <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 text-xs">
+            <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Date Range:</span>
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => {
+                  setStartDate(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-semibold text-slate-800"
+              />
+              <span className="text-slate-400">to</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => {
+                  setEndDate(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="px-2.5 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-xs font-mono font-semibold text-slate-800"
+              />
+            </div>
 
-            {/* Status Filter */}
-            <select
-              value={selectedStatus}
-              onChange={(e) => setSelectedStatus(e.target.value)}
-              className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]/20"
-            >
-              <option value="all">All Statuses</option>
-              <option value="processing">Processing</option>
-              <option value="shipped">Shipped</option>
-              <option value="delivered">Delivered</option>
-            </select>
+            {(startDate || endDate || selectedMonth !== 'all' || selectedStatus !== 'all' || searchQuery) && (
+              <button
+                onClick={() => {
+                  setStartDate('');
+                  setEndDate('');
+                  setSelectedMonth('all');
+                  setSelectedStatus('all');
+                  setSearchQuery('');
+                  setCurrentPage(1);
+                }}
+                className="text-[11px] font-bold text-rose-600 hover:underline ml-auto cursor-pointer"
+              >
+                Reset Filters
+              </button>
+            )}
           </div>
         </div>
 
-        {/* DROPSHIP ORDERS LIST */}
+        {/* ORDERS LIST */}
         {loading ? (
-          <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-2xs space-y-3">
+          <div className="bg-white rounded-3xl p-16 text-center border border-slate-200 shadow-2xs space-y-3 animate-pulse">
             <RotateCcw className="w-8 h-8 text-[#0c2a5e] animate-spin mx-auto" />
-            <div className="text-sm font-bold text-slate-700">Loading Dropship Orders...</div>
+            <div className="text-sm font-bold text-slate-700">Loading DeoDap Orders...</div>
           </div>
         ) : filteredOrders.length === 0 ? (
-          <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-2xs space-y-3">
+          <div className="bg-white rounded-3xl p-16 text-center border border-slate-200 shadow-2xs space-y-3">
             <div className="w-16 h-16 rounded-3xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
-              <Truck className="w-8 h-8" />
+              <Package className="w-8 h-8" />
             </div>
-            <div className="text-base font-black text-slate-900">No Dropship Orders Found</div>
+            <div className="text-base font-black text-slate-900">No Orders Match Your Filters</div>
             <p className="text-xs text-slate-500 max-w-md mx-auto">
-              Orders containing products from Meesho, DeoDap, Amazon, or Flipkart will appear here for supplier fulfillment.
+              When customers place orders for DeoDap catalog items, they will appear here with 1-click address copy for easy fulfillment.
             </p>
           </div>
         ) : (
           <div className="space-y-4">
-            {filteredOrders.map((order) => (
-              <div
-                key={order._id}
-                className="bg-white rounded-3xl border border-slate-200 shadow-2xs overflow-hidden transition hover:shadow-md"
-              >
-                {/* Header: Invoice + Payment + Copy Address */}
-                <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-50 via-white to-slate-50 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <span className="font-mono text-xs sm:text-sm font-black text-[#0c2a5e] bg-blue-50 px-3 py-1 rounded-xl border border-blue-100">
-                      {order.invoiceNumber || order._id}
-                    </span>
-                    <span className="text-xs text-slate-500 flex items-center gap-1">
-                      <Calendar className="w-3.5 h-3.5" />
-                      {new Date(order.createdAt).toLocaleDateString('en-IN', {
-                        day: 'numeric',
-                        month: 'short',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </span>
-                    <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
-                      Payment: {order.paymentStatus} ({order.paymentMethod || 'Razorpay'})
-                    </span>
+            {paginatedOrders.map((order) => {
+              const addr = order.shippingAddress || {};
+              const isCopied = copiedAddressId === order._id;
+
+              return (
+                <div
+                  key={order._id}
+                  className="bg-white rounded-3xl border border-slate-200 shadow-2xs overflow-hidden transition hover:shadow-md hover:border-slate-300"
+                >
+                  {/* Order Header: Invoice, Date, Payment, and Master Copy Address Button */}
+                  <div className="p-4 sm:p-5 bg-gradient-to-r from-slate-50 via-white to-slate-50 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="font-mono text-xs sm:text-sm font-black text-[#0c2a5e] bg-blue-50 px-3 py-1 rounded-xl border border-blue-100">
+                        {order.invoiceNumber || `ORD-${order._id.slice(-6).toUpperCase()}`}
+                      </span>
+
+                      <span className="text-xs text-slate-500 flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5" />
+                        {new Date(order.createdAt).toLocaleDateString('en-IN', {
+                          day: 'numeric',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
+                      </span>
+
+                      <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        Payment: {order.paymentStatus || 'Paid'} ({order.paymentMethod || 'Online'})
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap justify-between sm:justify-end">
+                      {/* COPY WHOLE ADDRESS BUTTON FOR DEODAP WEBSITE */}
+                      <button
+                        onClick={() => handleCopyCustomerAddress(order)}
+                        className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer border ${
+                          isCopied
+                            ? 'bg-emerald-600 text-white border-emerald-600'
+                            : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200'
+                        }`}
+                        title="Copy full shipping address formatted for DeoDap checkout"
+                      >
+                        {isCopied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{isCopied ? 'Address Copied!' : 'Copy Full Address for DeoDap'}</span>
+                      </button>
+
+                      <div className="text-right pl-2 font-mono">
+                        <span className="text-[10px] font-sans font-bold text-slate-400 block uppercase">Order Total</span>
+                        <span className="text-base sm:text-lg font-black text-slate-900">
+                          {order.dropshipTotal.toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => handleCopyCustomerAddress(order)}
-                      className="px-3.5 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-[#0c2a5e] text-xs font-bold transition flex items-center gap-1.5 cursor-pointer border border-blue-200"
-                    >
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Copy Customer Address</span>
-                    </button>
-                    <div className="text-right">
-                      <span className="text-[10px] font-bold text-slate-400 block uppercase">Order Total</span>
-                      <span className="text-base sm:text-lg font-black text-slate-900 font-mono">
-                        ₹{order.dropshipTotal.toLocaleString('en-IN')}
-                      </span>
+                  {/* Items in this Order */}
+                  <div className="divide-y divide-slate-100">
+                    {order.dropshipItems.map((item, idx) => {
+                      const cost = item.sourcePrice || 0;
+                      const sell = item.price || 0;
+                      const qty = item.quantity || 1;
+                      const itemRevenue = sell * qty;
+                      const itemCost = cost * qty;
+                      const itemProfit = Math.max(0, itemRevenue - itemCost);
+                      const status = item.fulfillmentStatus || 'unfulfilled';
+
+                      return (
+                        <div
+                          key={item._id || idx}
+                          className="p-4 sm:p-5 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4"
+                        >
+                          <div className="flex items-start gap-4 flex-1">
+                            {/* Lazy Loaded Product Image */}
+                            <img
+                              src={item.image || '/logo.png'}
+                              alt={item.title}
+                              loading="lazy"
+                              onError={(e) => {
+                                e.target.onerror = null;
+                                e.target.src = '/logo.png';
+                              }}
+                              className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border border-slate-200 bg-slate-50 flex-shrink-0"
+                            />
+
+                            <div className="space-y-1.5 flex-1">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300">
+                                  DEODAP WHOLESALE
+                                </span>
+
+                                <span
+                                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                    status === 'ordered_on_source'
+                                      ? 'bg-blue-100 text-blue-800'
+                                      : status === 'shipped_by_source'
+                                      ? 'bg-amber-100 text-amber-800'
+                                      : status === 'delivered_to_customer'
+                                      ? 'bg-emerald-100 text-emerald-800'
+                                      : 'bg-rose-100 text-rose-800'
+                                  }`}
+                                >
+                                  ●{' '}
+                                  {status === 'ordered_on_source'
+                                    ? 'Ordered on DeoDap'
+                                    : status === 'shipped_by_source'
+                                    ? 'Shipped by Courier'
+                                    : status === 'delivered_to_customer'
+                                    ? 'Delivered to Customer'
+                                    : 'Action Required: Place on DeoDap'}
+                                </span>
+
+                                {item.sku && (
+                                  <button
+                                    onClick={() => handleCopySingle(item.sku, `sku-${item._id}`)}
+                                    className="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold inline-flex items-center gap-1 cursor-pointer"
+                                    title="Click to copy SKU"
+                                  >
+                                    <span>SKU: {item.sku}</span>
+                                    {copiedField === `sku-${item._id}` ? (
+                                      <Check className="w-2.5 h-2.5 text-emerald-600" />
+                                    ) : (
+                                      <Copy className="w-2.5 h-2.5 text-slate-400" />
+                                    )}
+                                  </button>
+                                )}
+                              </div>
+
+                              <h3 className="text-xs sm:text-sm font-bold text-slate-900 line-clamp-1">
+                                {item.title}
+                              </h3>
+
+                              {/* Price & Margin Calculation Details */}
+                              <div className="text-xs text-slate-500 flex items-center gap-3 flex-wrap font-mono">
+                                <span>
+                                  Qty: <b className="text-slate-900 font-sans">{qty}</b>
+                                </span>
+                                <span>•</span>
+                                <span>
+                                  DeoDap Cost: <b className="text-slate-800">{cost}</b>
+                                </span>
+                                <span>•</span>
+                                <span>
+                                  Selling Price: <b className="text-slate-900">{sell}</b>
+                                </span>
+                                <span className="text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                                  Margin: +{itemProfit.toLocaleString('en-IN')}
+                                </span>
+
+                                {item.sourceOrderId && (
+                                  <span className="text-[11px] font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
+                                    DeoDap Ref: {item.sourceOrderId}
+                                  </span>
+                                )}
+                                {item.sourceTrackingNumber && (
+                                  <span className="text-[11px] font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
+                                    AWB: {item.sourceTrackingNumber}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Action Button: Update DeoDap Order ID & Courier AWB */}
+                          <div className="flex items-center gap-2 self-end lg:self-center shrink-0">
+                            <button
+                              onClick={() => handleOpenFulfillment(order, item)}
+                              className="px-4 py-2 rounded-xl bg-[#0c2a5e] hover:bg-[#153e85] text-white font-bold text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <Package className="w-3.5 h-3.5 text-amber-300" />
+                              <span>Fulfill on DeoDap</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Individual Copyable Shipping Address Fields */}
+                  <div className="px-4 sm:px-6 py-3.5 bg-slate-50/80 border-t border-slate-100 flex flex-col md:flex-row md:items-center justify-between text-xs text-slate-600 gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <div className="flex items-center gap-1.5 font-bold text-slate-800">
+                        <User className="w-3.5 h-3.5 text-slate-400" />
+                        <span>{addr.fullName || 'N/A'}</span>
+                        <button
+                          onClick={() => handleCopySingle(addr.fullName, `name-${order._id}`)}
+                          className="p-1 hover:bg-slate-200 rounded transition cursor-pointer"
+                          title="Copy Customer Name"
+                        >
+                          {copiedField === `name-${order._id}` ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3 text-slate-400" />}
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <Phone className="w-3.5 h-3.5 text-slate-400" />
+                        <span className="font-mono">{addr.phone || 'N/A'}</span>
+                        <button
+                          onClick={() => handleCopySingle(addr.phone, `phone-${order._id}`)}
+                          className="p-1 hover:bg-slate-200 rounded transition cursor-pointer"
+                          title="Copy Customer Phone"
+                        >
+                          {copiedField === `phone-${order._id}` ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3 text-slate-400" />}
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                        <span>
+                          {addr.street}, {addr.city}, {addr.state} - <b className="font-mono">{addr.zipCode}</b>
+                        </span>
+                        <button
+                          onClick={() => handleCopySingle(`${addr.street}, ${addr.city}, ${addr.state} - ${addr.zipCode}`, `addr-${order._id}`)}
+                          className="p-1 hover:bg-slate-200 rounded transition cursor-pointer"
+                          title="Copy Full Street & City"
+                        >
+                          {copiedField === `addr-${order._id}` ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3 text-slate-400" />}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 text-[11px] text-slate-400 font-mono">
+                      <span>Customer ID: {order.customer?._id?.slice(-6) || 'Guest'}</span>
                     </div>
                   </div>
                 </div>
-
-                {/* Items in this Order */}
-                <div className="divide-y divide-slate-100">
-                  {order.dropshipItems.map((item, idx) => {
-                    const unitMargin = (item.sourcePrice || 0) > 0 ? Math.max(0, item.price - item.sourcePrice) : 0;
-                    const totalItemMargin = unitMargin * (item.quantity || 1);
-                    const source = item.sourcePlatform || 'deodap';
-
-                    return (
-                      <div key={item._id || idx} className="p-4 sm:p-5 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-                        {/* Left: Product Info */}
-                        <div className="flex items-start gap-4">
-                          <img
-                            src={item.image || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=200'}
-                            alt={item.title}
-                            className="w-16 h-16 sm:w-20 sm:h-20 rounded-2xl object-cover border border-slate-200 shadow-2xs flex-shrink-0"
-                          />
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span
-                                className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full border ${
-                                  platformBadges[source] || 'bg-slate-100 text-slate-800'
-                                }`}
-                              >
-                                {source.toUpperCase()}
-                              </span>
-                              {item.isAffiliateSale && (
-                                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-purple-100 text-purple-900 border border-purple-200 flex items-center gap-1">
-                                  <Sparkles className="w-3 h-3 text-purple-600" />
-                                  <span>50/50 Vendor Affiliate Split</span>
-                                </span>
-                              )}
-                              <span
-                                className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
-                                  item.fulfillmentStatus === 'ordered_on_source'
-                                    ? 'bg-blue-100 text-blue-800'
-                                    : item.fulfillmentStatus === 'shipped_by_source'
-                                    ? 'bg-amber-100 text-amber-800'
-                                    : item.fulfillmentStatus === 'delivered_to_customer'
-                                    ? 'bg-emerald-100 text-emerald-800'
-                                    : 'bg-rose-100 text-rose-800 animate-pulse'
-                                }`}
-                              >
-                                ● {item.fulfillmentStatus === 'ordered_on_source'
-                                  ? 'Ordered on Source'
-                                  : item.fulfillmentStatus === 'shipped_by_source'
-                                  ? 'Shipped by Supplier'
-                                  : item.fulfillmentStatus === 'delivered_to_customer'
-                                  ? 'Delivered to Customer'
-                                  : 'Action Required: Place on Source'}
-                              </span>
-                            </div>
-
-                            <h4 className="text-xs sm:text-sm font-bold text-slate-900 line-clamp-1 max-w-xl">
-                              {item.title}
-                            </h4>
-
-                            <div className="text-xs text-slate-500 flex items-center gap-3 flex-wrap">
-                              <span>Qty: <strong>{item.quantity}</strong></span>
-                              <span>Customer Price: <strong>₹{item.price.toLocaleString('en-IN')}</strong></span>
-                              <span>Source Cost: <strong>₹{item.sourcePrice || 0}</strong></span>
-                              <span className="text-emerald-700 font-bold bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
-                                Commission Margin: +₹{totalItemMargin.toLocaleString('en-IN')}
-                              </span>
-                              {item.sourceOrderId && (
-                                <span className="text-[11px] font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
-                                  DeoDap Order: {item.sourceOrderId}
-                                </span>
-                              )}
-                              {item.sourceTrackingNumber && (
-                                <span className="text-[11px] font-mono font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-200">
-                                  Delhivery AWB: {item.sourceTrackingNumber}
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Right: Actions (Auto-Dispatch DeoDap / Fulfill Modal) */}
-                        <div className="flex items-center gap-2 flex-wrap w-full lg:w-auto justify-end">
-                          {source === 'deodap' && (
-                            <button
-                              onClick={() => handleAutoDispatchDeoDap(order, item)}
-                              disabled={dispatchingDeoDap || item.fulfillmentStatus === 'ordered_on_source'}
-                              className={`px-3.5 py-2 rounded-xl text-xs font-black shadow-sm transition flex items-center gap-1.5 cursor-pointer ${
-                                item.fulfillmentStatus === 'ordered_on_source'
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
-                              }`}
-                            >
-                              <Zap className="w-3.5 h-3.5" />
-                              <span>{item.fulfillmentStatus === 'ordered_on_source' ? 'DeoDap Dispatched' : 'Auto-Dispatch DeoDap'}</span>
-                            </button>
-                          )}
-
-                          <button
-                            onClick={() => handleOpenFulfillment(order, item)}
-                            className="px-4 py-2 rounded-xl bg-[#0c2a5e] hover:bg-[#153e85] text-white font-bold text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <Package className="w-3.5 h-3.5 text-amber-300" />
-                            <span>Fulfill via {source.toUpperCase()}</span>
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Bottom Footer: Delivery Address Info */}
-                <div className="px-4 sm:px-5 py-3 bg-slate-50 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-500 gap-2">
-                  <div className="flex items-center gap-2">
-                    <MapPin className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-                    <span>
-                      Deliver to: <strong>{order.shippingAddress?.fullName}</strong>,{' '}
-                      {order.shippingAddress?.street}, {order.shippingAddress?.city}, {order.shippingAddress?.state} - {order.shippingAddress?.zipCode}
-                      {order.shippingAddress?.phone && ` (Phone: ${order.shippingAddress.phone})`}
-                    </span>
-                  </div>
-                  <span className="font-mono text-[10px] text-slate-400">
-                    ID: {order._id}
-                  </span>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
-        {/* FULFILLMENT MODAL */}
+        {/* RESPONSIVE PAGINATION CONTROLS */}
+        {totalPages > 1 && (
+          <div className="bg-white rounded-2xl p-4 border border-slate-200 shadow-2xs flex items-center justify-between flex-wrap gap-3">
+            <span className="text-xs text-slate-500 font-medium">
+              Showing page <b className="text-slate-800">{currentPage}</b> of <b className="text-slate-800">{totalPages}</b> ({filteredOrders.length} total orders)
+            </span>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1 cursor-pointer"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <span>Prev</span>
+              </button>
+
+              <div className="flex items-center gap-1">
+                {Array.from({ length: Math.min(5, totalPages) }, (_, idx) => {
+                  const num = idx + 1;
+                  return (
+                    <button
+                      key={num}
+                      onClick={() => setCurrentPage(num)}
+                      className={`w-8 h-8 rounded-xl text-xs font-bold transition cursor-pointer ${
+                        currentPage === num
+                          ? 'bg-[#0c2a5e] text-white shadow-xs'
+                          : 'border border-slate-200 text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      {num}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition flex items-center gap-1 cursor-pointer"
+              >
+                <span>Next</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* FULFILLMENT MODAL (Save DeoDap Order ID and Tracking Courier) */}
         {fulfillModal && (
-          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-scaleUp space-y-5">
+          <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
+            <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-5">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2">
-                  <div className="w-9 h-9 rounded-xl bg-blue-100 text-[#0c2a5e] flex items-center justify-center font-bold">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center font-bold">
                     <Package className="w-5 h-5" />
                   </div>
                   <div>
                     <h3 className="text-sm font-black text-slate-900">
-                      Fulfill on {(fulfillModal.item.sourcePlatform || 'supplier').toUpperCase()}
+                      Record DeoDap Official Order
                     </h3>
                     <p className="text-[11px] text-slate-500">Order #{fulfillModal.order.invoiceNumber}</p>
                   </div>
                 </div>
                 <button
                   onClick={() => setFulfillModal(null)}
-                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -637,13 +1043,13 @@ const AdminDropshipOrders = () => {
               {/* Customer Address Preview & Copy */}
               <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold text-slate-700">Customer Delivery Address</span>
+                  <span className="text-[11px] font-bold text-slate-700">Buyer Delivery Address (Copy &amp; Paste to DeoDap)</span>
                   <button
                     onClick={() => handleCopyCustomerAddress(fulfillModal.order)}
-                    className="text-xs font-bold text-[#0c2a5e] hover:underline flex items-center gap-1 cursor-pointer"
+                    className="text-xs font-bold text-emerald-700 hover:underline flex items-center gap-1 cursor-pointer"
                   >
                     <Copy className="w-3 h-3" />
-                    <span>{copiedAddress ? 'Copied!' : 'Copy Address'}</span>
+                    <span>Copy Address</span>
                   </button>
                 </div>
                 <p className="text-xs text-slate-600 leading-relaxed font-mono">
@@ -654,59 +1060,43 @@ const AdminDropshipOrders = () => {
                 </p>
               </div>
 
-              {/* Source Product Link */}
-              {fulfillModal.item.sourceUrl && (
-                <div className="flex items-center justify-between p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
-                  <span>Product link on supplier website:</span>
-                  <a
-                    href={fulfillModal.item.sourceUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="px-2.5 py-1 rounded-lg bg-amber-200/60 hover:bg-amber-200 font-bold flex items-center gap-1"
-                  >
-                    <span>Open Supplier Page</span>
-                    <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-              )}
-
               {/* Input: Source Order ID */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">
-                  {(fulfillModal.item.sourcePlatform || 'Supplier').toUpperCase()} Order ID
+                <label className="text-xs font-bold text-slate-700 block">
+                  DeoDap Order Number / ID
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. MEESHO-987654 or DEODAP-10294"
+                  placeholder="e.g. DEODAP-10294 or DD-987654"
                   value={sourceOrderId}
                   onChange={(e) => setSourceOrderId(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]/20"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-mono font-bold focus:outline-none focus:border-blue-500"
                 />
               </div>
 
               {/* Input: Source Tracking Number */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">Courier Tracking / AWB Number</label>
+                <label className="text-xs font-bold text-slate-700 block">Courier Tracking / AWB Number</label>
                 <input
                   type="text"
-                  placeholder="e.g. DELHIVERY-9876543210"
+                  placeholder="e.g. DELHIVERY-9876543210 or BLUEDART-123456"
                   value={sourceTrackingNumber}
                   onChange={(e) => setSourceTrackingNumber(e.target.value)}
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]/20"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-mono font-bold focus:outline-none focus:border-blue-500"
                 />
               </div>
 
               {/* Select: Fulfillment Status */}
               <div className="space-y-1.5">
-                <label className="text-xs font-bold text-slate-700">Fulfillment Status</label>
+                <label className="text-xs font-bold text-slate-700 block">Fulfillment Status</label>
                 <select
                   value={fulfillmentStatus}
                   onChange={(e) => setFulfillmentStatus(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]/20"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white focus:outline-none"
                 >
-                  <option value="unfulfilled">Unfulfilled (Need to Order)</option>
-                  <option value="ordered_on_source">Ordered on Source Supplier</option>
-                  <option value="shipped_by_source">Shipped by Supplier Courier</option>
+                  <option value="unfulfilled">Unfulfilled (Need to Order on DeoDap)</option>
+                  <option value="ordered_on_source">Ordered on DeoDap</option>
+                  <option value="shipped_by_source">Shipped by DeoDap / Courier</option>
                   <option value="delivered_to_customer">Delivered to Customer</option>
                 </select>
               </div>
@@ -716,7 +1106,7 @@ const AdminDropshipOrders = () => {
                 <button
                   type="button"
                   onClick={() => setFulfillModal(null)}
-                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition"
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -724,9 +1114,9 @@ const AdminDropshipOrders = () => {
                   type="button"
                   onClick={handleSaveDropshipFulfillment}
                   disabled={submittingFulfillment}
-                  className="px-5 py-2 rounded-xl bg-[#0c2a5e] hover:bg-[#153e85] text-white font-bold text-xs shadow-sm transition disabled:opacity-50"
+                  className="px-5 py-2 rounded-xl bg-[#0c2a5e] hover:bg-[#153e85] text-white font-bold text-xs shadow-sm transition disabled:opacity-50 cursor-pointer"
                 >
-                  {submittingFulfillment ? 'Saving...' : 'Save Fulfillment'}
+                  {submittingFulfillment ? 'Saving...' : 'Save DeoDap Order Info'}
                 </button>
               </div>
             </div>

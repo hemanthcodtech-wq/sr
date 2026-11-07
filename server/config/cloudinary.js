@@ -40,7 +40,20 @@ const uploadToCloudinary = async (fileBuffer, folder = 'multivendor_ecommerce', 
   });
 };
 
+/**
+ * Delete a file from Cloudinary by its public ID
+ */
+const deleteFromCloudinary = async (publicId) => {
+  if (!publicId || publicId.startsWith('mock_')) return;
+  try {
+    return await cloudinary.uploader.destroy(publicId);
+  } catch (err) {
+    console.warn('[Cloudinary Delete Error]:', err.message);
+  }
+};
+
 module.exports = {
   cloudinary,
   uploadToCloudinary,
+  deleteFromCloudinary,
 };

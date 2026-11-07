@@ -4,7 +4,7 @@ import {
   ShoppingBag,
   Package,
   Users,
-  DollarSign,
+  Wallet,
   TrendingUp,
   Clock,
   AlertTriangle,
@@ -284,7 +284,7 @@ const AdminDashboard = () => {
           <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div className="flex items-center gap-4">
               <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-300 shadow-inner flex-shrink-0">
-                <DollarSign className="w-7 h-7" />
+                <Wallet className="w-7 h-7" />
               </div>
               <div>
                 <div className="flex items-center gap-2.5 flex-wrap">
@@ -306,10 +306,10 @@ const AdminDashboard = () => {
                   AVAILABLE COMMISSION WALLET
                 </span>
                 <div className="text-2xl sm:text-3xl font-black font-mono text-emerald-300">
-                  ₹{Number(stats.adminWalletBalance || 0).toLocaleString('en-IN')}
+                  {Number(stats.adminWalletBalance || 0).toLocaleString('en-IN')}
                 </div>
                 <span className="text-[10px] text-emerald-200/80 block mt-0.5">
-                  Total Dropship Profit: ₹{Number(stats.totalDropshipCommission || 0).toLocaleString('en-IN')}
+                  Total Dropship Profit: {Number(stats.totalDropshipCommission || 0).toLocaleString('en-IN')}
                 </span>
               </div>
               <Link
@@ -327,15 +327,15 @@ const AdminDashboard = () => {
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
           {/* Card 1: Total Revenue */}
           <div className="bg-white/85 backdrop-blur-xl rounded-2xl p-4 sm:p-5 border border-slate-200/90 shadow-[0_4px_20px_rgba(12,42,94,0.04)] hover:shadow-[0_12px_30px_rgba(12,42,94,0.08)] hover:-translate-y-0.5 transition-all space-y-3">
-            <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-700 border border-purple-100 flex items-center justify-center font-black text-base shadow-2xs">
-              ₹
+            <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-700 border border-purple-100 flex items-center justify-center font-bold text-base shadow-2xs">
+              <TrendingUp className="w-5 h-5 text-purple-600" />
             </div>
             <div>
               <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block font-sans">
                 TOTAL REVENUE
               </span>
-              <div className="text-xl sm:text-2xl font-black text-slate-900 mt-0.5 tracking-tight">
-                ₹{Number(stats.totalRevenue || 0).toLocaleString('en-IN')}
+              <div className="text-xl sm:text-2xl font-black text-slate-900 mt-0.5 tracking-tight font-mono">
+                {Number(stats.totalRevenue || 0).toLocaleString('en-IN')}
               </div>
               <span className="text-[10px] text-slate-400 font-medium block mt-0.5">Sales + Plans</span>
             </div>
@@ -462,7 +462,7 @@ const AdminDashboard = () => {
             {/* Dynamic Legend */}
             <div className="flex flex-wrap items-center gap-4 text-xs font-bold pt-1">
               <span className="flex items-center gap-1.5 text-indigo-700">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#4338ca]"></span> Total Sales (₹)
+                <span className="w-2.5 h-2.5 rounded-full bg-[#4338ca]"></span> Total Sales
               </span>
               <span className="flex items-center gap-1.5 text-emerald-600">
                 <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Active Store Orders
@@ -493,16 +493,16 @@ const AdminDashboard = () => {
 
                 {/* Dynamic Y Axis Values */}
                 <text x="5" y="34" fill="#94a3b8" fontSize="9.5" fontWeight="600">
-                  ₹{Math.round(chartMetrics.maxVal).toLocaleString('en-IN')}
+                  {Math.round(chartMetrics.maxVal).toLocaleString('en-IN')}
                 </text>
                 <text x="5" y="82" fill="#94a3b8" fontSize="9.5" fontWeight="600">
-                  ₹{Math.round(chartMetrics.maxVal * 0.66).toLocaleString('en-IN')}
+                  {Math.round(chartMetrics.maxVal * 0.66).toLocaleString('en-IN')}
                 </text>
                 <text x="5" y="130" fill="#94a3b8" fontSize="9.5" fontWeight="600">
-                  ₹{Math.round(chartMetrics.maxVal * 0.33).toLocaleString('en-IN')}
+                  {Math.round(chartMetrics.maxVal * 0.33).toLocaleString('en-IN')}
                 </text>
                 <text x="25" y="179" fill="#94a3b8" fontSize="9.5" fontWeight="600">
-                  ₹0
+                  0
                 </text>
 
                 {/* Dynamic Area & Lines */}

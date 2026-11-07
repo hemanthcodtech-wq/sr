@@ -75,6 +75,24 @@ const productSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    costPrice: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    sellingPrice: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    deliveryChargeIncluded: {
+      type: Number,
+      default: 30,
+    },
+    isFreeDelivery: {
+      type: Boolean,
+      default: true,
+    },
     profitMargin: {
       type: Number,
       default: 0,
@@ -98,10 +116,77 @@ const productSchema = new mongoose.Schema(
       default: '',
       trim: true,
     },
+    // Complete DeoDap / Shopify CSV attributes
+    csvData: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {},
+    },
+    weightGrams: {
+      type: Number,
+      default: 0,
+    },
+    barcode: {
+      type: String,
+      default: '',
+    },
+    vendorName: {
+      type: String,
+      default: '',
+    },
+    productType: {
+      type: String,
+      default: '',
+    },
+    seoTitle: {
+      type: String,
+      default: '',
+    },
+    seoDescription: {
+      type: String,
+      default: '',
+    },
+    status: {
+      type: String,
+      default: 'active',
+    },
     lastSyncedAt: {
       type: Date,
       default: null,
     },
+    reviews: [
+      {
+        user: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'User',
+        },
+        name: {
+          type: String,
+          required: true,
+        },
+        rating: {
+          type: Number,
+          required: true,
+          min: 1,
+          max: 5,
+        },
+        comment: {
+          type: String,
+          required: true,
+        },
+        city: {
+          type: String,
+          default: 'Verified Buyer',
+        },
+        isVerifiedPurchase: {
+          type: Boolean,
+          default: true,
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now,
+        },
+      },
+    ],
     tags: [
       {
         type: String,

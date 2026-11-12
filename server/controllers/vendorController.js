@@ -959,26 +959,50 @@ exports.getPublicStores = async (req, res, next) => {
         { planExpiresAt: { $gt: now } },
       ],
     })
-      .select('storeName slug description category logo banner phone email address rating numReviews planExpiresAt createdAt')
+      .select('storeName slug description category logo banner phone email address rating numReviews planExpiresAt createdAt vendor')
+      .populate('vendor', 'name email phone avatar role')
       .sort({ rating: -1, createdAt: -1 })
       .lean();
 
-    // Attach product count for each active store
+    // Attach product count for each active store (matching store or vendor)
     const storeIds = stores.map((s) => s._id);
+    const vendorIds = stores.map((s) => s.vendor?._id || s.vendor).filter(Boolean);
+
     const productCounts = await Product.aggregate([
-      { $match: { store: { $in: storeIds } } },
-      { $group: { _id: '$store', count: { $sum: 1 } } },
+      {
+        $match: {
+          $or: [
+            { store: { $in: storeIds } },
+            { vendor: { $in: vendorIds } },
+          ],
+        },
+      },
+      {
+        $group: {
+          _id: { store: '$store', vendor: '$vendor' },
+          count: { $sum: 1 },
+        },
+      },
     ]);
 
     const countMap = {};
     productCounts.forEach((pc) => {
-      countMap[pc._id.toString()] = pc.count;
+      if (pc._id.store) {
+        countMap[pc._id.store.toString()] = (countMap[pc._id.store.toString()] || 0) + pc.count;
+      }
+      if (pc._id.vendor) {
+        countMap[pc._id.vendor.toString()] = (countMap[pc._id.vendor.toString()] || 0) + pc.count;
+      }
     });
 
-    const enrichedStores = stores.map((s) => ({
-      ...s,
-      productCount: countMap[s._id.toString()] || 0,
-    }));
+    const enrichedStores = stores.map((s) => {
+      const sId = s._id.toString();
+      const vId = (s.vendor?._id || s.vendor || '').toString();
+      return {
+        ...s,
+        productCount: countMap[sId] || (vId ? countMap[vId] : 0) || 0,
+      };
+    });
 
     res.status(200).json({
       success: true,
@@ -999,7 +1023,13 @@ exports.getPublicStoreByIdOrSlug = async (req, res, next) => {
     const now = new Date();
 
     if (mongoose.connection.readyState !== 1) {
-      const store = mockStores.find((s) => s._id === idOrSlug || s.slug === idOrSlug);
+      const store = mockStores.find(
+        (s) =>
+          s._id === idOrSlug ||
+          s.slug === idOrSlug ||
+          s.vendor === idOrSlug ||
+          s.vendor?._id === idOrSlug
+      );
       if (!store || (store.status !== 'active' && store.status !== 'approved')) {
         return res.status(404).json({ success: false, message: 'Official store not found or currently inactive.' });
       }
@@ -1012,7 +1042,13 @@ exports.getPublicStoreByIdOrSlug = async (req, res, next) => {
         });
       }
 
-      const products = (mockProducts || []).filter((p) => p.store === store._id || p.store?._id === store._id);
+      const vendorId = store.vendor?._id || store.vendor;
+      const products = (mockProducts || []).filter(
+        (p) =>
+          (vendorId && (p.vendor === vendorId || p.vendor?._id === vendorId)) ||
+          p.store === store._id ||
+          p.store?._id === store._id
+      );
       return res.status(200).json({
         success: true,
         store,
@@ -1021,11 +1057,19 @@ exports.getPublicStoreByIdOrSlug = async (req, res, next) => {
     }
 
     const isObjectId = mongoose.Types.ObjectId.isValid(idOrSlug);
-    const query = isObjectId
-      ? { _id: idOrSlug, status: 'active' }
-      : { slug: idOrSlug, status: 'active' };
-
-    const store = await Store.findOne(query).populate('vendor', 'name email phone avatar');
+    let store;
+    if (isObjectId) {
+      // Find store by Vendor ID OR Store _id
+      store = await Store.findOne({
+        $or: [{ vendor: idOrSlug }, { _id: idOrSlug }],
+        status: 'active',
+      }).populate('vendor', 'name email phone avatar role');
+    } else {
+      store = await Store.findOne({
+        slug: idOrSlug,
+        status: 'active',
+      }).populate('vendor', 'name email phone avatar role');
+    }
 
     if (!store) {
       return res.status(404).json({ success: false, message: 'Official store not found or currently inactive.' });
@@ -1039,7 +1083,13 @@ exports.getPublicStoreByIdOrSlug = async (req, res, next) => {
       });
     }
 
-    const products = await Product.find({ store: store._id })
+    // Show ONLY this vendor's products
+    const vendorId = store.vendor?._id || store.vendor;
+    const products = await Product.find({
+      $or: [{ vendor: vendorId }, { store: store._id }],
+    })
+      .populate('store', 'storeName logo rating numReviews')
+      .populate('vendor', 'name email role')
       .sort({ createdAt: -1 })
       .lean();
 

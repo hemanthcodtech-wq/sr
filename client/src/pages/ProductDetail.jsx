@@ -347,7 +347,7 @@ const ProductDetail = () => {
           <div className="flex items-center gap-2 text-xs">
             <span className="text-slate-500">Sold by</span>
             <Link
-              to={product.store?._id ? `/stores/${product.store._id}` : '/stores'}
+              to={product.vendor?._id ? `/stores/${product.vendor._id}` : product.vendor ? `/stores/${product.vendor}` : product.store?._id ? `/stores/${product.store._id}` : '/stores'}
               className="font-bold text-purple-700 hover:text-purple-900 hover:underline flex items-center gap-1"
             >
               <span>{storeName}</span>
@@ -508,44 +508,45 @@ const ProductDetail = () => {
                   <ShieldCheck className="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0" />
                   <div>
                     <strong className="text-slate-900 block font-bold">Secure checkout</strong>
-                    <span className="text-[11px] text-slate-500">Protected payments on RS Marketplace</span>
+                    <span className="text-[11px] text-slate-500">Protected payments on SR Marketplace</span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* ========================================================================= */}
-        {/* CUSTOMER REVIEWS & FEEDBACK CAROUSEL SECTION */}
-        {/* ========================================================================= */}
-        <section className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-2xs space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
-            <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-black uppercase tracking-wider text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200 inline-flex items-center gap-1">
-                  <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
-                  Verified Customer Reviews
-                </span>
-                <span className="text-xs text-slate-400 font-mono">
-                  ({product.reviews?.length || 0} reviews)
-                </span>
-              </div>
-              <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
-                Customer Ratings &amp; Real Feedback
-              </h3>
+      {/* ========================================================================= */}
+      {/* CUSTOMER REVIEWS & FEEDBACK CAROUSEL SECTION (Full Width Responsive) */}
+      {/* ========================================================================= */}
+      <section className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200/90 shadow-2xs space-y-6 w-full">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-black uppercase tracking-wider text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200 inline-flex items-center gap-1">
+                <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                Verified Customer Reviews
+              </span>
+              <span className="text-xs text-slate-400 font-mono">
+                ({product.reviews?.length || 0} reviews)
+              </span>
             </div>
-
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setReviewModalOpen(true)}
-                className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/15 transition cursor-pointer"
-              >
-                <MessageSquare className="w-4 h-4" />
-                <span>Write a Review</span>
-              </button>
-            </div>
+            <h3 className="text-lg sm:text-xl font-black text-slate-900 tracking-tight">
+              Customer Ratings &amp; Real Feedback
+            </h3>
           </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setReviewModalOpen(true)}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/15 transition cursor-pointer"
+            >
+              <MessageSquare className="w-4 h-4" />
+              <span>Write a Review</span>
+            </button>
+          </div>
+        </div>
 
           {/* Rating Summary Breakdown Tile */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center p-6 bg-slate-50/70 border border-slate-200 rounded-2xl">
@@ -657,7 +658,7 @@ const ProductDetail = () => {
                         {product.reviews[activeReviewIndex].name}
                       </h4>
                       <p className="text-[10px] text-slate-400">
-                        {product.reviews[activeReviewIndex].city || 'Verified Buyer'} •{' '}
+                        Verified Buyer •{' '}
                         {new Date(
                           product.reviews[activeReviewIndex].createdAt || Date.now()
                         ).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -747,10 +748,10 @@ const ProductDetail = () => {
                     />
                   </div>
                   <div className="space-y-1">
-                    <label className="text-xs font-bold text-slate-700 block">City / Town</label>
+                    <label className="text-xs font-bold text-slate-700 block">Review Title</label>
                     <input
                       type="text"
-                      placeholder="e.g. Delhi, Hyderabad"
+                      placeholder="e.g. Excellent purchase & fast delivery"
                       value={newCity}
                       onChange={(e) => setNewCity(e.target.value)}
                       className="w-full px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:border-emerald-500"
@@ -793,7 +794,6 @@ const ProductDetail = () => {
           </div>
         )}
       </div>
-    </div>
   );
 };
 

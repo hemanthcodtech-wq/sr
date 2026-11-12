@@ -7,8 +7,6 @@ import {
   ChevronRight,
   ShieldCheck,
   CreditCard,
-  Truck,
-  RotateCcw,
   Headphones,
   Sparkles,
   Store,
@@ -19,52 +17,7 @@ import Logo from './Logo';
 const Footer = () => {
   return (
     <footer className="bg-[#04101e] text-slate-300 text-xs border-t border-slate-800 select-none">
-      {/* 1. Top Value Propositions Banner */}
-      <div className="border-b border-slate-800/80 bg-[#06182c]/80 py-6 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-[1440px] mx-auto grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 flex items-center justify-center flex-shrink-0">
-              <Truck className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="font-bold text-white text-xs sm:text-sm">Fast Doorstep Delivery</p>
-              <p className="text-[10.5px] text-slate-400">Over 19,000+ pin codes covered</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center flex-shrink-0">
-              <ShieldCheck className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="font-bold text-white text-xs sm:text-sm">100% Genuine Products</p>
-              <p className="text-[10.5px] text-slate-400">Audited &amp; verified merchants</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-sky-500/15 border border-sky-500/30 text-sky-400 flex items-center justify-center flex-shrink-0">
-              <RotateCcw className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="font-bold text-white text-xs sm:text-sm">7-Day Easy Returns</p>
-              <p className="text-[10.5px] text-slate-400">Hassle-free doorstep pickup</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-500/15 border border-purple-500/30 text-purple-400 flex items-center justify-center flex-shrink-0">
-              <Headphones className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="font-bold text-white text-xs sm:text-sm">24x7 Customer Support</p>
-              <p className="text-[10.5px] text-slate-400">Instant chat &amp; phone assistance</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 2. Main Footer Navigation Columns */}
+      {/* Main Footer Navigation Columns */}
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-12">
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8">
           

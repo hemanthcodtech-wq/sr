@@ -125,16 +125,16 @@ const HeroCarousel = () => {
   const slide = activeSlides[current] || activeSlides[0];
 
   return (
-    <div className="w-full grid grid-cols-1 lg:grid-cols-12 gap-2.5 sm:gap-4 items-stretch select-none">
-      {/* Main Banner Hero Slider (Minimized height on mobile for maximum product visibility) */}
+    <div className="w-full select-none">
+      {/* Main Banner Hero Slider (Full width banner) */}
       <div
-        className="col-span-1 lg:col-span-9 relative rounded-xl sm:rounded-3xl overflow-hidden border border-amber-200/90 shadow-sm group flex flex-col justify-between"
+        className="w-full relative rounded-xl sm:rounded-3xl overflow-hidden border border-amber-200/90 shadow-sm group flex flex-col justify-between"
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => setIsPaused(false)}
       >
         {/* If Custom Cloudinary Banner Uploaded by Admin */}
         {slide?.isCustom ? (
-          <div className="relative w-full min-h-[135px] sm:min-h-[200px] md:min-h-[260px] lg:min-h-[300px] aspect-[2.4/1] sm:aspect-auto flex items-center overflow-hidden bg-slate-950">
+          <div className="relative w-full min-h-[165px] sm:min-h-[240px] md:min-h-[310px] lg:min-h-[360px] xl:min-h-[400px] flex items-center overflow-hidden bg-slate-950">
             {/* Cloudinary Background Banner Image */}
             <img
               src={slide.imageUrl}
@@ -187,9 +187,9 @@ const HeroCarousel = () => {
             )}
           </div>
         ) : (
-          /* Default Fallback Festive Banner - Minimized height on mobile */
+          /* Default Fallback Festive Banner */
           <div
-            className={`relative w-full min-h-[135px] sm:min-h-[200px] md:min-h-[260px] lg:min-h-[300px] bg-gradient-to-r ${slide.bgGradient} p-3 sm:p-6 md:p-8 flex items-center justify-between overflow-hidden transition-all duration-700`}
+            className={`relative w-full min-h-[165px] sm:min-h-[240px] md:min-h-[310px] lg:min-h-[360px] xl:min-h-[400px] bg-gradient-to-r ${slide.bgGradient} p-3 sm:p-6 md:p-8 flex items-center justify-between overflow-hidden transition-all duration-700`}
           >
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-200/40 via-transparent to-transparent pointer-events-none" />
 
@@ -288,58 +288,6 @@ const HeroCarousel = () => {
               aria-label={`Go to slide ${i + 1}`}
             />
           ))}
-        </div>
-      </div>
-
-      {/* Right Column: Desktop-only side promotion cards to prevent vertical mobile crowding */}
-      <div className="hidden lg:flex lg:col-span-3 flex-col gap-3 justify-between">
-        {/* Card 1: FOR SELLERS */}
-        <div className="flex-1 rounded-2xl bg-gradient-to-br from-[#0c5949] to-[#083e33] text-white p-4 flex flex-col justify-between shadow-xs relative overflow-hidden group">
-          <div className="space-y-1 z-10">
-            <span className="text-[9.5px] font-black uppercase tracking-wider text-emerald-300">
-              FOR SELLERS
-            </span>
-            <h3 className="text-base font-black tracking-tight leading-tight">
-              Sell on Amezon
-            </h3>
-            <p className="text-[11px] text-emerald-100/90 leading-relaxed line-clamp-2">
-              Join 50,000+ vendors. 0% commission on your first 3 months.
-            </p>
-          </div>
-
-          <div className="pt-2 z-10">
-            <Link
-              to="/vendor/pricing"
-              className="inline-block px-3.5 py-1.5 rounded-xl bg-white text-[#0c5949] hover:bg-emerald-50 text-[11px] font-black transition shadow-xs"
-            >
-              Register Free
-            </Link>
-          </div>
-        </div>
-
-        {/* Card 2: LIMITED TIME */}
-        <div className="flex-1 rounded-2xl bg-gradient-to-br from-[#dc2626] to-[#b91c1c] text-white p-4 flex flex-col justify-between shadow-xs relative overflow-hidden group">
-          <div className="space-y-1 z-10">
-            <span className="text-[9.5px] font-black uppercase tracking-wider text-amber-200">
-              LIMITED TIME
-            </span>
-            <h3 className="text-base font-black tracking-tight leading-tight flex items-center gap-1.5">
-              <span>Today's Deals</span>
-              <Flame className="w-4 h-4 text-amber-300 fill-amber-300 animate-pulse" />
-            </h3>
-            <p className="text-[11px] text-rose-100/90 leading-relaxed line-clamp-2">
-              Flash deals ending soon. Up to 70% off on trending goods.
-            </p>
-          </div>
-
-          <div className="pt-2 z-10">
-            <Link
-              to="/products"
-              className="inline-block px-3.5 py-1.5 rounded-xl bg-white text-[#dc2626] hover:bg-rose-50 text-[11px] font-black transition shadow-xs"
-            >
-              View Deals
-            </Link>
-          </div>
         </div>
       </div>
     </div>

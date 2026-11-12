@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
@@ -102,6 +102,58 @@ const categoryBgColors = [
   'bg-[#e8f5e9] border-emerald-200/60',
 ];
 
+// Verified marketplace partner stores for the stores slider
+const defaultMarketplaceStores = [
+  {
+    id: 'store_deodap',
+    name: 'DeoDap Wholesale',
+    productsCount: '240 Products',
+    logo: 'https://images.unsplash.com/photo-1472851294608-062f824d29cc?w=200&auto=format&fit=crop&q=80',
+    badge: 'DD',
+    link: '/products?search=DeoDap',
+  },
+  {
+    id: 'store_svfashion',
+    name: 'SV Fashion',
+    productsCount: '125 Products',
+    logo: 'https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=200&auto=format&fit=crop&q=80',
+    badge: 'SV',
+    link: '/products?category=Fashion',
+  },
+  {
+    id: 'store_techworld',
+    name: 'Tech World',
+    productsCount: '98 Products',
+    logo: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?w=200&auto=format&fit=crop&q=80',
+    badge: 'TW',
+    link: '/products?category=Electronics',
+  },
+  {
+    id: 'store_homeneeds',
+    name: 'Home Needs',
+    productsCount: '76 Products',
+    logo: 'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=200&auto=format&fit=crop&q=80',
+    badge: 'HN',
+    link: '/products?category=Home%20%26%20Kitchen',
+  },
+  {
+    id: 'store_beautyglow',
+    name: 'Beauty Glow Hub',
+    productsCount: '54 Products',
+    logo: 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=200&auto=format&fit=crop&q=80',
+    badge: 'BG',
+    link: '/products?category=Beauty',
+  },
+  {
+    id: 'store_urbantrends',
+    name: 'Urban Trends',
+    productsCount: '89 Products',
+    logo: 'https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=200&auto=format&fit=crop&q=80',
+    badge: 'UT',
+    link: '/products?category=Fashion',
+  },
+];
+
 const Home = () => {
   const { addToCart } = useCart();
   const { showToast } = useToast();
@@ -112,6 +164,8 @@ const Home = () => {
   const [activeCatalogTab, setActiveCatalogTab] = useState('All');
   const [activeTag, setActiveTag] = useState('All');
   const [testimonialIndex, setTestimonialIndex] = useState(0);
+  const storesContainerRef = useRef(null);
+  const [isStorePaused, setIsStorePaused] = useState(false);
   const [mobileCols, setMobileCols] = useState(() => {
     const saved = localStorage.getItem('shoppinest_catalog_cols');
     return saved ? Number(saved) : 4; // default 4 per row (or switchable to 3 per row)
@@ -205,23 +259,16 @@ const Home = () => {
     }
   };
 
-  // Top deals derived directly from database products - dynamic count matching mobile columns (3 or 4 per row)
-  const topDeals = useMemo(() => {
-    if (!products.length) return [];
-    const sorted = [...products].sort((a, b) => b.discountPercent - a.discountPercent);
-    const limit = mobileCols === 4 ? 4 : 3;
-    return sorted.slice(0, limit);
-  }, [products, mobileCols]);
-
-  // Unique categories derived dynamically from database products
+  // Unique categories derived dynamically from database products + popular categories to fill the row
   const dynamicCategories = useMemo(() => {
-    const cats = Array.from(new Set(products.map((p) => p.category).filter(Boolean)));
-    return cats.length > 0 ? cats : ['Fitness', 'Home & Kitchen', 'Toys', 'Electronics'];
+    const defaultCats = ['Home & Kitchen', 'Electronics', 'Fashion', 'Beauty', 'Toys', 'Fitness', 'Footwear'];
+    const dbCats = Array.from(new Set(products.map((p) => p.category).filter(Boolean)));
+    return Array.from(new Set([...dbCats, ...defaultCats]));
   }, [products]);
 
-  // Circular categories for Section 2 (Compact size on mobile)
+  // Circular categories for Section 2 (Comfortable, balanced spacing)
   const circleCategories = useMemo(() => {
-    return dynamicCategories.slice(0, 8).map((catName, idx) => ({
+    return dynamicCategories.slice(0, 7).map((catName, idx) => ({
       id: `cat_${idx}`,
       name: catName,
       query: catName,
@@ -230,29 +277,75 @@ const Home = () => {
     }));
   }, [dynamicCategories]);
 
-  // Derived vendors from DB stores or unique vendor names from DB products
+  // Derived vendors from DB stores + verified marketplace stores
   const displayVendors = useMemo(() => {
+    const list = [];
+
+    // 1. Add active DB stores first
     if (stores.length > 0) {
-      return stores.map((s, idx) => ({
-        id: s._id,
-        name: s.storeName,
-        productsCount: `${s.productCount || products.length} Products`,
-        logo: s.logo || 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=200&auto=format&fit=crop&q=80',
-        badge: s.storeName.substring(0, 2).toUpperCase(),
-        link: `/stores/${s.slug || s._id}`,
-      }));
+      stores.forEach((s) => {
+        const vendorId = s.vendor?._id || s.vendor || s._id;
+        list.push({
+          id: s._id,
+          name: s.storeName,
+          productsCount: `${s.productCount || products.length} Products`,
+          logo: s.logo || 'https://images.unsplash.com/photo-1544717305-2782549b5136?w=200&auto=format&fit=crop&q=80',
+          badge: s.storeName.substring(0, 2).toUpperCase(),
+          link: `/stores/${vendorId}`,
+        });
+      });
     }
 
-    const uniqueVendors = Array.from(new Set(products.map((p) => p.vendorName).filter(Boolean)));
-    return uniqueVendors.slice(0, 6).map((vName, idx) => ({
-      id: `vendor_${idx}`,
-      name: vName,
-      productsCount: `${products.filter((p) => p.vendorName === vName).length} Products`,
-      badge: vName.substring(0, 2).toUpperCase(),
-      logo: null,
-      link: `/products?search=${encodeURIComponent(vName)}`,
-    }));
+    // 2. Add verified marketplace stores to ensure a smooth, continuous slider
+    defaultMarketplaceStores.forEach((partner) => {
+      if (!list.some((existing) => existing.name.toLowerCase() === partner.name.toLowerCase())) {
+        list.push(partner);
+      }
+    });
+
+    return list;
   }, [stores, products]);
+
+  // Infinite looping vendors list for seamless, continuous smooth scrolling
+  const infiniteVendors = useMemo(() => {
+    if (!displayVendors.length) return [];
+    return [...displayVendors, ...displayVendors];
+  }, [displayVendors]);
+
+  // Continuous silky smooth auto-scroll for Verified Marketplace Stores
+  useEffect(() => {
+    const el = storesContainerRef.current;
+    if (!el || isStorePaused || !infiniteVendors || infiniteVendors.length <= 1) return;
+
+    let animId;
+    let lastTime = performance.now();
+    const speed = 1.4; // increased scrolling speed (~85-90px per second)
+
+    const scrollLoop = (now) => {
+      const delta = (now - lastTime) / 16.67;
+      lastTime = now;
+
+      if (!isStorePaused && el) {
+        const halfWidth = el.scrollWidth / 2;
+        if (halfWidth > 0 && el.scrollLeft >= halfWidth) {
+          // Seamless wrapping without any visual jump
+          el.scrollLeft = el.scrollLeft - halfWidth;
+        } else if (el.scrollLeft + el.clientWidth >= el.scrollWidth - 2) {
+          el.scrollLeft = 0;
+        } else {
+          el.scrollLeft += speed * Math.min(delta, 2);
+        }
+      }
+
+      animId = requestAnimationFrame(scrollLoop);
+    };
+
+    animId = requestAnimationFrame(scrollLoop);
+
+    return () => {
+      if (animId) cancelAnimationFrame(animId);
+    };
+  }, [isStorePaused, infiniteVendors]);
 
   // Filter products by category & tag
   const filteredProducts = useMemo(() => {
@@ -278,17 +371,17 @@ const Home = () => {
         <HeroCarousel />
       </section>
 
-      {/* 2. Circular Category Bubbles (Compact height on mobile) */}
+      {/* 2. Circular Category Bubbles (Centered with comfortable spacing, eliminating wide empty gaps) */}
       <section className="w-full">
-        <div className="flex items-start gap-2 sm:gap-4 overflow-x-auto scrollbar-none pb-1 pt-0.5 px-0.5 lg:justify-between">
+        <div className="flex items-start justify-start md:justify-center gap-3 sm:gap-6 md:gap-8 lg:gap-10 overflow-x-auto scrollbar-none pb-1.5 pt-1 px-1">
           {circleCategories.map((cat) => (
             <Link
               key={cat.id}
               to={`/products?category=${encodeURIComponent(cat.query)}`}
-              className="flex flex-col items-center flex-shrink-0 group text-center w-[58px] sm:w-[76px] md:w-[86px]"
+              className="flex flex-col items-center flex-shrink-0 group text-center w-[60px] sm:w-[76px] md:w-[86px]"
             >
               <div
-                className={`w-11 h-11 sm:w-15 sm:h-15 md:w-17 md:h-17 rounded-full ${cat.bgColor} border flex items-center justify-center p-1 sm:p-1.5 shadow-2xs group-hover:scale-108 active:scale-95 transition-all duration-200 overflow-hidden bg-slate-50`}
+                className={`w-12 h-12 sm:w-15 sm:h-15 md:w-17 md:h-17 rounded-full ${cat.bgColor} border flex items-center justify-center p-1 sm:p-1.5 shadow-2xs group-hover:scale-108 active:scale-95 transition-all duration-200 overflow-hidden bg-slate-50`}
               >
                 <img
                   src={cat.img}
@@ -301,7 +394,7 @@ const Home = () => {
                   }}
                 />
               </div>
-              <span className="text-[9.5px] sm:text-xs font-semibold text-slate-800 group-hover:text-[#0f8a48] mt-0.5 leading-tight line-clamp-2 px-0.5 transition-colors">
+              <span className="text-[10px] sm:text-xs font-semibold text-slate-800 group-hover:text-[#0f8a48] mt-1 leading-tight line-clamp-2 px-0.5 transition-colors">
                 {cat.name}
               </span>
             </Link>
@@ -310,19 +403,19 @@ const Home = () => {
           {/* More Categories Bubble */}
           <Link
             to="/products"
-            className="flex flex-col items-center flex-shrink-0 group text-center w-[58px] sm:w-[76px] md:w-[86px]"
+            className="flex flex-col items-center flex-shrink-0 group text-center w-[60px] sm:w-[76px] md:w-[86px]"
           >
-            <div className="w-11 h-11 sm:w-15 sm:h-15 md:w-17 md:h-17 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center p-1.5 shadow-2xs group-hover:scale-108 active:scale-95 transition-all">
+            <div className="w-12 h-12 sm:w-15 sm:h-15 md:w-17 md:h-17 rounded-full bg-slate-100 border border-slate-200 flex items-center justify-center p-1.5 shadow-2xs group-hover:scale-108 active:scale-95 transition-all">
               <LayoutGrid className="w-4 h-4 sm:w-5 sm:h-5 text-slate-700 group-hover:text-[#0f8a48] transition-colors" />
             </div>
-            <span className="text-[9.5px] sm:text-xs font-semibold text-slate-800 group-hover:text-[#0f8a48] mt-0.5 leading-tight line-clamp-2 px-0.5">
+            <span className="text-[10px] sm:text-xs font-semibold text-slate-800 group-hover:text-[#0f8a48] mt-1 leading-tight line-clamp-2 px-0.5">
               All Items
             </span>
           </Link>
         </div>
       </section>
 
-      {/* 3. Featured Vendors Section (Compact on mobile) */}
+      {/* 3. Featured Vendors Section - Automatic Scrollable Slider */}
       {displayVendors.length > 0 && (
         <section className="space-y-1.5">
           <div className="flex items-center justify-between px-1">
@@ -330,22 +423,54 @@ const Home = () => {
               <StoreIcon className="w-3.5 h-3.5 text-[#0f8a48]" />
               <span>Verified Marketplace Stores</span>
             </h2>
-            <Link
-              to="/stores"
-              className="text-[10.5px] sm:text-xs font-bold text-[#0f8a48] hover:text-[#0c723b] hover:underline flex items-center gap-0.5 transition"
-            >
-              <span>View All</span>
-              <ArrowRight className="w-3 h-3" />
-            </Link>
+
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  storesContainerRef.current?.scrollBy({ left: -140, behavior: 'smooth' });
+                }}
+                className="w-5.5 h-5.5 sm:w-6.5 sm:h-6.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 flex items-center justify-center transition shadow-2xs cursor-pointer active:scale-95"
+                title="Scroll Left"
+                aria-label="Previous Stores"
+              >
+                <ChevronLeft className="w-3 h-3" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  storesContainerRef.current?.scrollBy({ left: 140, behavior: 'smooth' });
+                }}
+                className="w-5.5 h-5.5 sm:w-6.5 sm:h-6.5 rounded-full border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 flex items-center justify-center transition shadow-2xs cursor-pointer active:scale-95"
+                title="Scroll Right"
+                aria-label="Next Stores"
+              >
+                <ChevronRight className="w-3 h-3" />
+              </button>
+              <Link
+                to="/stores"
+                className="text-[10.5px] sm:text-xs font-bold text-[#0f8a48] hover:text-[#0c723b] hover:underline flex items-center gap-0.5 transition ml-1"
+              >
+                <span>View All</span>
+                <ArrowRight className="w-3 h-3" />
+              </Link>
+            </div>
           </div>
 
-          <div className="flex items-stretch gap-1.5 sm:gap-3 overflow-x-auto scrollbar-none pb-1 pt-0.5 px-0.5 lg:grid lg:grid-cols-6 lg:overflow-visible">
-            {displayVendors.map((vendor) => (
+          <div
+            ref={storesContainerRef}
+            onMouseEnter={() => setIsStorePaused(true)}
+            onMouseLeave={() => setIsStorePaused(false)}
+            onTouchStart={() => setIsStorePaused(true)}
+            onTouchEnd={() => setIsStorePaused(false)}
+            className="flex items-stretch gap-2 sm:gap-3 overflow-x-auto scrollbar-none pb-1 pt-0.5 px-0.5 select-none"
+          >
+            {infiniteVendors.map((vendor, idx) => (
               <div
-                key={vendor.id}
-                className="bg-white rounded-lg sm:rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-sm transition-all duration-200 p-1.5 sm:p-3 flex flex-col items-center justify-between text-center flex-shrink-0 w-[84px] sm:w-[130px] lg:w-full group"
+                key={`${vendor.id}-${idx}`}
+                className="bg-white rounded-lg sm:rounded-2xl border border-slate-200/90 shadow-2xs hover:shadow-sm transition-all duration-200 p-2 sm:p-3 flex flex-col items-center justify-between text-center flex-shrink-0 w-[95px] sm:w-[135px] group"
               >
-                <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-slate-900 text-amber-400 border border-slate-200 flex items-center justify-center font-black shadow-xs mb-1 group-hover:scale-108 transition-transform overflow-hidden">
+                <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-full bg-slate-900 text-amber-400 border border-slate-200 flex items-center justify-center font-black shadow-xs mb-1 group-hover:scale-108 transition-transform overflow-hidden">
                   {vendor.logo ? (
                     <img src={vendor.logo} alt={vendor.name} className="w-full h-full object-cover" />
                   ) : (
@@ -356,17 +481,17 @@ const Home = () => {
                   )}
                 </div>
 
-                <h3 className="text-[9.5px] sm:text-xs font-bold text-slate-900 line-clamp-1 group-hover:text-[#0f8a48] transition-colors leading-tight">
+                <h3 className="text-[10px] sm:text-xs font-bold text-slate-900 line-clamp-1 group-hover:text-[#0f8a48] transition-colors leading-tight">
                   {vendor.name}
                 </h3>
 
-                <p className="text-[8px] sm:text-[10px] text-slate-500 mt-0.5 mb-1">
+                <p className="text-[8.5px] sm:text-[10px] text-slate-500 mt-0.5 mb-1.5">
                   {vendor.productsCount}
                 </p>
 
                 <Link
                   to={vendor.link}
-                  className="w-full py-0.5 px-1.5 rounded-md sm:rounded-full bg-[#0f8a48] hover:bg-[#0c723b] active:scale-95 text-white font-bold text-[8px] sm:text-xs transition-all shadow-xs text-center"
+                  className="w-full py-1 px-2 rounded-md sm:rounded-full bg-[#0f8a48] hover:bg-[#0c723b] active:scale-95 text-white font-bold text-[8.5px] sm:text-xs transition-all shadow-xs text-center"
                 >
                   Visit Shop
                 </Link>
@@ -376,151 +501,7 @@ const Home = () => {
         </section>
       )}
 
-      {/* 4. Top Deals from Vendors Section
-          Ultra-compact dense grid matching mobileCols (3 or 4 per row, no cut-off) */}
-      <section className="space-y-1.5">
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-1.5">
-            <Flame className="w-3.5 h-3.5 text-rose-600 fill-rose-500 animate-pulse" />
-            <h2 className="text-xs sm:text-base font-black text-slate-900 tracking-tight">
-              Top Deals from Vendors
-            </h2>
-          </div>
-          <Link
-            to="/products"
-            className="text-[10.5px] sm:text-xs font-bold text-[#0f8a48] hover:text-[#0c723b] hover:underline flex items-center gap-0.5 transition"
-          >
-            <span>View All</span>
-            <ArrowRight className="w-3 h-3" />
-          </Link>
-        </div>
-
-        {loading ? (
-          <div className={`grid ${mobileCols === 4 ? 'grid-cols-4' : 'grid-cols-3'} sm:grid-cols-4 md:grid-cols-4 gap-1 sm:gap-2`}>
-            {[1, 2, 3, 4].map((n) => (
-              <div key={n} className="h-28 sm:h-36 bg-slate-100 rounded-lg animate-pulse" />
-            ))}
-          </div>
-        ) : (
-          <div className={`grid ${mobileCols === 4 ? 'grid-cols-4' : 'grid-cols-3'} sm:grid-cols-4 md:grid-cols-4 gap-1 sm:gap-2 pt-0.5`}>
-            {topDeals.map((product) => (
-              <div
-                key={product._id}
-                className="bg-white rounded-md sm:rounded-xl border border-slate-200/90 shadow-2xs hover:shadow-xs transition-all duration-200 p-1 sm:p-2 flex flex-col justify-between group"
-              >
-                {/* Vendor Pill & Discount Badge */}
-                <div className="flex items-center justify-between gap-0.5 w-full mb-0.5 leading-none">
-                  <span className="text-[6.5px] sm:text-[7.5px] font-bold text-slate-500 bg-slate-50 border border-slate-100 px-0.5 py-0.2 rounded truncate max-w-[50%]">
-                    {product.vendorName}
-                  </span>
-
-                  {product.discountPercent > 0 && (
-                    <span className="bg-[#e11d48] text-white text-[6.5px] sm:text-[7.5px] font-black px-1 py-0.2 rounded leading-none flex-shrink-0">
-                      {product.discountPercent}% OFF
-                    </span>
-                  )}
-                </div>
-
-                {/* Product Image: Compact fixed height on mobile */}
-                <div className="w-full h-14 sm:h-20 md:h-24 overflow-hidden rounded bg-[#f8fafc] flex items-center justify-center p-0.5 mb-0.5">
-                  <Link to={`/products/${product._id}`} className="w-full h-full flex items-center justify-center">
-                    <img
-                      src={product.image}
-                      alt={product.title}
-                      className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300 filter drop-shadow-xs"
-                      loading="lazy"
-                      onError={(e) => {
-                        e.currentTarget.onerror = null;
-                        e.currentTarget.src = categoryImages[product.category] || '/logo.png';
-                      }}
-                    />
-                  </Link>
-                </div>
-
-                {/* Info & Price */}
-                <div className="space-y-0.5 mb-0.5 flex-1 flex flex-col justify-between">
-                  <Link
-                    to={`/products/${product._id}`}
-                    className="text-[8px] sm:text-[10px] font-semibold text-slate-900 hover:text-[#0f8a48] line-clamp-1 transition block leading-tight h-3 sm:h-3.5"
-                    title={product.title}
-                  >
-                    {product.title}
-                  </Link>
-
-                  <div className="flex items-baseline gap-0.5 pt-0.5 leading-none">
-                    <span className="text-[9.5px] sm:text-xs font-black text-[#0f8a48]">
-                      ₹{product.discountPrice.toLocaleString('en-IN')}
-                    </span>
-                    {product.price > product.discountPrice && (
-                      <span className="text-[6.5px] sm:text-[8px] text-slate-400 line-through font-medium hidden xs:inline">
-                        ₹{product.price.toLocaleString('en-IN')}
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Compact Add to Cart Button */}
-                <button
-                  type="button"
-                  onClick={() => handleQuickAdd(product)}
-                  className="w-full h-4.5 sm:h-6 rounded bg-[#0f8a48] hover:bg-[#0c723b] active:scale-95 text-white text-[7px] sm:text-[9.5px] font-bold flex items-center justify-center gap-0.5 transition cursor-pointer shadow-2xs mt-0.5"
-                >
-                  <ShoppingCart className="w-2 h-2 sm:w-2.5 sm:h-2.5 flex-shrink-0" />
-                  <span className="sm:hidden">{mobileCols === 4 ? 'Add' : 'Add to Cart'}</span>
-                  <span className="hidden sm:inline">Add to Cart</span>
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      {/* 5. Trust Badges Banner (Compact height) */}
-      <section className="w-full rounded-xl sm:rounded-2xl overflow-hidden shadow-xs bg-gradient-to-r from-[#06182c] via-[#0b2b4f] to-[#041424] text-white p-2.5 sm:p-4 border border-slate-800">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-4 items-center">
-          <div className="flex items-center gap-2 p-1">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center flex-shrink-0 text-emerald-300">
-              <Truck className="w-3.5 h-3.5" />
-            </div>
-            <div>
-              <p className="text-[11px] sm:text-xs font-extrabold text-white">Free Delivery</p>
-              <p className="text-[8.5px] sm:text-[10px] text-slate-300">On all marketplace orders</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 p-1">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-400/30 flex items-center justify-center flex-shrink-0 text-amber-300">
-              <ShieldCheck className="w-3.5 h-3.5" />
-            </div>
-            <div>
-              <p className="text-[11px] sm:text-xs font-extrabold text-white">100% Genuine</p>
-              <p className="text-[8.5px] sm:text-[10px] text-slate-300">Verified factory sellers</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 p-1">
-            <div className="w-8 h-8 rounded-lg bg-blue-500/20 border border-blue-400/30 flex items-center justify-center flex-shrink-0 text-blue-300">
-              <ShieldCheck className="w-3.5 h-3.5" />
-            </div>
-            <div>
-              <p className="text-[11px] sm:text-xs font-extrabold text-white">Secure Payments</p>
-              <p className="text-[8.5px] sm:text-[10px] text-slate-300">Razorpay 256-bit SSL</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 p-1">
-            <div className="w-8 h-8 rounded-lg bg-purple-500/20 border border-purple-400/30 flex items-center justify-center flex-shrink-0 text-purple-300">
-              <Headphones className="w-3.5 h-3.5" />
-            </div>
-            <div>
-              <p className="text-[11px] sm:text-xs font-extrabold text-white">24/7 Support</p>
-              <p className="text-[8.5px] sm:text-[10px] text-slate-300">Quick seller assistance</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* 6. Promotional Category Highlights (Compact banners on mobile) */}
+      {/* 5. Promotional Category Highlights (Compact banners on mobile) */}
       <section className="grid grid-cols-1 md:grid-cols-2 gap-2 sm:gap-4">
         <div className="rounded-xl sm:rounded-2xl bg-gradient-to-r from-amber-50 to-orange-100/70 p-3 sm:p-5 border border-amber-200/80 flex items-center justify-between shadow-2xs relative overflow-hidden group">
           <div className="space-y-1 z-10 max-w-[65%]">

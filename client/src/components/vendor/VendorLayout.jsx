@@ -479,7 +479,7 @@ const VendorLayout = ({
                   </button>
                   {store?._id && (
                     <Link
-                      to={`/store/${store._id}`}
+                      to={`/stores/${store.vendor?._id || store.vendor || store._id}`}
                       target="_blank"
                       className="p-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 hover:text-[#0c2a5e] hover:bg-slate-50 transition cursor-pointer shadow-2xs"
                       title="View Public Storefront"

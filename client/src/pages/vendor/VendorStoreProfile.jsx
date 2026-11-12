@@ -197,7 +197,7 @@ const VendorStoreProfile = () => {
       actions={
         store?._id && (
           <Link
-            to={`/store/${store._id}`}
+            to={`/stores/${store.vendor?._id || store.vendor || store._id}`}
             target="_blank"
             className="px-4 py-2 rounded-2xl bg-white border border-slate-200/90 text-slate-700 hover:bg-slate-50 font-bold text-xs flex items-center gap-1.5 shadow-2xs transition"
           >

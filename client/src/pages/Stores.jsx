@@ -185,11 +185,11 @@ const Stores = () => {
                     {store.description || 'Verified merchant storefront operating under active marketplace standards.'}
                   </p>
 
-                  {/* Location & Status */}
-                  <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[9px] sm:text-[10px] text-slate-400">
-                    <span className="flex items-center gap-0.5 truncate max-w-[65%]">
-                      <MapPin className="w-2.5 h-2.5 text-slate-400 shrink-0" />
-                      <span className="truncate">{store.address?.city || 'Bhimavaram'}, {store.address?.state || 'AP'}</span>
+                  {/* Status & Trust */}
+                  <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[9px] sm:text-[10px]">
+                    <span className="flex items-center gap-1 text-emerald-700 font-semibold truncate">
+                      <ShieldCheck className="w-3 h-3 text-emerald-600 shrink-0" />
+                      <span>Verified Merchant</span>
                     </span>
                     <span className="font-bold text-emerald-700 shrink-0">Official</span>
                   </div>
@@ -199,7 +199,7 @@ const Stores = () => {
               {/* Action Button */}
               <div className="p-2.5 sm:p-3.5 pt-0">
                 <Link
-                  to={`/stores/${store._id}`}
+                  to={`/stores/${store.vendor?._id || store.vendor || store._id}`}
                   className="w-full py-1.5 sm:py-2 px-2 rounded-xl bg-[#0f8a48] hover:bg-[#0c723b] active:scale-95 text-white font-bold text-[10px] sm:text-xs flex items-center justify-center gap-1 transition cursor-pointer shadow-xs"
                 >
                   <span>Visit Shop</span>

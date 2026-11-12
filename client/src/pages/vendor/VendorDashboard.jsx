@@ -172,7 +172,7 @@ const VendorDashboard = () => {
             <div className="flex items-center gap-2 shrink-0">
               {storeData?.store?._id && (
                 <Link
-                  to={`/store/${storeData.store._id}`}
+                  to={`/stores/${storeData.store.vendor?._id || storeData.store.vendor || storeData.store._id}`}
                   target="_blank"
                   className="px-3.5 py-2 rounded-2xl bg-white/90 backdrop-blur-md border border-slate-200/90 hover:bg-white text-slate-800 font-bold text-xs flex items-center gap-1.5 shadow-2xs transition"
                 >

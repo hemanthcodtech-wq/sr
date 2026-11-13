@@ -82,7 +82,7 @@ const VendorPromote = () => {
   const handleShareWhatsApp = (product) => {
     const link = product.promoLink || `${window.location.origin}/products/${product._id}?refVendor=${user?._id}`;
     const text = encodeURIComponent(
-      `🔥 Special Offer! Check out "${product.title}" on Amezon.online for just ₹${product.sellingPrice}!\n\nBuy now securely here:\n${link}`
+      `🔥 Special Offer! Check out "${product.title}" on SR Marketplace for just ₹${product.sellingPrice}!\n\nBuy now securely here:\n${link}`
     );
     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
   };

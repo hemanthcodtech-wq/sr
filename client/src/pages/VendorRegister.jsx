@@ -145,9 +145,9 @@ const VendorRegister = () => {
     address: {
       street: '',
       landmark: '',
-      city: 'Bhimavaram',
+      city: '',
       state: 'Andhra Pradesh',
-      zipCode: '534201',
+      zipCode: '',
       country: 'India',
     },
     documents: {
@@ -193,8 +193,12 @@ const VendorRegister = () => {
             phone: res.data.store.phone || user?.phone || prev.phone,
             email: res.data.store.email || user?.email || prev.email,
             address: {
-              ...prev.address,
-              ...(res.data.store.address || {}),
+              street: res.data.store.address?.street || prev.address?.street || '',
+              landmark: res.data.store.address?.landmark || prev.address?.landmark || '',
+              city: res.data.store.address?.city || prev.address?.city || '',
+              state: res.data.store.address?.state || prev.address?.state || 'Andhra Pradesh',
+              zipCode: res.data.store.address?.zipCode || res.data.store.address?.pincode || prev.address?.zipCode || '',
+              country: res.data.store.address?.country || 'India',
             },
             documents: {
               ...prev.documents,
@@ -205,8 +209,11 @@ const VendorRegister = () => {
               panDocument: res.data.store.documents?.panDocument || user?.panDocument || prev.documents.panDocument,
             },
             bankDetails: {
-              ...prev.bankDetails,
-              ...(res.data.store.bankDetails || {}),
+              accountHolder: res.data.store.bankDetails?.accountHolder || user?.name || prev.bankDetails?.accountHolder || '',
+              bankName: res.data.store.bankDetails?.bankName || prev.bankDetails?.bankName || 'State Bank of India',
+              accountNumber: res.data.store.bankDetails?.accountNumber || prev.bankDetails?.accountNumber || '',
+              ifscCode: res.data.store.bankDetails?.ifscCode || prev.bankDetails?.ifscCode || '',
+              upiId: res.data.store.bankDetails?.upiId || prev.bankDetails?.upiId || '',
             },
           }));
           if (res.data.store.bankDetails?.accountNumber) {
@@ -269,17 +276,17 @@ const VendorRegister = () => {
     setConfirmAccountNumber(demoAcc);
     setFormData((prev) => ({
       ...prev,
-      storeName: 'Royal Electronics & Spares',
-      category: 'Electronics',
-      description: 'Authorized retailer of genuine electronic components, smartphones, accessories, and replacement spare parts with manufacturer warranty.',
+      storeName: prev.storeName || 'Royal Electronics & Spares',
+      category: prev.category || 'Electronics',
+      description: prev.description || 'Authorized retailer of genuine electronic components, smartphones, accessories, and replacement spare parts with manufacturer warranty.',
       phone: prev.phone || user?.phone || '9876543210',
-      alternatePhone: '9848012345',
+      alternatePhone: prev.alternatePhone || '9848012345',
       address: {
-        street: 'Shop 14, Commercial Market Complex, Main Bazaar',
-        landmark: 'Opposite Clock Tower Junction',
-        city: 'Bhimavaram',
-        state: 'Andhra Pradesh',
-        zipCode: '534201',
+        street: prev.address?.street || 'Shop 14, Commercial Market Complex, Main Bazaar',
+        landmark: prev.address?.landmark || 'Opposite Clock Tower Junction',
+        city: prev.address?.city || 'Kalidindi',
+        state: prev.address?.state || 'Andhra Pradesh',
+        zipCode: prev.address?.zipCode || '521344',
         country: 'India',
       },
       documents: {
@@ -290,8 +297,8 @@ const VendorRegister = () => {
         panDocument: prev.documents?.panDocument || user?.panDocument || 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c',
       },
       bankDetails: {
-        accountHolder: user?.name || 'Raju Merchant',
-        bankName: 'State Bank of India',
+        accountHolder: prev.bankDetails?.accountHolder || user?.name || 'Raju Merchant',
+        bankName: prev.bankDetails?.bankName || 'State Bank of India',
         accountNumber: demoAcc,
         ifscCode: 'SBIN0001234',
         upiId: 'merchant@oksbi',
@@ -302,44 +309,76 @@ const VendorRegister = () => {
 
   // 1. Validate Store & Bank Form Fields
   const validateStoreDetails = () => {
-    if (!formData.storeName.trim()) {
+    if (!formData.storeName?.trim()) {
       error('Please enter your store name');
       return false;
     }
 
-    if (!formData.phone.trim()) {
+    if (!formData.phone?.trim()) {
       error('Please provide a business contact phone number');
       return false;
     }
 
-    if (
-      !formData.address.street.trim() ||
-      !formData.address.city.trim() ||
-      !formData.address.state.trim() ||
-      !formData.address.zipCode.trim()
-    ) {
-      error('Please complete all physical address fields (Street, City, State, PIN Code)');
+    const street = (formData.address?.street || '').trim();
+    const city = (formData.address?.city || '').trim();
+    const state = (formData.address?.state || 'Andhra Pradesh').trim();
+    const zipCode = (formData.address?.zipCode || formData.address?.pincode || formData.address?.pinCode || '').trim();
+
+    if (!street) {
+      error('Please enter your shop, building, or street address');
       return false;
     }
 
-    if (
-      !formData.bankDetails.accountHolder.trim() ||
-      !formData.bankDetails.bankName.trim() ||
-      !formData.bankDetails.accountNumber.trim() ||
-      !formData.bankDetails.ifscCode.trim()
-    ) {
-      error('Please fill in all mandatory settlement bank account details');
+    if (!city) {
+      error('Please enter your city or town');
       return false;
     }
 
-    if (formData.bankDetails.accountNumber.trim() !== confirmAccountNumber.trim()) {
+    if (!state) {
+      error('Please select your state');
+      return false;
+    }
+
+    if (!zipCode || zipCode.length < 6) {
+      error('Please enter a valid 6-digit PIN code');
+      return false;
+    }
+
+    // Ensure state is normalized in formData if it was empty
+    if (!formData.address?.state) {
+      setFormData((prev) => ({
+        ...prev,
+        address: { ...prev.address, state: state || 'Andhra Pradesh' },
+      }));
+    }
+
+    const accountHolder = (formData.bankDetails?.accountHolder || '').trim();
+    const bankName = (formData.bankDetails?.bankName || 'State Bank of India').trim();
+    const accountNumber = (formData.bankDetails?.accountNumber || '').trim();
+    const ifscCode = (formData.bankDetails?.ifscCode || '').trim().toUpperCase();
+
+    if (!accountHolder) {
+      error('Please enter the settlement bank account holder name');
+      return false;
+    }
+
+    if (!bankName) {
+      error('Please select your settlement bank');
+      return false;
+    }
+
+    if (!accountNumber) {
+      error('Please enter your settlement bank account number');
+      return false;
+    }
+
+    if (accountNumber !== confirmAccountNumber.trim()) {
       error('Bank account numbers do not match. Please verify.');
       return false;
     }
 
-    const cleanIfsc = formData.bankDetails.ifscCode.trim().toUpperCase();
-    if (cleanIfsc.length !== 11) {
-      error('IFSC code must be exactly 11 characters (e.g. SBIN0001234)');
+    if (ifscCode.length !== 11) {
+      error('Bank IFSC code must be exactly 11 characters (e.g. SBIN0001234)');
       return false;
     }
 
@@ -360,13 +399,28 @@ const VendorRegister = () => {
 
     setSubmitting(true);
     try {
-      const cleanIfsc = formData.bankDetails.ifscCode.trim().toUpperCase();
+      const street = (formData.address?.street || '').trim();
+      const city = (formData.address?.city || '').trim();
+      const state = (formData.address?.state || 'Andhra Pradesh').trim();
+      const zipCode = (formData.address?.zipCode || formData.address?.pincode || formData.address?.pinCode || '').trim();
+      const cleanIfsc = (formData.bankDetails?.ifscCode || '').trim().toUpperCase();
+      const bankName = (formData.bankDetails?.bankName || 'State Bank of India').trim();
+
       const payload = {
         ...formData,
         phone: formData.phone.trim(),
         planId: selectedPlan?._id || undefined,
+        address: {
+          ...formData.address,
+          street,
+          city,
+          state,
+          zipCode,
+          country: 'India',
+        },
         bankDetails: {
           ...formData.bankDetails,
+          bankName,
           accountNumber: formData.bankDetails.accountNumber.trim(),
           ifscCode: cleanIfsc,
         },
@@ -418,7 +472,7 @@ const VendorRegister = () => {
           key: razorpayKeyId,
           amount: order.amount,
           currency: 'INR',
-          name: 'Amezon.online Vendor Enrollment',
+          name: 'SR Marketplace Vendor Enrollment',
           description: selectedPlan ? `${selectedPlan.title} (${selectedPlan.durationDays} Days)` : `Store Enrollment Plan (${planDurationDays} Days)`,
           image: '/favicon.svg',
           order_id: order.id,
@@ -961,7 +1015,7 @@ const VendorRegister = () => {
                   id="store-city-input"
                   name="city"
                   required
-                  placeholder="e.g. Bhimavaram"
+                  placeholder="e.g. City Name"
                   value={formData.address.city}
                   onChange={handleAddressChange}
                   className="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
@@ -974,7 +1028,7 @@ const VendorRegister = () => {
                   name="state"
                   id="store-state-input"
                   required
-                  value={formData.address.state}
+                  value={formData.address.state || 'Andhra Pradesh'}
                   onChange={handleAddressChange}
                   className="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
                 >
@@ -994,7 +1048,7 @@ const VendorRegister = () => {
                   name="zipCode"
                   required
                   maxLength={6}
-                  placeholder="e.g. 534201"
+                  placeholder="e.g. 521344"
                   value={formData.address.zipCode}
                   onChange={handleAddressChange}
                   className="w-full px-3 py-2.5 text-sm font-mono bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
@@ -1035,7 +1089,7 @@ const VendorRegister = () => {
                 <select
                   name="bankName"
                   id="bank-name-input"
-                  value={formData.bankDetails.bankName}
+                  value={formData.bankDetails.bankName || 'State Bank of India'}
                   onChange={handleBankChange}
                   className="w-full px-3 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
                 >

@@ -90,6 +90,25 @@ const AdminVendorDetail = () => {
     }
   };
 
+  const handleUpdateCatalogAccess = async (actionStatus) => {
+    const storeId = vendorData?.store?._id || id;
+    try {
+      setProcessingAction(true);
+      const res = await api.put(`/admin/vendors/${storeId}/catalog-access`, {
+        status: actionStatus,
+        adminNotes: adminNotes || (actionStatus === 'approved' ? 'Admin Catalog sourcing permission granted.' : 'Access revoked.'),
+      });
+      if (res.data?.success) {
+        success(res.data.message || `Catalog access ${actionStatus}`);
+        fetchVendorDetails();
+      }
+    } catch (err) {
+      error(err.response?.data?.message || 'Failed to update catalog access');
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
   if (loading) {
     return (
       <AdminLayout title="Vendor Details" subtitle="Loading vendor record...">
@@ -129,19 +148,19 @@ const AdminVendorDetail = () => {
       subtitle={`Vendor Full Profile & Dossier • ${store.category || 'Retail'}`}
       onRefresh={fetchVendorDetails}
     >
-      <div className="space-y-6 pb-12 animate-fadeIn">
+      <div className="space-y-4 sm:space-y-6 pb-12 animate-fadeIn">
         {/* Navigation Breadcrumb / Top Bar */}
-        <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <Link
             to="/admin/vendors"
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold transition shadow-2xs"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 text-xs font-bold transition shadow-2xs w-fit"
           >
             <ArrowLeft className="w-4 h-4 text-slate-500" />
             <span>Back to All Vendors</span>
           </Link>
 
-          <div className="flex items-center gap-2">
-            <span className={`px-3 py-1 rounded-full text-xs font-black inline-flex items-center gap-1.5 border ${
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <span className={`px-3 py-1.5 rounded-full text-xs font-black inline-flex items-center gap-1.5 border shadow-2xs ${
               store.status === 'active'
                 ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                 : store.status === 'pending' || store.status === 'pending_admin_approval'
@@ -154,7 +173,7 @@ const AdminVendorDetail = () => {
 
             <button
               onClick={fetchVendorDetails}
-              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition cursor-pointer"
+              className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition cursor-pointer shadow-2xs"
               title="Refresh Live Data"
             >
               <RefreshCw className="w-4 h-4" />
@@ -163,78 +182,101 @@ const AdminVendorDetail = () => {
         </div>
 
         {/* HERO HEADER CARD: Profile Avatar, Store Name, Plan, Owner Info */}
-        <div className="bg-gradient-to-r from-[#071d42] via-[#0c2a5e] to-[#153e85] rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
+        <div className="bg-gradient-to-br from-[#071d42] via-[#0c2a5e] to-[#133c82] rounded-2xl sm:rounded-3xl p-4 sm:p-7 text-white shadow-xl relative overflow-hidden">
           <div className="absolute right-0 top-0 -mt-10 -mr-10 w-64 h-64 bg-white/5 rounded-full blur-3xl pointer-events-none" />
 
-          <div className="relative flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-            <div className="flex items-center gap-5">
-              {/* Profile Image */}
-              <div className="relative flex-shrink-0">
+          {/* Main Content Area */}
+          <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-5">
+            {/* Store & Profile Info */}
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-5 min-w-0">
+              {/* Profile / Store Avatar */}
+              <div className="relative flex-shrink-0 self-start sm:self-auto">
                 {profilePic || store.logo || vendor?.avatar ? (
                   <img
                     src={profilePic || store.logo || vendor?.avatar}
                     alt={store.storeName}
-                    className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl object-cover border-4 border-white/20 shadow-xl bg-white"
+                    className="w-16 h-16 sm:w-20 sm:h-20 lg:w-22 lg:h-22 rounded-2xl sm:rounded-3xl object-cover border-2 sm:border-4 border-white/20 shadow-lg bg-white"
                     onError={(e) => { e.target.style.display = 'none'; }}
                   />
                 ) : (
-                  <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-3xl bg-white/10 border-4 border-white/20 flex items-center justify-center text-amber-300 font-black text-3xl shadow-xl">
+                  <div className="w-16 h-16 sm:w-20 sm:h-20 lg:w-22 lg:h-22 rounded-2xl sm:rounded-3xl bg-white/10 border-2 sm:border-4 border-white/20 flex items-center justify-center text-amber-300 font-black text-2xl sm:text-3xl shadow-lg">
                     {(store.storeName || 'V').charAt(0).toUpperCase()}
                   </div>
                 )}
-                <span className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-emerald-500 border-2 border-[#0c2a5e]" title="Merchant Status" />
+                <span
+                  className="absolute -bottom-1 -right-1 w-4 h-4 sm:w-5 sm:h-5 rounded-full bg-emerald-500 border-2 border-[#0c2a5e] shadow-xs"
+                  title="Verified Account"
+                />
               </div>
 
               {/* Title & Metadata */}
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-3 flex-wrap">
-                  <h1 className="text-2xl sm:text-3xl font-black tracking-tight">{store.storeName}</h1>
-                  <span className="text-xs font-bold px-3 py-1 rounded-full bg-white/15 text-blue-100 border border-white/20">
+              <div className="space-y-2 min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold tracking-tight text-white leading-tight break-words">
+                    {store.storeName}
+                  </h1>
+                  <span className="text-[10px] sm:text-xs font-bold px-2.5 py-0.5 rounded-full bg-white/15 text-blue-100 border border-white/20 shadow-2xs">
                     {store.category || 'Retail Store'}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-4 text-xs text-blue-200 flex-wrap">
-                  <div className="flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5 text-blue-300" />
-                    <span>Owner: <strong className="text-white">{vendor?.name || store.vendorUser?.name || 'Merchant Owner'}</strong></span>
+                {/* Owner & Contact Information Pills */}
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-xs">
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 border border-white/10 text-blue-100 backdrop-blur-2xs">
+                    <User className="w-3.5 h-3.5 text-blue-300 flex-shrink-0" />
+                    <span className="text-slate-300 font-medium">Owner:</span>
+                    <strong className="text-white font-semibold truncate max-w-[140px] sm:max-w-none">
+                      {vendor?.name || store.vendorUser?.name || 'Merchant Owner'}
+                    </strong>
                   </div>
-                  <span>•</span>
-                  <div className="flex items-center gap-1.5">
-                    <Mail className="w-3.5 h-3.5 text-blue-300" />
-                    <span className="font-mono">{vendor?.email || store.email}</span>
+
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 border border-white/10 text-blue-100 backdrop-blur-2xs min-w-0">
+                    <Mail className="w-3.5 h-3.5 text-blue-300 flex-shrink-0" />
+                    <span className="font-mono text-[11px] text-blue-100 truncate max-w-[180px] sm:max-w-none">
+                      {vendor?.email || store.email}
+                    </span>
                   </div>
-                  <span>•</span>
-                  <div className="flex items-center gap-1.5">
-                    <Phone className="w-3.5 h-3.5 text-blue-300" />
-                    <span className="font-mono">{vendor?.phone || store.phone || 'N/A'}</span>
+
+                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10 border border-white/10 text-blue-100 backdrop-blur-2xs">
+                    <Phone className="w-3.5 h-3.5 text-blue-300 flex-shrink-0" />
+                    <span className="font-mono text-[11px] text-blue-100">
+                      {vendor?.phone || store.phone || 'N/A'}
+                    </span>
                   </div>
                 </div>
 
-                <div className="text-xs text-blue-200/90 pt-1 flex items-center gap-3 flex-wrap">
-                  <span>Store Registered: {new Date(store.createdAt || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                {/* Registration & Membership Plan Info */}
+                <div className="flex flex-wrap items-center gap-2 pt-1 text-[11px] text-blue-200/90">
+                  <span className="inline-flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-blue-300 flex-shrink-0" />
+                    <span>Registered: {new Date(store.createdAt || Date.now()).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                  </span>
+
                   {store.activePlan && (
-                    <span className="bg-amber-400/20 text-amber-200 border border-amber-300/30 px-2.5 py-0.5 rounded-full text-[11px] font-bold">
-                      Plan: {store.activePlan.title} ({store.activePlan.durationDays} days)
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-200 border border-amber-300/30 font-bold text-[11px]">
+                      <Sparkles className="w-3 h-3 text-amber-300 flex-shrink-0" />
+                      <span>Plan: {store.activePlan.title || 'Standard Plan'} ({store.activePlan.durationDays || 30} days)</span>
                     </span>
                   )}
+
                   {store.planExpiresAt && (
-                    <span className="text-blue-100 text-[11px]">
-                      Access Expiry: <strong className="text-white">{new Date(store.planExpiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</strong>
+                    <span className="inline-flex items-center gap-1 text-blue-100 text-[11px]">
+                      <Clock className="w-3.5 h-3.5 text-cyan-300 flex-shrink-0" />
+                      <span>Access Expiry: <strong className="text-white">{new Date(store.planExpiresAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}</strong></span>
                     </span>
                   )}
                 </div>
               </div>
             </div>
 
-            {/* Quick Action Buttons for Unapproved Vendors */}
+            {/* Quick Action Buttons for Pending Vendors (Desktop Aligned) */}
             {store.status !== 'active' && (
-              <div className="flex items-center gap-2 flex-wrap md:flex-col md:items-end">
+              <div className="hidden md:flex flex-col items-end gap-2 flex-shrink-0">
                 <button
                   type="button"
                   onClick={() => handleReview('approve_and_activate')}
                   disabled={processingAction}
-                  className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-black shadow-lg transition cursor-pointer flex items-center gap-1.5 active:scale-98 disabled:opacity-50"
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-black shadow-lg transition active:scale-98 flex items-center gap-2 cursor-pointer disabled:opacity-50"
                 >
                   <Sparkles className="w-4 h-4 text-amber-200" />
                   <span>{processingAction ? 'Processing...' : 'Approve & Activate Live'}</span>
@@ -250,135 +292,158 @@ const AdminVendorDetail = () => {
               </div>
             )}
           </div>
+
+          {/* Quick Action Buttons for Pending Vendors (Mobile Dedicated Bottom Row) */}
+          {store.status !== 'active' && (
+            <div className="md:hidden pt-3.5 mt-3.5 border-t border-white/10 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => handleReview('approve_and_activate')}
+                disabled={processingAction}
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-black shadow-lg transition active:scale-98 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                <Sparkles className="w-4 h-4 text-amber-200" />
+                <span>{processingAction ? 'Processing...' : 'Approve & Activate Live'}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleReview('reject')}
+                disabled={processingAction}
+                className="w-full py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-400/30 text-xs font-bold transition flex items-center justify-center cursor-pointer disabled:opacity-50"
+              >
+                Reject Registration
+              </button>
+            </div>
+          )}
         </div>
 
         {/* 4 KEY KPI TILES: Wallet, Total Sales Value, Catalog Products, Orders */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4">
           {/* Tile 1: Wallet Balance */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs">
-            <div className="flex items-center justify-between text-slate-400 mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider">Wallet Balance</span>
-              <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <Wallet className="w-5 h-5" />
+          <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-slate-200 shadow-2xs">
+            <div className="flex items-center justify-between text-slate-400 mb-1.5 sm:mb-2">
+              <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">Wallet Balance</span>
+              <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0">
+                <Wallet className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
             </div>
-            <div className="text-2xl sm:text-3xl font-black text-emerald-700 font-mono">
+            <div className="text-lg sm:text-2xl lg:text-3xl font-black text-emerald-700 font-mono">
               ₹{(walletBalance || 0).toLocaleString('en-IN')}
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">Available for merchant payout disbursement</p>
+            <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1 truncate sm:whitespace-normal">Available for payout</p>
           </div>
 
           {/* Tile 2: Total Sales / Order Value */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs">
-            <div className="flex items-center justify-between text-slate-400 mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider">Total Order Values</span>
-              <div className="w-9 h-9 rounded-xl bg-blue-50 text-[#0c2a5e] flex items-center justify-center">
-                <ShoppingBag className="w-5 h-5" />
+          <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-slate-200 shadow-2xs">
+            <div className="flex items-center justify-between text-slate-400 mb-1.5 sm:mb-2">
+              <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">Total Sales</span>
+              <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-xl bg-blue-50 text-[#0c2a5e] flex items-center justify-center flex-shrink-0">
+                <ShoppingBag className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
             </div>
-            <div className="text-2xl sm:text-3xl font-black text-slate-900 font-mono">
+            <div className="text-lg sm:text-2xl lg:text-3xl font-black text-slate-900 font-mono">
               ₹{(totalSalesValue || 0).toLocaleString('en-IN')}
             </div>
-            <p className="text-[11px] text-slate-500 mt-1">Total revenue generated ({ordersCount || 0} orders)</p>
+            <p className="text-[10px] sm:text-[11px] text-slate-500 mt-1 truncate sm:whitespace-normal">{ordersCount || 0} order(s) generated</p>
           </div>
 
           {/* Tile 3: Live Products */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs">
-            <div className="flex items-center justify-between text-slate-400 mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider">Live Products</span>
-              <div className="w-9 h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                <Package className="w-5 h-5" />
+          <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-slate-200 shadow-2xs">
+            <div className="flex items-center justify-between text-slate-400 mb-1.5 sm:mb-2">
+              <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">Live Products</span>
+              <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
+                <Package className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
             </div>
-            <div className="text-2xl sm:text-3xl font-black text-slate-900">
+            <div className="text-lg sm:text-2xl lg:text-3xl font-black text-slate-900">
               {productsCount || 0}
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">Active catalog items uploaded by vendor</p>
+            <p className="text-[10px] sm:text-[11px] text-slate-400 mt-1 truncate sm:whitespace-normal">Active catalog items</p>
           </div>
 
           {/* Tile 4: Paid Platform Fee */}
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs">
-            <div className="flex items-center justify-between text-slate-400 mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider">Enrollment Fee</span>
-              <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                <ShieldCheck className="w-5 h-5" />
+          <div className="bg-white rounded-2xl p-3.5 sm:p-5 border border-slate-200 shadow-2xs">
+            <div className="flex items-center justify-between text-slate-400 mb-1.5 sm:mb-2">
+              <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider">Enrollment Fee</span>
+              <div className="w-7 h-7 sm:w-9 sm:h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center flex-shrink-0">
+                <ShieldCheck className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
             </div>
-            <div className="text-2xl sm:text-3xl font-black text-slate-900 font-mono">
+            <div className="text-lg sm:text-2xl lg:text-3xl font-black text-slate-900 font-mono">
               ₹{(store.enrollmentFeePaid || 0).toLocaleString('en-IN')}
             </div>
-            <p className="text-[11px] text-emerald-700 font-semibold mt-1">
-              {(store.enrollmentFeePaid || 0) > 0 ? '✓ Fee Confirmed & Paid' : 'Awaiting Enrollment Payment'}
+            <p className="text-[10px] sm:text-[11px] text-emerald-700 font-semibold mt-1 truncate sm:whitespace-normal">
+              {(store.enrollmentFeePaid || 0) > 0 ? '✓ Confirmed & Paid' : 'Awaiting Payment'}
             </p>
           </div>
         </div>
 
         {/* TABS NAVIGATION BAR */}
         <div className="bg-white rounded-2xl border border-slate-200 shadow-2xs overflow-hidden">
-          <div className="flex items-center gap-2 px-4 sm:px-6 border-b border-slate-200 overflow-x-auto text-xs sm:text-sm">
+          <div className="flex items-center gap-1 sm:gap-2 px-3 sm:px-6 border-b border-slate-200 overflow-x-auto text-xs sm:text-sm">
             <button
               type="button"
               onClick={() => setActiveTab('overview')}
-              className={`py-4 px-4 font-bold border-b-2 transition flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+              className={`py-3 sm:py-4 px-3 sm:px-4 font-bold border-b-2 transition flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap ${
                 activeTab === 'overview'
                   ? 'border-[#0c2a5e] text-[#0c2a5e]'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
               <Building className="w-4 h-4" />
-              <span>Overview &amp; KYC Verification</span>
+              <span>Overview &amp; KYC</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('orders')}
-              className={`py-4 px-4 font-bold border-b-2 transition flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+              className={`py-3 sm:py-4 px-3 sm:px-4 font-bold border-b-2 transition flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap ${
                 activeTab === 'orders'
                   ? 'border-[#0c2a5e] text-[#0c2a5e]'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
               <ShoppingBag className="w-4 h-4" />
-              <span>Orders &amp; Values ({ordersCount || 0})</span>
+              <span>Orders ({ordersCount || 0})</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('products')}
-              className={`py-4 px-4 font-bold border-b-2 transition flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+              className={`py-3 sm:py-4 px-3 sm:px-4 font-bold border-b-2 transition flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap ${
                 activeTab === 'products'
                   ? 'border-[#0c2a5e] text-[#0c2a5e]'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
               <Package className="w-4 h-4" />
-              <span>Products Catalog ({productsCount || 0})</span>
+              <span>Products ({productsCount || 0})</span>
             </button>
 
             <button
               type="button"
               onClick={() => setActiveTab('transactions')}
-              className={`py-4 px-4 font-bold border-b-2 transition flex items-center gap-2 cursor-pointer whitespace-nowrap ${
+              className={`py-3 sm:py-4 px-3 sm:px-4 font-bold border-b-2 transition flex items-center gap-1.5 sm:gap-2 cursor-pointer whitespace-nowrap ${
                 activeTab === 'transactions'
                   ? 'border-[#0c2a5e] text-[#0c2a5e]'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
               <Wallet className="w-4 h-4" />
-              <span>Payouts &amp; Bank Ledger ({settlements?.length || 0})</span>
+              <span>Payouts &amp; Bank ({settlements?.length || 0})</span>
             </button>
           </div>
 
           {/* TAB CONTENT PANELS */}
-          <div className="p-6">
+          <div className="p-4 sm:p-6">
             {/* ================= TAB 1: OVERVIEW & KYC ================= */}
             {activeTab === 'overview' && (
               <div className="space-y-6">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
                   {/* Left Column: Merchant Profile & Dispatch & Bank Details */}
-                  <div className="space-y-5">
+                  <div className="space-y-4 sm:space-y-5">
                     {/* Merchant Owner Profile */}
-                    <div className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                    <div className="p-4 sm:p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
                       <div className="flex items-center justify-between pb-2 border-b border-slate-200">
                         <div className="flex items-center gap-2 font-bold text-slate-900 text-sm">
                           <User className="w-4 h-4 text-[#0c2a5e]" />
@@ -388,81 +453,185 @@ const AdminVendorDetail = () => {
                           <img
                             src={profilePic}
                             alt="Avatar"
-                            className="w-9 h-9 rounded-full object-cover border border-slate-200 shadow-2xs"
+                            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover border border-slate-200 shadow-2xs"
                           />
                         )}
                       </div>
-                      <div className="space-y-2 text-xs text-slate-600">
-                        <p className="flex justify-between">
-                          <span className="text-slate-400">Full Name:</span>
-                          <strong className="text-slate-900">{vendor?.name || store.vendorUser?.name || 'N/A'}</strong>
-                        </p>
-                        <p className="flex justify-between">
-                          <span className="text-slate-400">Email Address:</span>
-                          <span className="font-mono text-slate-800">{vendor?.email || store.email}</span>
-                        </p>
-                        <p className="flex justify-between">
-                          <span className="text-slate-400">Contact Phone:</span>
-                          <span className="font-mono text-slate-800">{vendor?.phone || store.phone || 'N/A'}</span>
-                        </p>
-                        <p className="flex justify-between">
-                          <span className="text-slate-400">Live Wallet Balance:</span>
-                          <strong className="text-emerald-700 font-mono text-sm">₹{(walletBalance || 0).toLocaleString('en-IN')}</strong>
-                        </p>
+                      <div className="divide-y divide-slate-200/70 text-xs">
+                        <div className="py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-0.5">
+                          <span className="text-slate-500 font-medium sm:w-1/3">Full Name:</span>
+                          <strong className="text-slate-900 sm:w-2/3">{vendor?.name || store.vendorUser?.name || 'N/A'}</strong>
+                        </div>
+                        <div className="py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-0.5">
+                          <span className="text-slate-500 font-medium sm:w-1/3">Email Address:</span>
+                          <span className="font-mono text-slate-800 break-all sm:w-2/3">{vendor?.email || store.email}</span>
+                        </div>
+                        <div className="py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-0.5">
+                          <span className="text-slate-500 font-medium sm:w-1/3">Contact Phone:</span>
+                          <span className="font-mono text-slate-800 sm:w-2/3">{vendor?.phone || store.phone || 'N/A'}</span>
+                        </div>
+                        <div className="py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-0.5">
+                          <span className="text-slate-500 font-medium sm:w-1/3">Live Wallet:</span>
+                          <strong className="text-emerald-700 font-mono text-sm sm:w-2/3">₹{(walletBalance || 0).toLocaleString('en-IN')}</strong>
+                        </div>
                         {store.referralCodeUsed && (
-                          <p className="flex justify-between pt-1 border-t border-slate-200/60 text-emerald-700 font-bold">
-                            <span className="flex items-center gap-1"><Gift className="w-3.5 h-3.5" /> Referral Code Used:</span>
-                            <span className="font-mono">{store.referralCodeUsed}</span>
-                          </p>
+                          <div className="py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-0.5 text-emerald-700 font-bold">
+                            <span className="flex items-center gap-1 sm:w-1/3"><Gift className="w-3.5 h-3.5" /> Referral Code:</span>
+                            <span className="font-mono sm:w-2/3">{store.referralCodeUsed}</span>
+                          </div>
                         )}
                       </div>
                     </div>
 
                     {/* Store Dispatch & Warehouse Address */}
-                    <div className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                    <div className="p-4 sm:p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
                       <div className="flex items-center gap-2 font-bold text-slate-900 text-sm pb-2 border-b border-slate-200">
                         <MapPin className="w-4 h-4 text-[#0c2a5e]" />
                         <span>Store Location &amp; Dispatch Hub</span>
                       </div>
-                      <div className="space-y-1.5 text-xs text-slate-600 leading-relaxed">
-                        <p><span className="text-slate-400">Street Address:</span> {store.address?.street || 'N/A'}</p>
+                      <div className="divide-y divide-slate-200/70 text-xs">
+                        <div className="py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-0.5">
+                          <span className="text-slate-500 font-medium sm:w-1/3">Street Address:</span>
+                          <span className="text-slate-900 font-medium sm:w-2/3">{store.address?.street || 'N/A'}</span>
+                        </div>
                         {store.address?.landmark && (
-                          <p><span className="text-slate-400">Landmark:</span> {store.address.landmark}</p>
+                          <div className="py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-0.5">
+                            <span className="text-slate-500 font-medium sm:w-1/3">Landmark:</span>
+                            <span className="text-slate-800 sm:w-2/3">{store.address.landmark}</span>
+                          </div>
                         )}
-                        <p><span className="text-slate-400">City &amp; State:</span> {store.address?.city || 'Hyderabad'}, {store.address?.state || 'Andhra Pradesh'}</p>
-                        <p><span className="text-slate-400">Postal PIN Code:</span> <strong className="font-mono text-slate-900">{store.address?.zipCode || '534201'}</strong></p>
+                        <div className="py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-0.5">
+                          <span className="text-slate-500 font-medium sm:w-1/3">City &amp; State:</span>
+                          <span className="text-slate-900 font-medium sm:w-2/3">
+                            {store.address?.city || 'N/A'}{store.address?.state ? `, ${store.address.state}` : ''}
+                          </span>
+                        </div>
+                        <div className="py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-0.5">
+                          <span className="text-slate-500 font-medium sm:w-1/3">PIN Code:</span>
+                          <strong className="font-mono text-slate-900 sm:w-2/3">{store.address?.zipCode || 'N/A'}</strong>
+                        </div>
                       </div>
                     </div>
 
                     {/* Bank Settlement Account Details */}
-                    <div className="p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                    <div className="p-4 sm:p-5 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
                       <div className="flex items-center gap-2 font-bold text-slate-900 text-sm pb-2 border-b border-slate-200">
                         <Building className="w-4 h-4 text-[#0c2a5e]" />
                         <span>Disbursement Bank Details</span>
                       </div>
-                      <div className="space-y-2 text-xs text-slate-600">
-                        <p className="flex justify-between">
-                          <span className="text-slate-400">Account Holder:</span>
-                          <strong className="text-slate-900">{store.bankDetails?.accountHolder || 'N/A'}</strong>
-                        </p>
-                        <p className="flex justify-between">
-                          <span className="text-slate-400">Bank Name:</span>
-                          <span className="text-slate-800">{store.bankDetails?.bankName || 'State Bank of India'}</span>
-                        </p>
-                        <p className="flex justify-between">
-                          <span className="text-slate-400">Account Number:</span>
-                          <span className="font-mono font-bold text-slate-900">{store.bankDetails?.accountNumber || 'Pending'}</span>
-                        </p>
-                        <p className="flex justify-between">
-                          <span className="text-slate-400">IFSC Code:</span>
-                          <span className="font-mono uppercase font-bold text-slate-900">{store.bankDetails?.ifscCode || 'N/A'}</span>
-                        </p>
+                      <div className="divide-y divide-slate-200/70 text-xs">
+                        <div className="py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-0.5">
+                          <span className="text-slate-500 font-medium sm:w-1/3">Account Holder:</span>
+                          <strong className="text-slate-900 sm:w-2/3">{store.bankDetails?.accountHolder || 'N/A'}</strong>
+                        </div>
+                        <div className="py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-0.5">
+                          <span className="text-slate-500 font-medium sm:w-1/3">Bank Name:</span>
+                          <span className="text-slate-800 font-medium sm:w-2/3">{store.bankDetails?.bankName || 'State Bank of India'}</span>
+                        </div>
+                        <div className="py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-0.5">
+                          <span className="text-slate-500 font-medium sm:w-1/3">Account Number:</span>
+                          <span className="font-mono font-bold text-slate-900 sm:w-2/3">{store.bankDetails?.accountNumber || 'Pending'}</span>
+                        </div>
+                        <div className="py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-0.5">
+                          <span className="text-slate-500 font-medium sm:w-1/3">IFSC Code:</span>
+                          <span className="font-mono uppercase font-bold text-slate-900 sm:w-2/3">{store.bankDetails?.ifscCode || 'N/A'}</span>
+                        </div>
                         {store.bankDetails?.upiId && (
-                          <p className="flex justify-between">
-                            <span className="text-slate-400">UPI ID:</span>
-                            <span className="font-mono text-[#0c2a5e] font-semibold">{store.bankDetails.upiId}</span>
-                          </p>
+                          <div className="py-2 flex flex-col sm:flex-row sm:items-center justify-between gap-0.5">
+                            <span className="text-slate-500 font-medium sm:w-1/3">UPI ID:</span>
+                            <span className="font-mono text-[#0c2a5e] font-semibold sm:w-2/3">{store.bankDetails.upiId}</span>
+                          </div>
                         )}
+                      </div>
+                    </div>
+
+                    {/* Admin Catalog Sourcing Permission & Rules Card */}
+                    <div className="p-5 bg-white border border-slate-200 rounded-2xl shadow-2xs space-y-4">
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-200">
+                        <div className="flex items-center gap-2 font-bold text-slate-900 text-sm">
+                          <Layers className="w-4 h-4 text-[#0c2a5e]" />
+                          <span>Admin Catalog Sourcing Access</span>
+                        </div>
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-[11px] font-black uppercase ${
+                            store.adminCatalogAccess?.status === 'approved'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : store.adminCatalogAccess?.status === 'requested'
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200 animate-pulse'
+                              : 'bg-slate-100 text-slate-600 border border-slate-200'
+                          }`}
+                        >
+                          {store.adminCatalogAccess?.status === 'approved'
+                            ? 'Approved'
+                            : store.adminCatalogAccess?.status === 'requested'
+                            ? 'Request Pending'
+                            : 'No Permission'}
+                        </span>
+                      </div>
+
+                      <p className="text-xs text-slate-600 leading-relaxed">
+                        When approved, this vendor can list official Admin Catalog products at fixed admin prices. Sourced products are given unique vendor prefix codes (<code>VND...</code>) and orders are centrally dispatched by SR Marketplace.
+                      </p>
+
+                      <div className="flex flex-wrap items-center gap-2 pt-1">
+                        {store.adminCatalogAccess?.status !== 'approved' ? (
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateCatalogAccess('approved')}
+                            disabled={processingAction}
+                            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition flex items-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>Grant Admin Catalog Access</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateCatalogAccess('rejected')}
+                            disabled={processingAction}
+                            className="px-4 py-2 bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            <span>Revoke Catalog Access</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Official Membership / Enrollment Tax Invoice Card */}
+                    <div className="p-5 bg-gradient-to-br from-slate-50 to-blue-50/40 border border-blue-100 rounded-2xl shadow-2xs space-y-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-blue-100">
+                        <div className="flex items-center gap-2 font-bold text-slate-900 text-sm">
+                          <FileText className="w-4 h-4 text-[#0c2a5e]" />
+                          <span>Official Membership Tax Invoice</span>
+                        </div>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase bg-emerald-100 text-emerald-800">
+                          ✓ Paid &amp; Active
+                        </span>
+                      </div>
+                      <div className="text-xs space-y-1.5 text-slate-600">
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">Invoice Number:</span>
+                          <span className="font-mono font-bold text-slate-900">
+                            {store.membershipInvoice?.invoiceNumber || (store.enrollmentFeePaid ? `INV-SR-PLAN-${store._id.slice(-6).toUpperCase()}` : 'Pending Generation')}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">Enrollment Fee Paid:</span>
+                          <span className="font-black text-[#0c2a5e]">₹{store.enrollmentFeePaid || 999}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">Payment Reference:</span>
+                          <span className="font-mono text-[11px] text-slate-700">
+                            {store.paymentDetails?.razorpayPaymentId || 'WALLET-VERIFIED'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-slate-500">Validity Period:</span>
+                          <span className="font-bold text-emerald-700">
+                            {store.activePlan?.durationDays || 365} Days (Until {store.planExpiresAt ? new Date(store.planExpiresAt).toLocaleDateString('en-IN') : '1 Year'})
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </div>

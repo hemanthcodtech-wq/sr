@@ -20,6 +20,7 @@ import {
   Sparkles,
   Phone,
   MessageCircle,
+  Layers,
 } from 'lucide-react';
 import api from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -120,8 +121,58 @@ const OrderTracking = () => {
     return 1;
   };
 
-  const currentStep = getActiveStepIndex(order?.deliveryStatus || order?.items?.[0]?.deliveryStatus || 'Confirmed');
-  const isDelivered = (order?.deliveryStatus || '').toLowerCase() === 'delivered';
+  const [selectedPackageIndex, setSelectedPackageIndex] = useState(0);
+
+  // Group items by fulfillment package (Split Fulfillment Architecture)
+  const packages = React.useMemo(() => {
+    if (!order || !order.items || order.items.length === 0) return [];
+    const vendorItems = order.items.filter((i) => i.sourceType !== 'admin_catalog' && i.fulfillmentType !== 'admin_central');
+    const centralItems = order.items.filter((i) => i.sourceType === 'admin_catalog' || i.fulfillmentType === 'admin_central');
+
+    const pkgs = [];
+    if (vendorItems.length > 0) {
+      pkgs.push({
+        id: 'pkg_vendor',
+        label: 'Package 1 • Merchant Direct Dispatch',
+        origin: vendorItems[0]?.store?.storeName || 'Merchant Store',
+        hub: 'Merchant Warehouse Hub',
+        type: 'vendor',
+        status: vendorItems[0]?.deliveryStatus || order.deliveryStatus || 'Confirmed',
+        trackingNumber: vendorItems[0]?.trackingNumber || order.trackingNumber || '',
+        courierName: vendorItems[0]?.courierName || order.courierName || 'Merchant Logistics Partner',
+        items: vendorItems,
+      });
+    }
+    if (centralItems.length > 0) {
+      pkgs.push({
+        id: 'pkg_central',
+        label: `Package ${pkgs.length + 1} • SR Central Warehouse`,
+        origin: 'SR Marketplace Central Logistics Hub',
+        hub: 'Central Warehouse (Pan-India Logistics)',
+        type: 'central',
+        status: centralItems[0]?.deliveryStatus || 'Processing',
+        trackingNumber: centralItems[0]?.sourceTrackingNumber || centralItems[0]?.trackingNumber || '',
+        courierName: centralItems[0]?.courierName || 'SR Express Central Logistics',
+        items: centralItems,
+      });
+    }
+
+    return pkgs.length > 0 ? pkgs : [{
+      id: 'pkg_single',
+      label: 'Package 1 • Standard Delivery',
+      origin: order.items[0]?.store?.storeName || 'SR Marketplace',
+      hub: 'Central Facility',
+      type: 'standard',
+      status: order.deliveryStatus || 'Confirmed',
+      trackingNumber: order.trackingNumber || '',
+      courierName: order.courierName || 'Delhivery Express',
+      items: order.items,
+    }];
+  }, [order]);
+
+  const activePackage = packages[selectedPackageIndex] || packages[0];
+  const currentStep = getActiveStepIndex(activePackage?.status || order?.deliveryStatus || order?.items?.[0]?.deliveryStatus || 'Confirmed');
+  const isDelivered = ((activePackage?.status || order?.deliveryStatus) || '').toLowerCase() === 'delivered';
 
   return (
     <div className="w-full max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 select-none font-sans">
@@ -269,6 +320,103 @@ const OrderTracking = () => {
                   {order.deliveryStatus || 'Confirmed'}
                 </span>
               </div>
+
+              {/* Split Package Selector Tabs if Order has Multiple Fulfillment Packages */}
+              {packages.length > 1 && (
+                <div className="p-3.5 bg-gradient-to-r from-blue-50/80 to-indigo-50/80 border border-blue-200 rounded-2xl space-y-2.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-black text-blue-950 flex items-center gap-1.5">
+                      <Truck className="w-4 h-4 text-blue-600" />
+                      <span>Split Fulfillment ({packages.length} Independent Packages)</span>
+                    </span>
+                    <span className="text-[10px] text-blue-800 font-bold bg-white px-2 py-0.5 rounded-md border border-blue-200">
+                      Dispatched Independently
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {packages.map((pkg, idx) => (
+                      <button
+                        key={pkg.id}
+                        type="button"
+                        onClick={() => setSelectedPackageIndex(idx)}
+                        className={`p-3 rounded-xl border text-left transition cursor-pointer flex flex-col justify-between ${
+                          selectedPackageIndex === idx
+                            ? 'bg-white border-[#0c2a5e] shadow-sm ring-2 ring-blue-100'
+                            : 'bg-white/60 hover:bg-white border-slate-200'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-black text-slate-900">{pkg.label}</span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300">
+                            {pkg.status}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-1 truncate">
+                          Origin: <strong className="text-slate-800">{pkg.origin}</strong>
+                        </p>
+                        <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1 pt-1 border-t border-slate-100">
+                          <span>{pkg.items.length} item{pkg.items.length > 1 ? 's' : ''}</span>
+                          {pkg.trackingNumber && <span className="font-mono">AWB: {pkg.trackingNumber}</span>}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Active Package Items Card */}
+              {activePackage && (
+                <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      {activePackage.type === 'central' ? (
+                        <span className="p-1.5 rounded-lg bg-blue-100 text-blue-800">
+                          <Layers className="w-4 h-4" />
+                        </span>
+                      ) : (
+                        <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-800">
+                          <Store className="w-4 h-4" />
+                        </span>
+                      )}
+                      <div>
+                        <h4 className="font-extrabold text-slate-900 text-xs sm:text-sm">{activePackage.label}</h4>
+                        <p className="text-[11px] text-slate-500">
+                          Fulfilled by: <strong>{activePackage.origin}</strong> • Courier: {activePackage.courierName}
+                        </p>
+                      </div>
+                    </div>
+
+                    {activePackage.trackingNumber && (
+                      <span className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 font-mono text-[11px] text-slate-700 font-bold shadow-2xs">
+                        AWB: {activePackage.trackingNumber}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Items list inside this active package */}
+                  <div className="divide-y divide-slate-200/60 pt-1">
+                    {activePackage.items.map((it, idx) => (
+                      <div key={it._id || idx} className="py-2.5 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <img
+                            src={it.image || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=100'}
+                            alt={it.title}
+                            className="w-10 h-10 rounded-lg object-contain bg-white border border-slate-200 flex-shrink-0 p-0.5"
+                          />
+                          <div className="min-w-0">
+                            <p className="font-bold text-xs text-slate-800 truncate">{it.title}</p>
+                            <span className="text-[10px] text-slate-500">Qty: {it.quantity || 1} • ₹{((it.price || 0) * (it.quantity || 1)).toLocaleString('en-IN')}</span>
+                          </div>
+                        </div>
+                        <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-[10px] font-bold text-slate-700 flex-shrink-0">
+                          {it.deliveryStatus || activePackage.status}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* 3 Metric Summary Pillars matching Screenshot 3 */}
               <div className="grid grid-cols-3 gap-3 p-3.5 bg-slate-50/80 rounded-2xl border border-slate-100 text-xs">

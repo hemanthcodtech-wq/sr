@@ -444,7 +444,7 @@ const VendorStoreProfile = () => {
                 onChange={(e) =>
                   setFormData({ ...formData, address: { ...formData.address, city: e.target.value } })
                 }
-                placeholder="e.g. Hyderabad / Bhimavaram"
+                placeholder="e.g. Hyderabad"
                 className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0f8a48]/30 transition"
               />
             </div>

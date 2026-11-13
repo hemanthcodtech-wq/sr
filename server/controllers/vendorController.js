@@ -430,7 +430,7 @@ exports.verifyEnrollmentPayment = async (req, res, next) => {
           type: 'plan_activated',
           title: '🏪 New Store Plan Subscribed',
           message: `${req.user?.name || 'Merchant'} paid ₹${enrollmentFee} for "${plan?.title || 'Merchant Plan'}". Ready for verification.`,
-          link: '/admin/merchants',
+          link: '/admin/vendors',
         });
         await createNotification({
           recipient: req.user._id,
@@ -490,7 +490,7 @@ exports.verifyEnrollmentPayment = async (req, res, next) => {
         type: 'plan_activated',
         title: '🏪 New Store Plan Subscribed',
         message: `${req.user?.name || 'Merchant'} paid ₹${enrollmentFee} for "${plan?.title || 'Merchant Plan'}". Ready for verification.`,
-        link: '/admin/merchants',
+        link: '/admin/vendors',
       });
       await createNotification({
         recipient: req.user._id,
@@ -1193,7 +1193,7 @@ exports.renewPlanSubscription = async (req, res, next) => {
         type: 'plan_activated',
         title: '🏪 New Store Plan Subscribed',
         message: `${req.user?.name || 'Merchant'} paid ₹${enrollmentFee} for "${plan?.title || 'Merchant Plan'}". Ready for verification.`,
-        link: '/admin/merchants',
+        link: '/admin/vendors',
       });
       await createNotification({
         recipient: req.user._id,
@@ -1449,6 +1449,311 @@ exports.getMyPromotionStats = async (req, res, next) => {
       totalProfitEarned,
       promotedOrders,
       walletBalance: req.user.walletBalance || 0,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ==========================================
+// ADMIN CATALOG SOURCING FOR VENDORS
+// ==========================================
+
+// @desc    Vendor requests permission to list admin products
+// @route   POST /api/vendors/request-catalog-access
+// @access  Private (Vendor)
+exports.requestCatalogAccess = async (req, res, next) => {
+  try {
+    let store = null;
+    if (mongoose.connection.readyState === 1) {
+      store = await Store.findOne({ vendor: req.user._id });
+    } else {
+      store = mockStores.find((s) => s.vendor === req.user._id || s.vendor?._id === req.user._id);
+    }
+
+    if (!store) {
+      return res.status(404).json({ success: false, message: 'Active merchant store not found' });
+    }
+
+    if (store.adminCatalogAccess?.status === 'approved') {
+      return res.status(200).json({
+        success: true,
+        message: 'You already have approved access to the Admin Catalog.',
+        status: 'approved',
+      });
+    }
+
+    if (!store.adminCatalogAccess) {
+      store.adminCatalogAccess = {};
+    }
+
+    store.adminCatalogAccess.status = 'requested';
+    store.adminCatalogAccess.requestedAt = new Date();
+    store.adminCatalogAccess.adminNotes = '';
+
+    if (mongoose.connection.readyState === 1) {
+      await store.save();
+    }
+
+    // Notify Admin of new catalog access request
+    try {
+      await createNotification({
+        role: 'admin',
+        type: 'catalog_request',
+        title: '📦 Vendor Requested Admin Catalog Access',
+        message: `Store "${store.storeName}" (${req.user.name || 'Merchant'}) requested permission to source and list Admin Catalog products.`,
+        link: `/admin/vendors?tab=catalog_requests`,
+      });
+    } catch (_) {}
+
+    res.status(200).json({
+      success: true,
+      message: 'Catalog access request submitted to Admin for approval.',
+      status: 'requested',
+      store,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Get Admin Catalog products available for approved vendors to source
+// @route   GET /api/vendors/admin-catalog
+// @access  Private (Vendor)
+exports.getAdminCatalogForVendors = async (req, res, next) => {
+  try {
+    let store = null;
+    if (mongoose.connection.readyState === 1) {
+      store = await Store.findOne({ vendor: req.user._id });
+    } else {
+      store = mockStores.find((s) => s.vendor === req.user._id || s.vendor?._id === req.user._id);
+    }
+
+    if (!store) {
+      return res.status(404).json({ success: false, message: 'Store not found' });
+    }
+
+    const accessStatus = store.adminCatalogAccess?.status || 'none';
+
+    if (accessStatus !== 'approved') {
+      return res.status(200).json({
+        success: true,
+        hasAccess: false,
+        status: accessStatus,
+        message: accessStatus === 'requested'
+          ? 'Your request to access the Admin Catalog is pending Admin approval.'
+          : 'You need Admin permission to source products from the Admin Catalog.',
+        products: [],
+      });
+    }
+
+    // Find admin user and admin store
+    let adminProducts = [];
+    let vendorSourcedMap = new Map();
+
+    if (mongoose.connection.readyState === 1) {
+      const adminUser = await User.findOne({ role: 'admin' });
+      const adminStore = await Store.findOne({
+        $or: [{ storeName: 'SR Marketplace' }, { storeName: 'Official Flagship Store' }],
+      });
+
+      const orConditions = [];
+      if (adminUser) orConditions.push({ vendor: adminUser._id });
+      if (adminStore) orConditions.push({ store: adminStore._id });
+      orConditions.push({ sourceType: { $ne: 'admin_catalog' }, isDropshipped: true });
+
+      adminProducts = await Product.find({
+        $or: orConditions.length > 0 ? orConditions : [{ isDropshipped: true }],
+      })
+        .select('title description price discountPrice category stock images tags isFeatured vendorProductCode')
+        .lean();
+
+      // Find products already sourced by this vendor
+      const existingSourced = await Product.find({
+        store: store._id,
+        isSourcedFromAdmin: true,
+      })
+        .select('sourceAdminProduct vendorProductCode')
+        .lean();
+
+      existingSourced.forEach((p) => {
+        if (p.sourceAdminProduct) {
+          vendorSourcedMap.set(p.sourceAdminProduct.toString(), p.vendorProductCode);
+        }
+      });
+    } else {
+      adminProducts = mockProducts.filter((p) => p.isDropshipped || p.sourcePlatform !== 'in_house');
+    }
+
+    const formattedProducts = adminProducts.map((p) => {
+      const pIdStr = p._id.toString();
+      const isAlreadySourced = vendorSourcedMap.has(pIdStr);
+      const assignedCode = vendorSourcedMap.get(pIdStr) || '';
+
+      return {
+        _id: p._id,
+        title: p.title,
+        description: p.description,
+        price: p.price, // FIXED PRICE - vendor must sell at this exact price
+        discountPrice: p.discountPrice || 0,
+        category: p.category,
+        stock: p.stock,
+        images: p.images,
+        tags: p.tags,
+        alreadySourced: isAlreadySourced,
+        vendorProductCode: assignedCode,
+        fulfillmentType: 'admin_central',
+        sourceType: 'admin_catalog',
+      };
+    });
+
+    res.status(200).json({
+      success: true,
+      hasAccess: true,
+      status: 'approved',
+      count: formattedProducts.length,
+      products: formattedProducts,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Approved vendor chooses an admin product to list in their store
+// @route   POST /api/vendors/source-admin-product
+// @access  Private (Vendor)
+exports.sourceAdminProduct = async (req, res, next) => {
+  try {
+    const { adminProductId } = req.body;
+
+    if (!adminProductId) {
+      return res.status(400).json({ success: false, message: 'Please provide adminProductId' });
+    }
+
+    let store = null;
+    if (mongoose.connection.readyState === 1) {
+      store = await Store.findOne({ vendor: req.user._id });
+    } else {
+      store = mockStores.find((s) => s.vendor === req.user._id || s.vendor?._id === req.user._id);
+    }
+
+    if (!store) {
+      return res.status(404).json({ success: false, message: 'Store not found' });
+    }
+
+    // Verify permission
+    if (store.adminCatalogAccess?.status !== 'approved') {
+      return res.status(403).json({
+        success: false,
+        message: 'Permission required: You must have an approved Admin Catalog request to source products.',
+      });
+    }
+
+    // Check store subscription validity
+    if (!store.planExpiresAt || new Date(store.planExpiresAt) < new Date()) {
+      return res.status(403).json({
+        success: false,
+        message: 'Your store membership plan has expired. Please renew your plan to source products.',
+      });
+    }
+
+    let adminProduct = null;
+    if (mongoose.connection.readyState === 1) {
+      adminProduct = await Product.findById(adminProductId);
+    } else {
+      adminProduct = mockProducts.find((p) => p._id === adminProductId);
+    }
+
+    if (!adminProduct) {
+      return res.status(404).json({ success: false, message: 'Original admin product not found' });
+    }
+
+    // Check if vendor already sourced this product
+    if (mongoose.connection.readyState === 1) {
+      const existing = await Product.findOne({
+        store: store._id,
+        sourceAdminProduct: adminProduct._id,
+      });
+
+      if (existing) {
+        return res.status(400).json({
+          success: false,
+          message: `This product is already listed in your store with code: ${existing.vendorProductCode}`,
+          product: existing,
+        });
+      }
+    }
+
+    // Generate Vendor ID Prefix: VND{vendorIdLast6}-{adminProdLast6}
+    const vendorPrefix = `VND${req.user._id.toString().slice(-6).toUpperCase()}`;
+    const prodSuffix = adminProduct._id.toString().slice(-6).toUpperCase();
+    const vendorProductCode = `${vendorPrefix}-${prodSuffix}`;
+
+    // Create the vendor-scoped clone product
+    // Strictly enforce: price = adminProduct.price (vendor cannot alter price!)
+    let newProduct = null;
+    if (mongoose.connection.readyState === 1) {
+      newProduct = await Product.create({
+        title: adminProduct.title,
+        description: adminProduct.description,
+        price: adminProduct.price, // FIXED PRICE set by admin
+        discountPrice: adminProduct.discountPrice || 0,
+        category: adminProduct.category,
+        stock: adminProduct.stock || 10,
+        images: adminProduct.images,
+        tags: adminProduct.tags || [],
+        vendor: req.user._id,
+        store: store._id,
+        sourceType: 'admin_catalog',
+        fulfillmentType: 'admin_central', // Admin handles delivery!
+        isSourcedFromAdmin: true,
+        sourceAdminProduct: adminProduct._id,
+        vendorProductCode,
+        sku: adminProduct.sku || adminProduct.csvData?.sku || adminProduct.csvData?.['Variant SKU'] || '',
+        deodapProductId: adminProduct.deodapProductId || '',
+        deodapHandle: adminProduct.deodapHandle || '',
+        sourceUrl: adminProduct.sourceUrl || '',
+        sourcePrice: adminProduct.sourcePrice || adminProduct.costPrice || 0,
+        costPrice: adminProduct.costPrice || adminProduct.sourcePrice || 0,
+        sourcePlatform: adminProduct.sourcePlatform || 'deodap',
+        isDropshipped: true,
+        csvData: adminProduct.csvData || {},
+        isFeatured: false,
+        status: 'active',
+      });
+    } else {
+      newProduct = {
+        _id: 'mock_sourced_' + Date.now(),
+        title: adminProduct.title,
+        description: adminProduct.description,
+        price: adminProduct.price,
+        discountPrice: adminProduct.discountPrice || 0,
+        category: adminProduct.category,
+        stock: adminProduct.stock || 10,
+        images: adminProduct.images,
+        vendor: req.user._id,
+        store: store._id,
+        sourceType: 'admin_catalog',
+        fulfillmentType: 'admin_central',
+        isSourcedFromAdmin: true,
+        sourceAdminProduct: adminProduct._id,
+        vendorProductCode,
+        sku: adminProduct.sku || adminProduct.csvData?.sku || '',
+        deodapProductId: adminProduct.deodapProductId || '',
+        sourceUrl: adminProduct.sourceUrl || '',
+        sourcePrice: adminProduct.sourcePrice || 0,
+        sourcePlatform: adminProduct.sourcePlatform || 'deodap',
+        isDropshipped: true,
+        status: 'active',
+      };
+      mockProducts.unshift(newProduct);
+    }
+
+    res.status(201).json({
+      success: true,
+      message: `Product successfully added to ${store.storeName} with product code ${vendorProductCode}!`,
+      product: newProduct,
+      vendorProductCode,
     });
   } catch (err) {
     next(err);

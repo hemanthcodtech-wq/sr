@@ -42,6 +42,10 @@ const orderItemSchema = new mongoose.Schema({
     type: String,
     default: '',
   },
+  courierName: {
+    type: String,
+    default: '',
+  },
   deliveredAt: {
     type: Date,
     default: null,
@@ -50,6 +54,30 @@ const orderItemSchema = new mongoose.Schema({
     type: Boolean,
     default: false,
   },
+  // Multi-tier Fulfillment & Sourcing Architecture
+  sourceType: {
+    type: String,
+    enum: ['vendor_own', 'admin_catalog', 'dropship'],
+    default: 'vendor_own',
+  },
+  fulfillmentType: {
+    type: String,
+    enum: ['vendor_self', 'admin_central'],
+    default: 'vendor_self',
+  },
+  sourceAdminProduct: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Product',
+    default: null,
+  },
+  vendorProductCode: {
+    type: String,
+    default: '',
+  },
+  sku: {
+    type: String,
+    default: '',
+  },
   // Dropshipping source & fulfillment tracking
   isDropshipped: {
     type: Boolean,
@@ -57,7 +85,7 @@ const orderItemSchema = new mongoose.Schema({
   },
   sourcePlatform: {
     type: String,
-    enum: ['in_house', 'amazon', 'flipkart', 'meesho', 'deodap', 'other'],
+    enum: ['in_house', 'amazon', 'flipkart', 'meesho', 'deodap', 'admin_central', 'other'],
     default: 'in_house',
   },
   sourceUrl: {

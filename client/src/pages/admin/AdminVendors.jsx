@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   Store,
   User,
@@ -42,10 +42,11 @@ import { useToast } from '../../context/ToastContext';
 
 const AdminVendors = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { success, error, info } = useToast();
 
   // State
-  const [activeTab, setActiveTab] = useState('all'); // 'all' | 'pending' | 'active' | 'approved_pending_payment' | 'expired' | 'suspended'
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'all'); // 'all' | 'pending' | 'catalog_requests' | 'active' | 'approved_pending_payment' | 'expired' | 'suspended'
   const [applications, setApplications] = useState([]);
   const [vendors, setVendors] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -71,6 +72,13 @@ const AdminVendors = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && tabParam !== activeTab) {
+      setActiveTab(tabParam);
+    }
+  }, [searchParams]);
 
   const fetchData = async () => {
     try {
@@ -186,6 +194,37 @@ const AdminVendors = () => {
     }
   };
 
+  // Handle Admin granting or revoking catalog sourcing access
+  const handleUpdateCatalogAccess = async (storeId, status, notes = '') => {
+    setProcessingId(storeId);
+    try {
+      const res = await api.put(`/admin/vendors/${storeId}/catalog-access`, {
+        status,
+        adminNotes: notes || (status === 'approved' ? 'Admin Catalog sourcing permission granted.' : 'Request rejected.'),
+      });
+      if (res.data?.success) {
+        success(res.data.message || `Catalog access ${status}`);
+        fetchData();
+        if (selectedApplication && selectedApplication._id === storeId) {
+          setSelectedApplication((prev) => ({
+            ...prev,
+            adminCatalogAccess: {
+              ...(prev.adminCatalogAccess || {}),
+              status,
+              approvedAt: status === 'approved' ? new Date() : prev.adminCatalogAccess?.approvedAt,
+              adminNotes: notes || (status === 'approved' ? 'Admin Catalog sourcing permission granted.' : 'Request rejected.'),
+            },
+          }));
+        }
+        window.dispatchEvent(new Event('vendor-approvals-changed'));
+      }
+    } catch (err) {
+      error(err.response?.data?.message || 'Failed to update catalog access');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   // Helper calculations
   const calculateDaysRemaining = (expiryDate) => {
     if (!expiryDate) return null;
@@ -195,6 +234,7 @@ const AdminVendors = () => {
 
   // Stats Counters
   const pendingCount = allStores.filter((s) => s.status === 'pending_admin_approval').length;
+  const catalogRequestsCount = allStores.filter((s) => s.adminCatalogAccess?.status === 'requested').length;
   const approvedPendingFeeCount = allStores.filter((s) => s.status === 'approved_pending_payment').length;
   const activeCount = allStores.filter((s) => {
     const days = calculateDaysRemaining(s.planExpiresAt);
@@ -214,6 +254,7 @@ const AdminVendors = () => {
 
       // Tab filter
       if (activeTab === 'pending' && store.status !== 'pending_admin_approval') return false;
+      if (activeTab === 'catalog_requests' && store.adminCatalogAccess?.status !== 'requested') return false;
       if (activeTab === 'approved_pending_payment' && store.status !== 'approved_pending_payment') return false;
       if (activeTab === 'active' && (store.status !== 'active' || isExpired)) return false;
       if (activeTab === 'expired' && !isExpired) return false;
@@ -293,9 +334,12 @@ const AdminVendors = () => {
         {/* =====================================================================
             1. QUICK KPI METRIC CARDS
            ===================================================================== */}
-        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3.5 sm:gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 sm:gap-4">
           {/* Total Stores */}
-          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
+          <div
+            onClick={() => { setActiveTab('all'); setCurrentPage(1); setSearchParams({}); }}
+            className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-2xs cursor-pointer hover:bg-slate-50 transition"
+          >
             <div className="flex items-center justify-between text-slate-500 mb-2">
               <span className="text-xs font-bold uppercase tracking-wider">Total Stores</span>
               <Store className="w-4 h-4 text-[#0c2a5e]" />
@@ -304,9 +348,9 @@ const AdminVendors = () => {
             <span className="text-[11px] text-slate-400 font-medium">All registered merchants</span>
           </div>
 
-          {/* Pending Approval (Pulse Attention) */}
+          {/* Pending KYC (Pulse Attention) */}
           <div
-            onClick={() => { setActiveTab('pending'); setCurrentPage(1); }}
+            onClick={() => { setActiveTab('pending'); setCurrentPage(1); setSearchParams({ tab: 'pending' }); }}
             className="bg-amber-50/80 p-4 sm:p-5 rounded-2xl border border-amber-300 shadow-2xs cursor-pointer hover:bg-amber-100/70 transition"
           >
             <div className="flex items-center justify-between text-amber-800 mb-2">
@@ -324,9 +368,37 @@ const AdminVendors = () => {
             <span className="text-[11px] text-amber-700 font-semibold">Requires admin verification</span>
           </div>
 
+          {/* Catalog Sourcing Requests (NEW) */}
+          <div
+            onClick={() => { setActiveTab('catalog_requests'); setCurrentPage(1); setSearchParams({ tab: 'catalog_requests' }); }}
+            className={`p-4 sm:p-5 rounded-2xl border shadow-2xs cursor-pointer transition ${
+              catalogRequestsCount > 0
+                ? 'bg-indigo-50/90 border-indigo-300 hover:bg-indigo-100/80 text-indigo-900 ring-2 ring-indigo-400/30'
+                : 'bg-white border-slate-200/90 hover:bg-slate-50 text-slate-800'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                <Package className={`w-3.5 h-3.5 ${catalogRequestsCount > 0 ? 'text-indigo-600 animate-pulse' : 'text-slate-400'}`} />
+                <span>Catalog Sourcing</span>
+              </span>
+              {catalogRequestsCount > 0 && (
+                <span className="bg-indigo-600 text-white font-black text-[10px] px-2 py-0.5 rounded-full animate-pulse">
+                  {catalogRequestsCount} New
+                </span>
+              )}
+            </div>
+            <div className={`text-2xl sm:text-3xl font-black ${catalogRequestsCount > 0 ? 'text-indigo-950' : 'text-slate-900'}`}>
+              {catalogRequestsCount}
+            </div>
+            <span className={`text-[11px] font-semibold ${catalogRequestsCount > 0 ? 'text-indigo-700' : 'text-slate-400'}`}>
+              {catalogRequestsCount > 0 ? 'Vendor requests waiting' : 'No pending requests'}
+            </span>
+          </div>
+
           {/* Active Stores (Fees Paid) */}
           <div
-            onClick={() => { setActiveTab('active'); setCurrentPage(1); }}
+            onClick={() => { setActiveTab('active'); setCurrentPage(1); setSearchParams({ tab: 'active' }); }}
             className="bg-emerald-50/70 p-4 sm:p-5 rounded-2xl border border-emerald-200 shadow-2xs cursor-pointer hover:bg-emerald-100/60 transition"
           >
             <div className="flex items-center justify-between text-emerald-800 mb-2">
@@ -341,7 +413,7 @@ const AdminVendors = () => {
 
           {/* Expired Access */}
           <div
-            onClick={() => { setActiveTab('expired'); setCurrentPage(1); }}
+            onClick={() => { setActiveTab('expired'); setCurrentPage(1); setSearchParams({ tab: 'expired' }); }}
             className="bg-rose-50/70 p-4 sm:p-5 rounded-2xl border border-rose-200 shadow-2xs cursor-pointer hover:bg-rose-100/60 transition"
           >
             <div className="flex items-center justify-between text-rose-800 mb-2">
@@ -355,7 +427,7 @@ const AdminVendors = () => {
           </div>
 
           {/* Fees Collected */}
-          <div className="col-span-2 lg:col-span-1 bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
+          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200/90 shadow-2xs">
             <div className="flex items-center justify-between text-slate-500 mb-2">
               <span className="text-xs font-bold uppercase tracking-wider">Fees Collected</span>
               <CreditCard className="w-4 h-4 text-emerald-600" />
@@ -374,6 +446,7 @@ const AdminVendors = () => {
           {[
             { id: 'all', label: 'All Merchants', count: allStores.length },
             { id: 'pending', label: 'KYC Requests', count: pendingCount, highlight: pendingCount > 0 },
+            { id: 'catalog_requests', label: 'Catalog Sourcing Requests', count: catalogRequestsCount, highlight: catalogRequestsCount > 0 },
             { id: 'approved_pending_payment', label: 'Approved (Awaiting Fee)', count: approvedPendingFeeCount },
             { id: 'active', label: 'Active & Paid', count: activeCount },
             { id: 'expired', label: 'Expired Validity', count: expiredCount, alert: expiredCount > 0 },
@@ -381,7 +454,12 @@ const AdminVendors = () => {
           ].map((tab) => (
             <button
               key={tab.id}
-              onClick={() => { setActiveTab(tab.id); setCurrentPage(1); }}
+              onClick={() => {
+                setActiveTab(tab.id);
+                setCurrentPage(1);
+                if (tab.id === 'all') setSearchParams({});
+                else setSearchParams({ tab: tab.id });
+              }}
               className={`px-4 py-2.5 text-xs font-bold rounded-t-xl transition whitespace-nowrap cursor-pointer flex items-center gap-2 border-b-2 -mb-[2px] ${
                 activeTab === tab.id
                   ? 'border-[#0c2a5e] text-[#0c2a5e] bg-white shadow-2xs'
@@ -393,7 +471,7 @@ const AdminVendors = () => {
                 <span
                   className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
                     tab.highlight
-                      ? 'bg-amber-500 text-white'
+                      ? 'bg-indigo-600 text-white'
                       : tab.alert
                       ? 'bg-rose-500 text-white'
                       : activeTab === tab.id
@@ -639,7 +717,7 @@ const AdminVendors = () => {
                         </td>
 
                         {/* Store Status Pill */}
-                        <td className="p-4">
+                        <td className="p-4 space-y-1">
                           {isPending && (
                             <span className="px-3 py-1 rounded-full bg-amber-100 text-amber-800 font-black text-[11px] inline-flex items-center gap-1.5 animate-pulse border border-amber-300">
                               <Clock className="w-3.5 h-3.5" />
@@ -675,6 +753,24 @@ const AdminVendors = () => {
                               <X className="w-3.5 h-3.5" />
                               <span>Rejected</span>
                             </span>
+                          )}
+
+                          {/* Admin Catalog Sourcing Status Pill */}
+                          {store.adminCatalogAccess?.status === 'requested' && (
+                            <div>
+                              <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-900 font-black text-[10px] inline-flex items-center gap-1 border border-indigo-300 animate-pulse">
+                                <Package className="w-2.5 h-2.5 text-indigo-700" />
+                                <span>Catalog Requested</span>
+                              </span>
+                            </div>
+                          )}
+                          {store.adminCatalogAccess?.status === 'approved' && (
+                            <div>
+                              <span className="px-2 py-0.5 rounded-full bg-teal-50 text-teal-800 font-bold text-[10px] inline-flex items-center gap-1 border border-teal-200">
+                                <Package className="w-2.5 h-2.5 text-teal-600" />
+                                <span>Catalog Allowed</span>
+                              </span>
+                            </div>
                           )}
                         </td>
 
@@ -725,7 +821,32 @@ const AdminVendors = () => {
                               </button>
                             </div>
                           ) : (
-                            <div className="inline-flex items-center justify-end">
+                            <div className="inline-flex items-center gap-1.5 justify-end">
+                              {/* Quick Catalog Access Approval/Reject Button */}
+                              {store.adminCatalogAccess?.status === 'requested' && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUpdateCatalogAccess(store._id, 'approved')}
+                                    disabled={processingId === store._id}
+                                    className="px-2.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs transition cursor-pointer inline-flex items-center gap-1 shadow-2xs disabled:opacity-50"
+                                    title="Grant Admin Catalog Sourcing Access"
+                                  >
+                                    <Check className="w-3.5 h-3.5" />
+                                    <span>{processingId === store._id ? 'Saving...' : 'Grant Catalog'}</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUpdateCatalogAccess(store._id, 'rejected')}
+                                    disabled={processingId === store._id}
+                                    className="px-2 py-1.5 rounded-xl border border-rose-300 text-rose-700 hover:bg-rose-50 font-bold text-xs transition cursor-pointer inline-flex items-center gap-1 disabled:opacity-50"
+                                    title="Reject Catalog Access Request"
+                                  >
+                                    <X className="w-3.5 h-3.5" />
+                                  </button>
+                                </>
+                              )}
+
                               <button
                                 type="button"
                                 onClick={() => openVendorDetails(store)}
@@ -770,7 +891,7 @@ const AdminVendors = () => {
                       </div>
 
                       {/* Status badge */}
-                      <div>
+                      <div className="flex flex-col items-end gap-1">
                         {isPending && (
                           <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-black text-[10px] animate-pulse">
                             Pending
@@ -784,6 +905,11 @@ const AdminVendors = () => {
                         {isExpired && (
                           <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-black text-[10px]">
                             Expired
+                          </span>
+                        )}
+                        {store.adminCatalogAccess?.status === 'requested' && (
+                          <span className="px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-900 font-black text-[9px] border border-indigo-300 animate-pulse flex items-center gap-0.5">
+                            <Package className="w-2.5 h-2.5" /> Catalog Req
                           </span>
                         )}
                       </div>
@@ -812,7 +938,30 @@ const AdminVendors = () => {
                     </div>
 
                     {/* Action buttons */}
-                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100">
+                    <div className="flex items-center justify-between gap-2 pt-1 border-t border-slate-100 flex-wrap">
+                      {/* Catalog Quick Grant Button on Mobile if requested */}
+                      {store.adminCatalogAccess?.status === 'requested' && (
+                        <div className="w-full flex items-center gap-1.5 pb-1">
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateCatalogAccess(store._id, 'approved')}
+                            disabled={processingId === store._id}
+                            className="flex-1 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer shadow-2xs disabled:opacity-50"
+                          >
+                            <Package className="w-3.5 h-3.5" />
+                            <span>{processingId === store._id ? 'Saving...' : 'Grant Catalog Access'}</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateCatalogAccess(store._id, 'rejected')}
+                            disabled={processingId === store._id}
+                            className="px-3 py-1.5 border border-rose-300 text-rose-700 hover:bg-rose-50 rounded-xl text-xs font-bold flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      )}
+
                       {isPending ? (
                         <>
                           <button
@@ -1273,6 +1422,62 @@ const AdminVendors = () => {
                             )}
                           </div>
                         </div>
+                      </div>
+                    </div>
+
+                    {/* Admin Catalog Sourcing Permission & Actions Card */}
+                    <div className="p-4 bg-indigo-50/70 border border-indigo-200 rounded-2xl space-y-2.5">
+                      <div className="flex items-center justify-between pb-1 border-b border-indigo-200/60">
+                        <div className="flex items-center gap-1.5 font-bold text-slate-900">
+                          <Package className="w-4 h-4 text-indigo-700" />
+                          <span>Admin Catalog Sourcing Access</span>
+                        </div>
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                            selectedApplication.adminCatalogAccess?.status === 'approved'
+                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                              : selectedApplication.adminCatalogAccess?.status === 'requested'
+                              ? 'bg-amber-100 text-amber-800 border border-amber-300 animate-pulse'
+                              : 'bg-slate-200 text-slate-700'
+                          }`}
+                        >
+                          {selectedApplication.adminCatalogAccess?.status === 'approved'
+                            ? '✓ Access Granted'
+                            : selectedApplication.adminCatalogAccess?.status === 'requested'
+                            ? '⏳ Requested by Vendor'
+                            : 'Not Requested'}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-600">
+                        When granted, merchant can select items from the central Admin Catalog to sell in their store at the fixed admin price. Orders will be fulfilled via central dropship dispatch.
+                      </p>
+                      <div className="flex items-center gap-2 pt-1 flex-wrap">
+                        {selectedApplication.adminCatalogAccess?.status !== 'approved' ? (
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateCatalogAccess(selectedApplication._id, 'approved', adminNotes)}
+                            disabled={processingId === selectedApplication._id}
+                            className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer shadow-xs disabled:opacity-50"
+                          >
+                            <Check className="w-3.5 h-3.5" />
+                            <span>{processingId === selectedApplication._id ? 'Updating...' : 'Grant Admin Catalog Access'}</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateCatalogAccess(selectedApplication._id, 'rejected', adminNotes)}
+                            disabled={processingId === selectedApplication._id}
+                            className="px-3.5 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl font-bold text-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            <span>{processingId === selectedApplication._id ? 'Updating...' : 'Revoke Catalog Access'}</span>
+                          </button>
+                        )}
+                        {selectedApplication.adminCatalogAccess?.approvedAt && (
+                          <span className="text-[10px] text-slate-500 italic">
+                            Approved on {new Date(selectedApplication.adminCatalogAccess.approvedAt).toLocaleDateString('en-IN')}
+                          </span>
+                        )}
                       </div>
                     </div>
 

@@ -82,7 +82,7 @@ exports.sendEmailOtp = async (req, res, next) => {
     try {
       const emailResult = await sendEmail({
         to: email.toLowerCase(),
-        subject: `Your Amezon.online Verification Code: ${otp}`,
+        subject: `Your SR Marketplace Verification Code: ${otp}`,
         text: `Your 6-digit verification code is: ${otp}. It expires in 10 minutes.`,
         html: getOtpEmailTemplate(otp, email.toLowerCase()),
       });
@@ -403,7 +403,7 @@ exports.register = async (req, res, next) => {
           vendor: `user_${Date.now()}`,
           storeName: req.body.storeName || `${name}'s Official Store`,
           category: 'General',
-          description: 'Official verified merchant on Amezon.online',
+          description: 'Official verified merchant on SR Marketplace',
           phone: phone || '',
           email: email.toLowerCase(),
           documents: {
@@ -515,7 +515,7 @@ exports.register = async (req, res, next) => {
           role: 'customer',
           type: 'customer_referral',
           title: '🎉 Welcome ₹100 Discount Voucher!',
-          message: `Welcome to Amezon! Use coupon code ${welcomeCode} on orders above ₹299.`,
+          message: `Welcome to SR Marketplace! Use coupon code ${welcomeCode} on orders above ₹299.`,
           link: '/products',
           metadata: { couponCode: welcomeCode, discountAmount: 100 },
         }).catch(() => {});
@@ -569,7 +569,7 @@ exports.register = async (req, res, next) => {
         vendor: user._id,
         storeName: req.body.storeName || `${user.name}'s Official Store`,
         category: 'General',
-        description: 'Official verified merchant on Amezon.online',
+        description: 'Official verified merchant on SR Marketplace',
         phone: user.phone || '',
         email: user.email,
         documents: {
@@ -652,7 +652,7 @@ exports.register = async (req, res, next) => {
           role: 'customer',
           type: 'customer_referral',
           title: '🎉 Welcome ₹100 Discount Voucher!',
-          message: `Welcome to Amezon! Use coupon code ${welcomeCode} on orders above ₹299.`,
+          message: `Welcome to SR Marketplace! Use coupon code ${welcomeCode} on orders above ₹299.`,
           link: '/products',
           metadata: { couponCode: welcomeCode, discountAmount: 100 },
         });

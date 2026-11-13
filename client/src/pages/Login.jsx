@@ -65,8 +65,8 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-8 sm:pt-12 pb-20 px-4 sm:px-6 lg:px-8 flex justify-center">
-      <div className="w-full max-w-4xl bg-white rounded-3xl shadow-xl border border-slate-200/90 overflow-hidden grid grid-cols-1 lg:grid-cols-12 self-start">
+    <div className="min-h-[calc(100dvh-140px)] sm:min-h-screen bg-slate-50 py-4 sm:py-10 px-3 sm:px-6 lg:px-8 flex flex-col justify-center items-center">
+      <div className="w-full max-w-md lg:max-w-4xl bg-white rounded-2xl sm:rounded-3xl shadow-lg sm:shadow-xl border border-slate-200/90 overflow-hidden grid grid-cols-1 lg:grid-cols-12">
         {/* Left Column: Brand & Security Showcase (Desktop) */}
         <div className="hidden lg:flex lg:col-span-5 bg-gradient-to-br from-[#071d42] via-[#0c2a5e] to-[#174896] p-8 sm:p-10 text-white flex-col justify-between relative overflow-hidden">
           <div className="absolute -top-24 -right-24 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -112,25 +112,25 @@ const Login = () => {
         </div>
 
         {/* Right Column: Clean Login Form */}
-        <div className="lg:col-span-7 p-6 sm:p-10 lg:p-12 flex flex-col justify-center">
-          <div className="max-w-md mx-auto w-full space-y-6">
+        <div className="lg:col-span-7 p-5 sm:p-8 lg:p-12 flex flex-col justify-center">
+          <div className="max-w-md mx-auto w-full space-y-4 sm:space-y-6">
             {/* Mobile Top Brand Header */}
-            <div className="lg:hidden flex flex-col items-center justify-center pb-2 text-center">
-              <Logo variant="marketplace" />
+            <div className="lg:hidden flex flex-col items-center justify-center pb-1 text-center">
+              <Logo variant="marketplace" size="md" theme="light" />
             </div>
 
-            <div className="space-y-1.5 text-center lg:text-left">
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            <div className="space-y-1 text-center lg:text-left">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-slate-900 tracking-tight">
                 Sign In
               </h1>
-              <p className="text-sm text-slate-500">
+              <p className="text-xs sm:text-sm text-slate-500">
                 Enter your registered email and password to access your account.
               </p>
             </div>
 
-            <form onSubmit={handleLoginSubmit} className="space-y-4" autoComplete="off">
+            <form onSubmit={handleLoginSubmit} className="space-y-3.5 sm:space-y-4" autoComplete="off">
               {/* Email Address */}
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <label className="text-xs sm:text-sm font-bold text-slate-700">
                   Email Address *
                 </label>
@@ -144,14 +144,14 @@ const Login = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="Enter email address"
-                    className="w-full pl-10 pr-3 py-2.5 text-sm sm:text-base bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e] transition"
+                    className="w-full pl-9 sm:pl-10 pr-3 py-2.5 sm:py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e] transition"
                   />
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <Mail className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2" />
                 </div>
               </div>
 
               {/* Password */}
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <div className="flex items-center justify-between">
                   <label className="text-xs sm:text-sm font-bold text-slate-700">
                     Password *
@@ -173,27 +173,27 @@ const Login = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter password"
-                    className="w-full pl-10 pr-10 py-2.5 text-sm sm:text-base bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e] transition"
+                    className="w-full pl-9 sm:pl-10 pr-9 sm:pr-10 py-2.5 sm:py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e] transition"
                   />
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <Lock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2" />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showPassword ? <EyeOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                   </button>
                 </div>
               </div>
 
               {/* Remember Me */}
-              <div className="flex items-center gap-2 pt-1">
+              <div className="flex items-center gap-2 pt-0.5">
                 <input
                   type="checkbox"
                   id="remember-me"
                   checked={rememberMe}
                   onChange={(e) => setRememberMe(e.target.checked)}
-                  className="rounded border-slate-300 text-[#0c2a5e] focus:ring-[#0c2a5e] cursor-pointer"
+                  className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded border-slate-300 text-[#0c2a5e] focus:ring-[#0c2a5e] cursor-pointer"
                 />
                 <label htmlFor="remember-me" className="text-xs text-slate-600 cursor-pointer">
                   Remember this device for 30 days
@@ -205,16 +205,16 @@ const Login = () => {
                 type="submit"
                 id="login-submit-btn"
                 disabled={loading}
-                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#0c2a5e] to-[#154699] hover:from-[#09224d] hover:to-[#123c85] text-white font-bold text-sm sm:text-base shadow-lg shadow-blue-900/20 transition cursor-pointer disabled:bg-slate-300 disabled:from-slate-300 disabled:to-slate-300 flex items-center justify-center gap-2 active:scale-98"
+                className="w-full py-3 sm:py-3.5 rounded-xl bg-gradient-to-r from-[#0c2a5e] to-[#154699] hover:from-[#09224d] hover:to-[#123c85] text-white font-bold text-xs sm:text-base shadow-md sm:shadow-lg shadow-blue-900/20 transition cursor-pointer disabled:bg-slate-300 disabled:from-slate-300 disabled:to-slate-300 flex items-center justify-center gap-2 active:scale-98"
               >
                 {loading ? (
                   <div className="flex items-center gap-2">
-                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
                     <span>Signing in...</span>
                   </div>
                 ) : (
                   <>
-                    <LogIn className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <LogIn className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     <span>Sign In</span>
                   </>
                 )}
@@ -222,7 +222,7 @@ const Login = () => {
             </form>
 
             {/* Register Link */}
-            <div className="text-center pt-2 border-t border-slate-100 text-sm text-slate-600">
+            <div className="text-center pt-2 border-t border-slate-100 text-xs sm:text-sm text-slate-600">
               Don't have an account yet?{' '}
               <Link to="/register" className="font-bold text-[#0c2a5e] hover:underline">
                 Create an Account
@@ -230,20 +230,20 @@ const Login = () => {
             </div>
 
             {/* Discreet Collapsed Quick Fill for Testing */}
-            <details className="pt-2 text-xs text-slate-400 cursor-pointer">
+            <details className="pt-1 text-[11px] sm:text-xs text-slate-400 cursor-pointer">
               <summary className="hover:text-slate-600 font-medium select-none">
                 Quick Fill Test Credentials (Customer / Admin / Vendor)
               </summary>
-              <div className="mt-2.5 p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-slate-600 text-xs">
+              <div className="mt-2 p-2.5 sm:p-3 bg-slate-50 border border-slate-200 rounded-xl space-y-2 text-slate-600 text-[11px] sm:text-xs">
                 <div className="flex items-center justify-between pb-1.5 border-b border-slate-200">
                   <div>
                     <span className="font-bold text-[#0c2a5e] block">Customer:</span>
-                    <span className="font-mono text-[11px]">ramarajukoyyalagadda@gmail.com</span>
+                    <span className="font-mono text-[10px] sm:text-[11px]">ramarajukoyyalagadda@gmail.com</span>
                   </div>
                   <button
                     type="button"
                     onClick={() => fillCredentials('ramarajukoyyalagadda@gmail.com', 'R@maraju123')}
-                    className="px-2.5 py-1 rounded-lg bg-[#0c2a5e] text-white font-bold text-[11px] hover:bg-[#153e85] transition cursor-pointer"
+                    className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-[#0c2a5e] text-white font-bold text-[10px] sm:text-[11px] hover:bg-[#153e85] transition cursor-pointer"
                   >
                     Auto Fill
                   </button>
@@ -270,6 +270,27 @@ const Login = () => {
                 </div>
               </div>
             </details>
+
+            {/* Mobile Trust Strip to gracefully cover space */}
+            <div className="lg:hidden pt-3 border-t border-slate-100 space-y-2">
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-50/80 border border-slate-200/60">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 mb-0.5" />
+                  <span className="text-[10px] font-bold text-slate-800">Secure</span>
+                  <span className="text-[9px] text-slate-500">256-bit SSL</span>
+                </div>
+                <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-50/80 border border-slate-200/60">
+                  <Truck className="w-4 h-4 text-[#0c2a5e] mb-0.5" />
+                  <span className="text-[10px] font-bold text-slate-800">Fast Dispatch</span>
+                  <span className="text-[9px] text-slate-500">Live Track</span>
+                </div>
+                <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-50/80 border border-slate-200/60">
+                  <RotateCcw className="w-4 h-4 text-cyan-600 mb-0.5" />
+                  <span className="text-[10px] font-bold text-slate-800">Easy Returns</span>
+                  <span className="text-[9px] text-slate-500">7-Day Free</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

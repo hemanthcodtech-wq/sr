@@ -26,18 +26,39 @@ const dispatchOrderNotifications = async (order) => {
       });
     }
 
+    // Check for Admin Sourced catalog items needing central dispatch
+    const hasAdminSourced = order.items.some(
+      (i) => i.sourceType === 'admin_catalog' || i.fulfillmentType === 'admin_central' || i.sourceAdminProduct
+    );
+    if (hasAdminSourced) {
+      const sourcedItem = order.items.find(
+        (i) => i.sourceType === 'admin_catalog' || i.fulfillmentType === 'admin_central' || i.sourceAdminProduct
+      );
+      await createNotification({
+        role: 'admin',
+        type: 'admin_sourced_order',
+        title: `🏢 Sourced Product Ordered #${order.invoiceNumber}`,
+        message: `Customer ordered "${sourcedItem.title}" (${sourcedItem.vendorProductCode || 'Sourced'}). Dispatch via Admin Central fulfillment to ${order.shippingAddress?.fullName || 'customer'} in ${order.shippingAddress?.city || ''}.`,
+        link: '/admin/dropshipping',
+        metadata: { orderId: order._id },
+      });
+    }
+
     // Notify vendors of their store items
     const notifiedVendors = new Set();
     for (const item of order.items) {
       const vId = item.vendor?._id || item.vendor;
-      if (vId && !notifiedVendors.has(vId.toString()) && !item.isDropshipped) {
+      const isSourced = item.sourceType === 'admin_catalog' || item.fulfillmentType === 'admin_central' || item.sourceAdminProduct;
+      if (vId && !notifiedVendors.has(vId.toString())) {
         notifiedVendors.add(vId.toString());
         await createNotification({
           recipient: vId,
           role: 'vendor',
           type: 'store_order',
           title: `📦 New Store Order #${order.invoiceNumber}`,
-          message: `Customer ${order.shippingAddress?.fullName || 'buyer'} placed an order for "${item.title}". Please pack and deliver to customer address in ${order.shippingAddress?.city || ''}.`,
+          message: isSourced
+            ? `Customer ordered "${item.title}" (${item.vendorProductCode || 'Admin Sourced'}). Central warehouse dispatch handled by Admin.`
+            : `Customer ${order.shippingAddress?.fullName || 'buyer'} placed an order for "${item.title}". Please pack and deliver to customer address in ${order.shippingAddress?.city || ''}.`,
           link: '/vendor/orders',
           metadata: { orderId: order._id },
         });
@@ -94,10 +115,15 @@ const enrichItemsWithDropship = async (items, defaultTrackingNum = '') => {
       dbProd = mockProducts.find((p) => p._id === prodId) || (typeof i.product === 'object' ? i.product : null);
     }
 
+    const prodSourceType = dbProd?.sourceType || (dbProd?.isSourcedFromAdmin ? 'admin_catalog' : 'vendor_own');
+    const prodFulfillmentType = dbProd?.fulfillmentType || (prodSourceType === 'admin_catalog' ? 'admin_central' : 'vendor_self');
+    const isSourcedFromAdmin = prodSourceType === 'admin_catalog' || !!dbProd?.isSourcedFromAdmin || !!dbProd?.sourceAdminProduct;
+
     const isDropship =
+      isSourcedFromAdmin ||
       dbProd?.isDropshipped ||
-      ['amazon', 'flipkart', 'meesho', 'deodap'].includes(dbProd?.sourcePlatform) ||
-      ['amazon', 'flipkart', 'meesho', 'deodap'].includes(i.sourcePlatform);
+      ['amazon', 'flipkart', 'meesho', 'deodap', 'admin_central'].includes(dbProd?.sourcePlatform) ||
+      ['amazon', 'flipkart', 'meesho', 'deodap', 'admin_central'].includes(i.sourcePlatform);
 
     const sPrice = dbProd?.sourcePrice !== undefined ? dbProd.sourcePrice : (i.sourcePrice || 0);
     const itemPrice = i.price || dbProd?.discountPrice || dbProd?.price || 0;
@@ -109,21 +135,42 @@ const enrichItemsWithDropship = async (items, defaultTrackingNum = '') => {
     const vShare = isPromoted ? Math.round(totalMargin * 0.5) : 0;
     const aShare = isPromoted ? totalMargin - vShare : totalMargin;
 
+    let originalSku = dbProd?.sku || dbProd?.csvData?.sku || dbProd?.csvData?.['Variant SKU'] || i.sku || '';
+    let sourceProductUrl = dbProd?.sourceUrl || i.sourceUrl || '';
+    let originalCostPrice = sPrice;
+
+    if (dbProd?.sourceAdminProduct && (!originalSku || !sourceProductUrl)) {
+      try {
+        const origAdmin = await Product.findById(dbProd.sourceAdminProduct);
+        if (origAdmin) {
+          if (!originalSku) originalSku = origAdmin.sku || origAdmin.csvData?.sku || origAdmin.csvData?.['Variant SKU'] || '';
+          if (!sourceProductUrl) sourceProductUrl = origAdmin.sourceUrl || '';
+          if (!originalCostPrice) originalCostPrice = origAdmin.sourcePrice || origAdmin.costPrice || 0;
+        }
+      } catch (_) {}
+    }
+
     enriched.push({
       product: prodId,
       title: i.title || dbProd?.title || 'Product Item',
+      sku: originalSku,
       price: itemPrice,
       quantity: qty,
       image: i.image || dbProd?.images?.[0] || '',
       vendor: i.vendor?._id || i.vendor || dbProd?.vendor,
       store: i.store?._id || i.store || dbProd?.store,
       deliveryStatus: i.deliveryStatus || 'Processing',
+      courierName: isSourcedFromAdmin ? 'SR Marketplace Central Logistics' : (i.courierName || 'Merchant Courier Partner'),
       trackingNumber: i.trackingNumber || defaultTrackingNum || '',
       vendorSettled: false,
+      sourceType: prodSourceType,
+      fulfillmentType: prodFulfillmentType,
+      sourceAdminProduct: dbProd?.sourceAdminProduct || null,
+      vendorProductCode: dbProd?.vendorProductCode || '',
       isDropshipped: isDropship,
-      sourcePlatform: dbProd?.sourcePlatform || i.sourcePlatform || 'in_house',
-      sourceUrl: dbProd?.sourceUrl || i.sourceUrl || '',
-      sourcePrice: sPrice,
+      sourcePlatform: dbProd?.sourcePlatform || (isSourcedFromAdmin ? 'admin_central' : (i.sourcePlatform || 'in_house')),
+      sourceUrl: sourceProductUrl,
+      sourcePrice: originalCostPrice,
       profitMargin: totalMargin,
       fulfillmentStatus: isDropship ? (i.fulfillmentStatus || 'unfulfilled') : 'ordered_on_source',
       sourceOrderId: i.sourceOrderId || '',
@@ -427,9 +474,9 @@ exports.createCodOrWalletOrder = async (req, res, next) => {
     const trackingTimeline = [
       {
         status: 'Order Placed',
-        title: paymentMethod === 'Wallet' ? 'Paid via Amezon Wallet' : 'Order Placed (Cash on Delivery)',
+        title: paymentMethod === 'Wallet' ? 'Paid via Wallet' : 'Order Placed (Cash on Delivery)',
         description: paymentMethod === 'Wallet' 
-          ? '₹' + totalAmount + ' deducted from your Amezon Wallet. Order confirmed.'
+          ? '₹' + totalAmount + ' deducted from your SR Marketplace Wallet. Order confirmed.'
           : 'Cash on delivery payment will be collected at doorstep during delivery.',
         location: 'Central Order Processing Facility',
         timestamp: new Date(),
@@ -962,6 +1009,34 @@ exports.updateDropshipFulfillment = async (req, res, next) => {
             console.warn('[Affiliate fulfillment settlement error]', e.message);
           }
         }
+
+        // Case: Admin Catalog item sold through Vendor Store - credit vendor store markup/commission
+        if ((item.sourceType === 'admin_catalog' || item.sourcePlatform === 'admin_central') && item.vendor && !item.vendorSettled) {
+          try {
+            const vendorUser = await User.findById(item.vendor);
+            if (vendorUser) {
+              const commissionCredit = item.vendorProfitShare > 0
+                ? item.vendorProfitShare
+                : Math.round(((item.price || 0) * (item.quantity || 1)) * 0.10);
+
+              vendorUser.walletBalance = (vendorUser.walletBalance || 0) + commissionCredit;
+              await vendorUser.save();
+              await WalletTransaction.create({
+                vendor: vendorUser._id,
+                type: 'order_earning',
+                amount: commissionCredit,
+                description: `Store sales commission for Admin Sourced product "${item.title}" (${item.vendorProductCode || 'VND'}) (Order #${order.invoiceNumber || order._id})`,
+                referenceId: order._id.toString(),
+                status: 'completed',
+                balanceAfter: vendorUser.walletBalance,
+              });
+              item.vendorSettled = true;
+              console.log(`[Admin Catalog Settlement] Dispatched ₹${commissionCredit} commission to vendor (${vendorUser.email}) on customer delivery.`);
+            }
+          } catch (e) {
+            console.warn('[Admin catalog vendor settlement error]', e.message);
+          }
+        }
       }
     }
 
@@ -969,9 +1044,11 @@ exports.updateDropshipFulfillment = async (req, res, next) => {
     if (fulfillmentStatus === 'shipped_by_source' && sourceTrackingNumber) {
       order.trackingTimeline.push({
         status: 'Shipped',
-        title: `Package Dispatched by ${item.sourcePlatform ? item.sourcePlatform.toUpperCase() : 'Supplier'}`,
-        description: `Source Order #${item.sourceOrderId || ''} has been handed over to courier. AWB/Tracking: ${sourceTrackingNumber}`,
-        location: 'Origin Logistics Center',
+        title: item.sourceType === 'admin_catalog' ? 'SR Central Warehouse Package Dispatched' : `Package Dispatched by ${item.sourcePlatform ? item.sourcePlatform.toUpperCase() : 'Supplier'}`,
+        description: item.sourceType === 'admin_catalog'
+          ? `Package containing "${item.title}" dispatched via central courier. AWB/Tracking: ${sourceTrackingNumber}`
+          : `Source Order #${item.sourceOrderId || ''} has been handed over to courier. AWB/Tracking: ${sourceTrackingNumber}`,
+        location: item.sourceType === 'admin_catalog' ? 'SR Marketplace Central Logistics Hub' : 'Origin Logistics Center',
         timestamp: new Date(),
       });
       order.trackingNumber = sourceTrackingNumber;

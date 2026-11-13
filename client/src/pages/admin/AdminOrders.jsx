@@ -171,6 +171,7 @@ const AdminOrders = () => {
     flipkart: 'bg-blue-100 text-blue-900 border-blue-300',
     meesho: 'bg-pink-100 text-pink-900 border-pink-300',
     deodap: 'bg-emerald-100 text-emerald-900 border-emerald-300',
+    admin_central: 'bg-indigo-100 text-indigo-900 border-indigo-300',
     in_house: 'bg-slate-100 text-slate-800 border-slate-200',
     other: 'bg-purple-100 text-purple-900 border-purple-300',
   };
@@ -378,7 +379,7 @@ const AdminOrders = () => {
             {/* Source Platform Filter */}
             <div className="flex items-center gap-1.5 overflow-x-auto text-xs">
               <span className="text-slate-400 font-bold mr-1">Source:</span>
-              {['all', 'meesho', 'deodap', 'amazon', 'flipkart'].map((src) => (
+              {['all', 'admin_central', 'meesho', 'deodap', 'amazon', 'flipkart'].map((src) => (
                 <button
                   key={src}
                   onClick={() => setSelectedSource(src)}
@@ -388,7 +389,7 @@ const AdminOrders = () => {
                       : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                   }`}
                 >
-                  {src}
+                  {src === 'admin_central' ? 'Admin Sourced' : src}
                 </button>
               ))}
             </div>
@@ -486,9 +487,21 @@ const AdminOrders = () => {
 
                           {/* Source Platform & Fulfillment Status */}
                           <div className="flex items-center gap-3 flex-shrink-0 flex-wrap">
-                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${platformBadges[platform] || platformBadges.other}`}>
-                              {platform}
-                            </span>
+                            {item.sourceType === 'admin_catalog' || item.sourceAdminProduct ? (
+                              <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase border bg-indigo-100 text-indigo-900 border-indigo-300 flex items-center gap-1 shadow-2xs">
+                                <Package className="w-2.5 h-2.5 text-indigo-700" />
+                                ADMIN SOURCED ({item.vendorProductCode || 'CENTRAL'})
+                              </span>
+                            ) : (
+                              <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase border ${platformBadges[platform] || platformBadges.other}`}>
+                                {platform}
+                              </span>
+                            )}
+                            {(item.store?.storeName || item.vendor?.name) && (
+                              <span className="text-[10px] font-bold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
+                                Store: {item.store?.storeName || item.vendor?.name}
+                              </span>
+                            )}
 
                             {/* Fulfillment Status Pill */}
                             <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${

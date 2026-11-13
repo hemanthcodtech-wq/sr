@@ -429,7 +429,7 @@ const VendorOrders = () => {
                     <div>
                       <span className="text-slate-400 font-medium">Payment: </span>
                       <span className="font-extrabold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                        {order.paymentMethod === 'Wallet' ? 'Amezon Wallet' : 'Escrow Secured'}
+                        {order.paymentMethod === 'Wallet' ? 'SR Wallet' : 'Escrow Secured'}
                       </span>
                     </div>
                   </div>
@@ -477,20 +477,35 @@ const VendorOrders = () => {
                     </div>
 
                     <div className="min-w-0">
-                      <h4 className="font-bold text-sm text-slate-900 truncate group-hover:text-[#0f8a48] transition">
-                        {order.items?.[0]?.title || 'Order Item'}
-                        {order.items?.length > 1 && (
-                          <span className="text-xs text-slate-400 font-medium ml-1.5">
-                            +{order.items.length - 1} more
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <h4 className="font-bold text-sm text-slate-900 truncate group-hover:text-[#0f8a48] transition">
+                          {order.items?.[0]?.title || 'Order Item'}
+                          {order.items?.length > 1 && (
+                            <span className="text-xs text-slate-400 font-medium ml-1.5">
+                              +{order.items.length - 1} more
+                            </span>
+                          )}
+                        </h4>
+                        {order.items?.some((i) => i.sourceType === 'admin_catalog' || i.sourceAdminProduct) && (
+                          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-900 border border-indigo-200">
+                            Admin Central
                           </span>
                         )}
-                      </h4>
+                      </div>
                       <div className="text-xs text-slate-500 font-medium mt-0.5 flex items-center gap-2">
                         <span>{order.items?.length || 1} item(s)</span>
                         <span>•</span>
                         <span className="text-slate-700 font-bold">
                           Qty: {order.items?.reduce((sum, i) => sum + (i.quantity || 1), 0)}
                         </span>
+                        {order.items?.[0]?.vendorProductCode && (
+                          <>
+                            <span>•</span>
+                            <span className="font-mono text-indigo-700 font-bold text-[11px]">
+                              {order.items[0].vendorProductCode}
+                            </span>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>

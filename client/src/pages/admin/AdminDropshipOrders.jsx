@@ -104,6 +104,29 @@ const AdminDropshipOrders = () => {
     setTimeout(() => setCopiedAddressId(null), 2500);
   };
 
+  // Copy complete DeoDap order payload mapping product SKU, CSV code, Quantity, and Shipping details
+  const handleCopyDeoDapPayload = (order, item) => {
+    const addr = order.shippingAddress || {};
+    const text = `=== DEODAP DROPSHIP ORDER ===
+Product: ${item.title}
+DeoDap SKU / Code: ${item.sku || 'N/A'}
+Quantity: ${item.quantity || 1}
+Sourced Vendor Store: ${item.store?.storeName || item.vendor?.name || 'Merchant'} (${item.vendorProductCode || 'VND'})
+Marketplace Order ID: ${order.invoiceNumber || order._id}
+
+--- RECIPIENT SHIPPING ADDRESS ---
+Full Name: ${addr.fullName || ''}
+Phone: ${addr.phone || ''}
+Address Line: ${addr.street || ''}
+${addr.landmark ? `Landmark: ${addr.landmark}\n` : ''}City: ${addr.city || ''}
+State: ${addr.state || ''}
+PIN Code: ${addr.zipCode || addr.pincode || ''}
+Payment Mode: ${order.paymentMethod === 'Cash on Delivery' ? 'Cash on Delivery (COD)' : 'Prepaid (Paid by Customer)'}`;
+
+    navigator.clipboard.writeText(text);
+    success('Copied complete DeoDap order payload (SKU + Address) to clipboard!');
+  };
+
   const handleOpenFulfillment = (order, item) => {
     setFulfillModal({ order, item });
     setSourceOrderId(item.sourceOrderId || '');
@@ -135,15 +158,20 @@ const AdminDropshipOrders = () => {
     }
   };
 
-  // Filter dropship / DeoDap orders only
+  // Filter dropship / DeoDap / Admin Sourced catalog orders
   const dropshipOrdersList = useMemo(() => {
     return orders
       .map((order) => {
         const dropshipItems = (order.items || []).filter(
-          (item) => item.isDropshipped || ['deodap', 'amazon', 'flipkart', 'meesho', 'other'].includes(item.sourcePlatform)
+          (item) =>
+            item.isDropshipped ||
+            item.sourceType === 'admin_catalog' ||
+            item.fulfillmentType === 'admin_central' ||
+            !!item.sourceAdminProduct ||
+            ['deodap', 'admin_central', 'amazon', 'flipkart', 'meesho', 'other'].includes(item.sourcePlatform)
         );
-        const dropshipTotal = dropshipItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
-        const dropshipCost = dropshipItems.reduce((sum, i) => sum + (i.sourcePrice || 0) * i.quantity, 0);
+        const dropshipTotal = dropshipItems.reduce((sum, i) => sum + (i.price || 0) * (i.quantity || 1), 0);
+        const dropshipCost = dropshipItems.reduce((sum, i) => sum + (i.sourcePrice || 0) * (i.quantity || 1), 0);
         const dropshipMargin = dropshipItems.reduce((sum, i) => sum + (i.profitMargin || 0), 0);
 
         return {
@@ -825,9 +853,28 @@ const AdminDropshipOrders = () => {
 
                             <div className="space-y-1.5 flex-1">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300">
-                                  DEODAP WHOLESALE
-                                </span>
+                                {item.sourceType === 'admin_catalog' || item.fulfillmentType === 'admin_central' || item.sourceAdminProduct ? (
+                                  <>
+                                    <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-900 border border-indigo-300 flex items-center gap-1 shadow-2xs">
+                                      <Package className="w-2.5 h-2.5 text-indigo-700" />
+                                      ADMIN CATALOG SOURCED
+                                    </span>
+                                    {item.vendorProductCode && (
+                                      <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-indigo-50 border border-indigo-200 text-indigo-800 font-bold">
+                                        Code: {item.vendorProductCode}
+                                      </span>
+                                    )}
+                                    {(item.store?.storeName || item.vendor?.name) && (
+                                      <span className="text-[10px] px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 font-bold">
+                                        Store: {item.store?.storeName || item.vendor?.name}
+                                      </span>
+                                    )}
+                                  </>
+                                ) : (
+                                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300">
+                                    DEODAP WHOLESALE
+                                  </span>
+                                )}
 
                                 <span
                                   className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
@@ -842,12 +889,12 @@ const AdminDropshipOrders = () => {
                                 >
                                   ●{' '}
                                   {status === 'ordered_on_source'
-                                    ? 'Ordered on DeoDap'
+                                    ? (item.sourceType === 'admin_catalog' || item.sourceAdminProduct ? 'Prepared at Central Warehouse' : 'Ordered on DeoDap')
                                     : status === 'shipped_by_source'
-                                    ? 'Shipped by Courier'
+                                    ? 'Dispatched via Courier'
                                     : status === 'delivered_to_customer'
                                     ? 'Delivered to Customer'
-                                    : 'Action Required: Place on DeoDap'}
+                                    : (item.sourceType === 'admin_catalog' || item.sourceAdminProduct ? 'Action Required: Central Warehouse Dispatch' : 'Action Required: Place on DeoDap')}
                                 </span>
 
                                 {item.sku && (
@@ -877,7 +924,7 @@ const AdminDropshipOrders = () => {
                                 </span>
                                 <span>•</span>
                                 <span>
-                                  DeoDap Cost: <b className="text-slate-800">{cost}</b>
+                                  {item.sourceType === 'admin_catalog' || item.sourceAdminProduct ? 'Admin Fixed Base:' : 'DeoDap Cost:'} <b className="text-slate-800">{cost || sell}</b>
                                 </span>
                                 <span>•</span>
                                 <span>
@@ -889,7 +936,7 @@ const AdminDropshipOrders = () => {
 
                                 {item.sourceOrderId && (
                                   <span className="text-[11px] font-mono font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded">
-                                    DeoDap Ref: {item.sourceOrderId}
+                                    Ref: {item.sourceOrderId}
                                   </span>
                                 )}
                                 {item.sourceTrackingNumber && (
@@ -904,11 +951,20 @@ const AdminDropshipOrders = () => {
                           {/* Action Button: Update DeoDap Order ID & Courier AWB */}
                           <div className="flex items-center gap-2 self-end lg:self-center shrink-0">
                             <button
+                              type="button"
+                              onClick={() => handleCopyDeoDapPayload(order, item)}
+                              className="px-3 py-2 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer"
+                              title="Copy complete DeoDap order details (SKU + Address)"
+                            >
+                              <Copy className="w-3.5 h-3.5 text-blue-600" />
+                              <span className="hidden sm:inline">Copy DeoDap Details</span>
+                            </button>
+                            <button
                               onClick={() => handleOpenFulfillment(order, item)}
                               className="px-4 py-2 rounded-xl bg-[#0c2a5e] hover:bg-[#153e85] text-white font-bold text-xs shadow-sm transition flex items-center gap-1.5 cursor-pointer"
                             >
                               <Package className="w-3.5 h-3.5 text-amber-300" />
-                              <span>Fulfill on DeoDap</span>
+                              <span>{item.sourceType === 'admin_catalog' || item.sourceAdminProduct ? 'Central Dispatch' : 'Fulfill on DeoDap'}</span>
                             </button>
                           </div>
                         </div>
@@ -1040,17 +1096,80 @@ const AdminDropshipOrders = () => {
                 </button>
               </div>
 
+              {/* Product & DeoDap CSV Mapping Card */}
+              <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-200 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-black uppercase tracking-wider text-indigo-950 flex items-center gap-1.5">
+                    <Package className="w-3.5 h-3.5 text-indigo-700" />
+                    <span>DeoDap / Central Catalog Mapping</span>
+                  </span>
+                  {fulfillModal.item.sourceUrl && (
+                    <a
+                      href={fulfillModal.item.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-[11px] font-bold text-indigo-700 hover:text-indigo-900 underline inline-flex items-center gap-1"
+                    >
+                      <span>Open on DeoDap</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+
+                <p className="font-bold text-xs text-slate-900 line-clamp-1">{fulfillModal.item.title}</p>
+
+                <div className="flex flex-wrap items-center gap-1.5 pt-0.5 text-[11px]">
+                  {fulfillModal.item.sku && (
+                    <button
+                      type="button"
+                      onClick={() => handleCopySingle(fulfillModal.item.sku, 'modal-sku')}
+                      className="px-2 py-0.5 rounded-md bg-white border border-indigo-200 font-mono font-bold text-indigo-900 flex items-center gap-1 cursor-pointer hover:bg-indigo-100"
+                      title="Copy DeoDap SKU"
+                    >
+                      <span>DeoDap SKU: {fulfillModal.item.sku}</span>
+                      <Copy className="w-2.5 h-2.5 text-indigo-500" />
+                    </button>
+                  )}
+                  {fulfillModal.item.vendorProductCode && (
+                    <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200 font-mono font-bold text-slate-700">
+                      Store Code: {fulfillModal.item.vendorProductCode}
+                    </span>
+                  )}
+                  {(fulfillModal.item.store?.storeName || fulfillModal.item.vendor?.name) && (
+                    <span className="px-2 py-0.5 rounded-md bg-white border border-slate-200 text-slate-700 font-bold">
+                      Store: {fulfillModal.item.store?.storeName || fulfillModal.item.vendor?.name}
+                    </span>
+                  )}
+                  <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 font-bold">
+                    Qty: {fulfillModal.item.quantity || 1}
+                  </span>
+                </div>
+              </div>
+
               {/* Customer Address Preview & Copy */}
               <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold text-slate-700">Buyer Delivery Address (Copy &amp; Paste to DeoDap)</span>
-                  <button
-                    onClick={() => handleCopyCustomerAddress(fulfillModal.order)}
-                    className="text-xs font-bold text-emerald-700 hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <Copy className="w-3 h-3" />
-                    <span>Copy Address</span>
-                  </button>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleCopyCustomerAddress(fulfillModal.order)}
+                      className="text-xs font-bold text-emerald-700 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span>Copy Address</span>
+                    </button>
+                    <span>•</span>
+                    <button
+                      type="button"
+                      onClick={() => handleCopyDeoDapPayload(fulfillModal.order, fulfillModal.item)}
+                      className="text-xs font-black text-blue-700 hover:underline flex items-center gap-1 cursor-pointer"
+                      title="Copies SKU, Qty, and full buyer address"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span>Copy Full Order Payload</span>
+                    </button>
+                  </div>
                 </div>
                 <p className="text-xs text-slate-600 leading-relaxed font-mono">
                   {fulfillModal.order.shippingAddress?.fullName}, {fulfillModal.order.shippingAddress?.phone}

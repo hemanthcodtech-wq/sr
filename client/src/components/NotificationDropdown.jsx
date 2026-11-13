@@ -145,7 +145,10 @@ const NotificationDropdown = ({ variant = 'light', role = null }) => {
       }
       if (notif.link) {
         setIsOpen(false);
-        navigate(notif.link);
+        const targetLink = notif.link.startsWith('/admin/merchants')
+          ? notif.link.replace('/admin/merchants', '/admin/vendors')
+          : notif.link;
+        navigate(targetLink);
       }
     } catch (_) {}
   };

@@ -215,7 +215,7 @@ const ProductDetail = () => {
     product.store?.storeName ||
     product.vendor?.store?.storeName ||
     product.vendorName ||
-    'Internet Cafe & Mobile Accesories';
+    'SR Marketplace';
 
   return (
     <div className="w-full max-w-[1500px] mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 select-none font-sans">

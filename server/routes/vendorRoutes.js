@@ -17,6 +17,9 @@ const {
   getVendorAnalytics,
   getDropshipPromotions,
   getMyPromotionStats,
+  requestCatalogAccess,
+  getAdminCatalogForVendors,
+  sourceAdminProduct,
 } = require('../controllers/vendorController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -36,6 +39,11 @@ router.put('/my-store', protect, authorize('vendor', 'admin'), updateStore);
 router.get('/analytics', protect, authorize('vendor', 'admin'), getVendorAnalytics);
 router.get('/wallet', protect, authorize('vendor', 'admin'), getWalletAndReferrals);
 router.post('/request-payout', protect, authorize('vendor'), requestPayout);
+
+// Vendor Admin Catalog Sourcing
+router.post('/request-catalog-access', protect, authorize('vendor', 'admin'), requestCatalogAccess);
+router.get('/admin-catalog', protect, authorize('vendor', 'admin'), getAdminCatalogForVendors);
+router.post('/source-admin-product', protect, authorize('vendor', 'admin'), sourceAdminProduct);
 
 // Vendor Dropship Affiliate Promotions (50/50 profit margin split)
 router.get('/dropship-promotions', protect, authorize('vendor', 'admin'), getDropshipPromotions);

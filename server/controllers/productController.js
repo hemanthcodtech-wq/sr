@@ -285,8 +285,11 @@ exports.createProduct = async (req, res, next) => {
       if (!store) {
         store = await Store.create({
           vendor: req.user._id,
-          storeName: 'Official Flagship Store',
-          slug: 'official-flagship-store',
+          storeName: 'SR Marketplace',
+          slug: 'sr-marketplace',
+          logo: '/logo.png',
+          banner: 'https://images.unsplash.com/photo-1607082348824-0a96f2a4b9da?w=1600&auto=format&fit=crop&q=80',
+          description: 'Official flagship store of SR Marketplace. Audited quality products with Pan-India express delivery and verified buyer protection.',
           category: 'Retail',
           status: 'active',
           enrollmentFeePaid: 999,
@@ -307,6 +310,9 @@ exports.createProduct = async (req, res, next) => {
       });
     }
 
+    const vendorPrefix = `VND${req.user._id.toString().slice(-6).toUpperCase()}`;
+    const vendorProductCode = `${vendorPrefix}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+
     const product = await Product.create({
       title,
       description,
@@ -324,6 +330,10 @@ exports.createProduct = async (req, res, next) => {
       sourcePrice: costPrice,
       profitMargin: computedProfitMargin,
       isDropshipped: isDropship,
+      sourceType: 'vendor_own',
+      fulfillmentType: 'vendor_self',
+      isSourcedFromAdmin: false,
+      vendorProductCode,
       vendor: req.user._id,
       store: store._id,
     });
@@ -356,7 +366,19 @@ exports.updateProduct = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
 
-    product = await Product.findByIdAndUpdate(req.params.id, req.body, {
+    // Protection rule: If product is sourced from Admin Catalog and caller is not admin,
+    // lock fixed price & fulfillment type (cannot be modified by vendor)
+    const updateData = { ...req.body };
+    if ((product.sourceType === 'admin_catalog' || product.isSourcedFromAdmin) && req.user.role !== 'admin') {
+      delete updateData.price;
+      delete updateData.discountPrice;
+      delete updateData.fulfillmentType;
+      delete updateData.sourceType;
+      delete updateData.sourceAdminProduct;
+      delete updateData.vendorProductCode;
+    }
+
+    product = await Product.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true,
     });

@@ -24,8 +24,8 @@ const seedData = async () => {
         referralBonusAmount: 500, // ₹500 fixed by admin for vendor referrals
         commissionRatePercent: 10, // 10% platform commission on orders
         minWithdrawalAmount: 500,
-        platformName: 'Amezon Multi-Vendor Marketplace',
-        supportEmail: 'support@amezon.online',
+        platformName: 'SR Multi-Vendor Marketplace',
+        supportEmail: 'support@srmarketplace.in',
       });
       console.log(' -> Platform settings initialized (Referral Bonus: ₹500, Commission: 10%)');
     }

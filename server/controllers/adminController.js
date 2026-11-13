@@ -11,6 +11,7 @@ const WalletTransaction = require('../models/WalletTransaction');
 const { createNotification } = require('./notificationController');
 const {
   sendEmail,
+  generateMembershipInvoiceHtml,
   getStoreApprovalEmailTemplate,
   getStoreActivatedEmailTemplate,
   getReferralRewardEmailTemplate,
@@ -105,7 +106,7 @@ const creditReferralBonusIfNeeded = async (store, setting) => {
     try {
       await sendEmail({
         to: referrer.email,
-        subject: `🎉 ₹${bonusAmount} Referral Bonus Credited to Your Amezon.online Wallet!`,
+        subject: `🎉 ₹${bonusAmount} Referral Bonus Credited to Your SR Marketplace Wallet!`,
         text: `Congratulations! A merchant you referred ("${store.storeName}") has been approved. ₹${bonusAmount} has been credited to your wallet balance.`,
         html: getReferralRewardEmailTemplate({
           referrerName: referrer.name,
@@ -291,7 +292,7 @@ exports.getAllVendors = async (req, res, next) => {
       .populate({
         path: 'store',
         match: {
-          storeName: { $ne: 'Official Flagship Store' },
+          storeName: { $nin: ['Official Flagship Store', 'SR Marketplace'] },
           $or: [
             { enrollmentFeePaid: { $gt: 0 } },
             { status: { $in: ['active', 'rejected', 'suspended'] } },
@@ -591,22 +592,62 @@ exports.reviewMerchantApplication = async (req, res, next) => {
         const refResult = await creditReferralBonusIfNeeded(store, settings);
         referralRewarded = !!refResult?.rewarded;
 
-        // Dispatch Store Live Email
+        // Generate official Tax/Membership Invoice
+        const invoiceNumber = store.membershipInvoice?.invoiceNumber || `INV-SR-PLAN-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`;
+        const paymentId = store.paymentDetails?.razorpayPaymentId || `RZP_VERIFIED_${Date.now().toString().slice(-6)}`;
+        const feePaid = store.enrollmentFeePaid || effectiveFee || 999;
+        const planTitle = store.activePlan?.title || 'Merchant Store Enrollment Plan';
+
+        store.membershipInvoice = {
+          invoiceNumber,
+          invoiceDate: new Date(),
+          amount: feePaid,
+          planTitle,
+          paymentId,
+        };
+
+        const invoiceHtml = generateMembershipInvoiceHtml({
+          invoiceNumber,
+          invoiceDate: new Date(),
+          vendorName: store.vendor?.name || 'Merchant',
+          storeName: store.storeName,
+          vendorEmail: store.email || store.vendor?.email,
+          vendorPhone: store.phone,
+          storeAddress: store.address,
+          planTitle,
+          planDurationDays: effectiveDuration,
+          planExpiresAt,
+          enrollmentFee: feePaid,
+          paymentId,
+        });
+
+        // Dispatch Store Live Email with Invoice attached
         const vendorEmail = store.email || store.vendor?.email;
         if (vendorEmail) {
           try {
             await sendEmail({
               to: vendorEmail,
-              subject: `🎉 Your Store "${store.storeName}" is Officially Live on Amezon.online!`,
-              text: `Congratulations! Your store ${store.storeName} is activated. Access your merchant dashboard now.`,
+              subject: `🎉 Your Store "${store.storeName}" is Officially Live on SR Marketplace!`,
+              text: `Congratulations! Your store ${store.storeName} is activated. Official Tax Invoice #${invoiceNumber} is attached.`,
               html: getStoreActivatedEmailTemplate({
                 vendorName: store.vendor?.name || 'Merchant',
                 storeName: store.storeName,
-                planDurationDays,
+                planTitle,
+                planDurationDays: effectiveDuration,
                 planExpiresAt,
+                enrollmentFee: feePaid,
+                invoiceNumber,
+                paymentId,
                 dashboardLink: 'http://localhost:5173/vendor/dashboard',
                 publicStoreLink: 'http://localhost:5173/stores',
               }),
+              attachments: [
+                {
+                  filename: `Invoice-${invoiceNumber}.html`,
+                  content: invoiceHtml,
+                  contentType: 'text/html',
+                },
+              ],
             });
           } catch (mErr) {
             console.warn('[Store Activated Email Note]', mErr.message);
@@ -619,13 +660,13 @@ exports.reviewMerchantApplication = async (req, res, next) => {
           try {
             await sendEmail({
               to: vendorEmail,
-              subject: `✓ Store Approved! Pay ₹${enrollmentFee} to Activate "${store.storeName}" on Amezon.online`,
-              text: `Your merchant KYC documents for ${store.storeName} are approved! Please pay the ₹${enrollmentFee} enrollment fee to activate your store dashboard.`,
+              subject: `✓ Store Approved! Pay ₹${effectiveFee} to Activate "${store.storeName}" on SR Marketplace`,
+              text: `Your merchant KYC documents for ${store.storeName} are approved! Please pay the ₹${effectiveFee} enrollment fee to activate your store dashboard.`,
               html: getStoreApprovalEmailTemplate({
                 vendorName: store.vendor?.name || 'Merchant',
                 storeName: store.storeName,
-                enrollmentFee,
-                planDurationDays,
+                enrollmentFee: effectiveFee,
+                planDurationDays: effectiveDuration,
                 loginLink: 'http://localhost:5173/vendor/register',
               }),
             });
@@ -715,22 +756,62 @@ exports.updateVendorStatus = async (req, res, next) => {
       const refResult = await creditReferralBonusIfNeeded(store, settings);
       referralRewarded = !!refResult?.rewarded;
 
-      // Dispatch store activated email
+      // Generate Tax/Membership Invoice for store activation
+      const invoiceNumber = store.membershipInvoice?.invoiceNumber || `INV-SR-PLAN-${Date.now().toString().slice(-6)}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const paymentId = store.paymentDetails?.razorpayPaymentId || `RZP_VERIFIED_${Date.now().toString().slice(-6)}`;
+      const feePaid = store.enrollmentFeePaid || 999;
+      const planTitle = store.activePlan?.title || 'Merchant Store Enrollment Plan';
+
+      store.membershipInvoice = {
+        invoiceNumber,
+        invoiceDate: new Date(),
+        amount: feePaid,
+        planTitle,
+        paymentId,
+      };
+
+      const invoiceHtml = generateMembershipInvoiceHtml({
+        invoiceNumber,
+        invoiceDate: new Date(),
+        vendorName: store.vendor?.name || 'Merchant',
+        storeName: store.storeName,
+        vendorEmail: store.email || store.vendor?.email,
+        vendorPhone: store.phone,
+        storeAddress: store.address,
+        planTitle,
+        planDurationDays,
+        planExpiresAt: store.planExpiresAt,
+        enrollmentFee: feePaid,
+        paymentId,
+      });
+
+      // Dispatch store activated email with Invoice attached
       const vendorEmail = store.email || store.vendor?.email;
       if (vendorEmail) {
         try {
           await sendEmail({
             to: vendorEmail,
-            subject: `🎉 Your Store "${store.storeName}" is Officially Live on Amezon.online!`,
-            text: `Congratulations! Your store ${store.storeName} is activated. Access your merchant dashboard now.`,
+            subject: `🎉 Your Store "${store.storeName}" is Officially Live on SR Marketplace!`,
+            text: `Congratulations! Your store ${store.storeName} is activated. Official Tax Invoice #${invoiceNumber} is attached.`,
             html: getStoreActivatedEmailTemplate({
               vendorName: store.vendor?.name || 'Merchant',
               storeName: store.storeName,
+              planTitle,
               planDurationDays,
               planExpiresAt: store.planExpiresAt,
+              enrollmentFee: feePaid,
+              invoiceNumber,
+              paymentId,
               dashboardLink: 'http://localhost:5173/vendor/dashboard',
               publicStoreLink: 'http://localhost:5173/stores',
             }),
+            attachments: [
+              {
+                filename: `Invoice-${invoiceNumber}.html`,
+                content: invoiceHtml,
+                contentType: 'text/html',
+              },
+            ],
           });
         } catch (mErr) {
           console.warn('[Store Activated Email Note]', mErr.message);
@@ -1021,6 +1102,62 @@ exports.getAdminCommissionLedger = async (req, res, next) => {
       totalDropshipCommission,
       transactionCount: transactions.length,
       transactions,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Admin grants or revokes vendor permission to list admin products
+// @route   PUT /api/admin/vendors/:storeId/catalog-access
+// @access  Private (Admin)
+exports.updateVendorCatalogAccess = async (req, res, next) => {
+  try {
+    const { storeId } = req.params;
+    const { status, adminNotes } = req.body; // 'approved' or 'rejected'
+
+    let store = null;
+    if (mongoose.connection.readyState === 1) {
+      store = await Store.findById(storeId).populate('vendor');
+    } else {
+      store = mockStores.find((s) => s._id === storeId);
+    }
+
+    if (!store) {
+      return res.status(404).json({ success: false, message: 'Store not found' });
+    }
+
+    if (!store.adminCatalogAccess) {
+      store.adminCatalogAccess = {};
+    }
+
+    store.adminCatalogAccess.status = status || 'approved';
+    store.adminCatalogAccess.adminNotes = adminNotes || '';
+    if (status === 'approved') {
+      store.adminCatalogAccess.approvedAt = new Date();
+    }
+    if (mongoose.connection.readyState === 1) {
+      await store.save();
+    }
+
+    // Notify vendor
+    try {
+      await createNotification({
+        recipient: store.vendor?._id || store.vendor,
+        role: 'vendor',
+        type: 'catalog_access',
+        title: status === 'approved' ? '✅ Admin Catalog Access Approved!' : '❌ Catalog Access Request Update',
+        message: status === 'approved'
+          ? `You can now select products from the official Admin Catalog to sell in "${store.storeName}" with central delivery.`
+          : `Your request for Admin Catalog access was reviewed: ${adminNotes || 'Contact support for more details.'}`,
+        link: '/vendor/products',
+      });
+    } catch (_) {}
+
+    res.status(200).json({
+      success: true,
+      message: `Admin catalog access status updated to ${status}`,
+      store,
     });
   } catch (err) {
     next(err);

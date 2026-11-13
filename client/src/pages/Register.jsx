@@ -256,8 +256,8 @@ const Register = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-8 sm:pt-10 pb-20 px-4 sm:px-6 lg:px-8 flex justify-center">
-      <div className="w-full max-w-6xl bg-white rounded-3xl shadow-xl border border-slate-200/90 overflow-hidden grid grid-cols-1 lg:grid-cols-12 self-start">
+    <div className="min-h-[calc(100dvh-140px)] sm:min-h-screen bg-slate-50 py-3 sm:py-8 pb-16 px-3 sm:px-6 lg:px-8 flex flex-col justify-center items-center">
+      <div className="w-full max-w-6xl bg-white rounded-2xl sm:rounded-3xl shadow-lg sm:shadow-xl border border-slate-200/90 overflow-hidden grid grid-cols-1 lg:grid-cols-12">
         {/* Left Column: Brand Showcase & Value Props (Desktop only) */}
         <div className="hidden lg:flex lg:col-span-5 bg-gradient-to-br from-[#071d42] via-[#0c2a5e] to-[#174896] p-8 sm:p-10 text-white flex-col justify-between relative overflow-hidden">
           <div className="absolute -top-24 -right-24 w-72 h-72 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -384,73 +384,73 @@ const Register = () => {
         </div>
 
         {/* Right Column: Registration Form */}
-        <div className="lg:col-span-7 p-6 sm:p-10 lg:p-12 flex flex-col justify-center">
-          <div className="max-w-xl mx-auto w-full space-y-6">
+        <div className="lg:col-span-7 p-4 sm:p-8 lg:p-12 flex flex-col justify-center">
+          <div className="max-w-xl mx-auto w-full space-y-3.5 sm:space-y-6">
             {/* Mobile-Only Top Brand Header */}
-            <div className="lg:hidden flex flex-col items-center justify-center pb-2 text-center">
-              <Logo variant="marketplace" />
+            <div className="lg:hidden flex flex-col items-center justify-center pb-1 text-center">
+              <Logo variant="marketplace" size="sm" theme="light" />
             </div>
 
             {/* Header */}
-            <div className="space-y-1.5 text-center lg:text-left">
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            <div className="space-y-1 text-center lg:text-left">
+              <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-slate-900 tracking-tight">
                 Create Your Account
               </h1>
-              <p className="text-sm text-slate-500">
+              <p className="text-xs sm:text-sm text-slate-500">
                 {role === 'vendor'
-                  ? 'Apply as an authorized merchant seller on Amezon.online'
+                  ? 'Apply as an authorized merchant seller on SR Marketplace'
                   : 'Join as a customer to browse and purchase products'}
               </p>
             </div>
 
             {/* Account Role Selector */}
-            <div className="grid grid-cols-2 gap-2 p-1.5 bg-slate-100/90 rounded-2xl border border-slate-200/80">
+            <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200/80">
               <button
                 type="button"
                 id="customer-role-btn"
                 onClick={() => setRole('customer')}
-                className={`py-3 px-3 text-sm font-bold rounded-xl transition flex items-center justify-center gap-2 cursor-pointer ${
+                className={`py-2 px-2.5 text-xs sm:text-sm font-bold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer ${
                   role === 'customer'
-                    ? 'bg-[#0c2a5e] text-white shadow-md'
+                    ? 'bg-[#0c2a5e] text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <User className="w-4 h-4 sm:w-5 sm:h-5" />
+                <User className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                 <span>Customer</span>
               </button>
               <button
                 type="button"
                 id="merchant-role-btn"
                 onClick={() => setRole('vendor')}
-                className={`py-3 px-3 text-sm font-bold rounded-xl transition flex items-center justify-center gap-2 cursor-pointer ${
+                className={`py-2 px-2.5 text-xs sm:text-sm font-bold rounded-lg transition flex items-center justify-center gap-1.5 cursor-pointer ${
                   role === 'vendor'
-                    ? 'bg-[#0c2a5e] text-white shadow-md'
+                    ? 'bg-[#0c2a5e] text-white shadow-xs'
                     : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <Store className="w-4 h-4 sm:w-5 sm:h-5 text-amber-400" />
+                <Store className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
                 <span>Merchant / Seller</span>
               </button>
             </div>
 
             {/* Merchant Guidance Notice */}
             {role === 'vendor' && (
-              <div className="p-3.5 bg-amber-50/80 border border-amber-200 rounded-2xl space-y-1 text-xs text-amber-900">
-                <div className="flex items-center gap-1.5 font-bold text-amber-950">
-                  <ShieldCheck className="w-4 h-4 text-amber-600" />
+              <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl space-y-1 text-xs text-amber-900">
+                <div className="flex items-center gap-1.5 font-bold text-amber-950 text-xs">
+                  <ShieldCheck className="w-3.5 h-3.5 text-amber-600" />
                   <span>Merchant Compliance &amp; KYC Requirement</span>
                 </div>
-                <p className="text-slate-600 leading-relaxed text-[12px]">
+                <p className="text-slate-600 leading-relaxed text-[11px]">
                   Merchants must verify their business email with OTP, provide <strong>Aadhaar &amp; PAN numbers</strong>, and upload both verification documents.
                 </p>
               </div>
             )}
 
-            <form onSubmit={handleRegisterSubmit} className="space-y-4" autoComplete="off">
-              {/* Profile Picture Upload (Replaces default stock avatar) */}
-              <div className="p-4 bg-gradient-to-r from-slate-50 to-blue-50/40 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-center gap-4">
+            <form onSubmit={handleRegisterSubmit} className="space-y-3 sm:space-y-4" autoComplete="off">
+              {/* Profile Picture Upload - Compact Responsive Design */}
+              <div className="p-2.5 sm:p-3.5 bg-slate-50/90 rounded-xl border border-slate-200 flex items-center gap-3">
                 <div className="relative group flex-shrink-0">
-                  <div className="w-18 h-18 sm:w-20 sm:h-20 rounded-full border-2 border-dashed border-slate-300 group-hover:border-[#0c2a5e] overflow-hidden bg-white shadow-xs flex items-center justify-center transition">
+                  <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-full border-2 border-dashed border-slate-300 group-hover:border-[#0c2a5e] overflow-hidden bg-white shadow-2xs flex items-center justify-center transition">
                     {avatarPreview ? (
                       <img
                         src={avatarPreview}
@@ -459,48 +459,48 @@ const Register = () => {
                       />
                     ) : (
                       <div className="flex flex-col items-center justify-center text-slate-400 group-hover:text-[#0c2a5e] transition">
-                        <User className="w-8 h-8 stroke-[1.5]" />
+                        <User className="w-6 h-6 sm:w-7 sm:h-7 stroke-[1.5]" />
                       </div>
                     )}
                   </div>
                   <button
                     type="button"
                     onClick={() => avatarInputRef.current?.click()}
-                    className="absolute bottom-0 right-0 p-1.5 rounded-full bg-[#0c2a5e] hover:bg-[#16428a] text-white shadow-md transition cursor-pointer"
+                    className="absolute -bottom-0.5 -right-0.5 p-1 rounded-full bg-[#0c2a5e] hover:bg-[#16428a] text-white shadow-xs transition cursor-pointer"
                     title="Choose photo"
                   >
-                    <Camera className="w-3.5 h-3.5" />
+                    <Camera className="w-3 h-3" />
                   </button>
                 </div>
 
-                <div className="flex-1 text-center sm:text-left space-y-1">
-                  <div className="flex items-center justify-center sm:justify-start gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
                     <label className="text-xs sm:text-sm font-bold text-slate-800">
-                      Profile Picture <span className="text-[11px] font-normal text-slate-500">(Optional)</span>
+                      Profile Picture <span className="text-[10px] sm:text-[11px] font-normal text-slate-500">(Optional)</span>
                     </label>
                     {avatarPreview && (
-                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                        Photo Selected
+                      <span className="text-[9px] sm:text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full border border-emerald-200">
+                        Selected
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-slate-500 leading-tight">
-                    Upload your real personal or merchant photo. It will appear on your store, header, and order dispatches.
+                  <p className="text-[10px] sm:text-[11px] text-slate-500 line-clamp-1 sm:line-clamp-none mt-0.5">
+                    Upload photo for orders &amp; store profile.
                   </p>
-                  <div className="flex items-center justify-center sm:justify-start gap-2 pt-1">
+                  <div className="flex items-center gap-2 pt-1">
                     <button
                       type="button"
                       id="upload-profile-photo-btn"
                       onClick={() => avatarInputRef.current?.click()}
-                      className="px-3 py-1.5 text-xs font-bold rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 transition cursor-pointer shadow-2xs"
+                      className="px-2.5 py-1 text-[11px] sm:text-xs font-bold rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 transition cursor-pointer shadow-2xs"
                     >
-                      {avatarPreview ? 'Change Photo' : 'Upload Photo'}
+                      {avatarPreview ? 'Change' : 'Upload Photo'}
                     </button>
                     {avatarPreview && (
                       <button
                         type="button"
                         onClick={removeAvatar}
-                        className="px-2.5 py-1.5 text-xs font-bold rounded-lg text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                        className="px-2 py-1 text-[11px] sm:text-xs font-bold rounded-lg text-rose-600 hover:bg-rose-50 transition cursor-pointer"
                       >
                         Remove
                       </button>
@@ -518,8 +518,8 @@ const Register = () => {
               </div>
 
               {/* Row 1: Full Name & Phone Number */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
+                <div className="space-y-1">
                   <label className="text-xs sm:text-sm font-bold text-slate-700">
                     {role === 'vendor' ? 'Business Owner Name *' : 'Full Name *'}
                   </label>
@@ -533,13 +533,13 @@ const Register = () => {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="Enter full name"
-                      className="w-full pl-10 pr-3 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e] transition"
+                      className="w-full pl-9 sm:pl-10 pr-3 py-2 sm:py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e] transition"
                     />
-                    <User className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2" />
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <label className="text-xs sm:text-sm font-bold text-slate-700">
                     {role === 'vendor' ? 'Business Phone *' : 'Phone Number *'}
                   </label>
@@ -553,15 +553,15 @@ const Register = () => {
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
                       placeholder="Enter mobile number"
-                      className="w-full pl-10 pr-3 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e] transition"
+                      className="w-full pl-9 sm:pl-10 pr-3 py-2 sm:py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e] transition"
                     />
-                    <Phone className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <Phone className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2" />
                   </div>
                 </div>
               </div>
 
               {/* Row 2: Email Address */}
-              <div className="space-y-1.5">
+              <div className="space-y-1">
                 <label className="text-xs sm:text-sm font-bold text-slate-700">
                   Email Address *
                 </label>
@@ -574,16 +574,16 @@ const Register = () => {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="Enter business email address"
-                    className="w-full pl-10 pr-3 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e] transition"
+                    placeholder="Enter email address"
+                    className="w-full pl-9 sm:pl-10 pr-3 py-2 sm:py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e] transition"
                   />
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <Mail className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2" />
                 </div>
               </div>
 
               {/* Row 3: Passwords */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
+                <div className="space-y-1">
                   <label className="text-xs sm:text-sm font-bold text-slate-700">
                     Password *
                   </label>
@@ -597,20 +597,20 @@ const Register = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="At least 6 characters"
-                      className="w-full pl-10 pr-10 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e] transition"
+                      className="w-full pl-9 sm:pl-10 pr-9 sm:pr-10 py-2 sm:py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e] transition"
                     />
-                    <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <Lock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2" />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                     >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showPassword ? <EyeOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                     </button>
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <label className="text-xs sm:text-sm font-bold text-slate-700">
                     Confirm Password *
                   </label>
@@ -624,15 +624,15 @@ const Register = () => {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="Re-enter password"
-                      className="w-full pl-10 pr-10 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e] transition"
+                      className="w-full pl-9 sm:pl-10 pr-9 sm:pr-10 py-2 sm:py-2.5 text-xs sm:text-sm bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e] transition"
                     />
-                    <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <Lock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2" />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 cursor-pointer"
                     >
-                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showConfirmPassword ? <EyeOff className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <Eye className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
                     </button>
                   </div>
                 </div>
@@ -640,38 +640,38 @@ const Register = () => {
 
               {/* MERCHANT ONLY: MANDATORY AADHAAR AND PAN NUMBERS + DOCUMENT UPLOADS */}
               {role === 'vendor' && (
-                <div className="space-y-4 pt-1">
-                  <div className="flex items-center justify-between border-b border-slate-200 pb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="p-1.5 rounded-lg bg-[#0c2a5e] text-white">
-                        <FileCheck className="w-4 h-4" />
+                <div className="space-y-3 pt-1">
+                  <div className="flex items-center justify-between border-b border-slate-200 pb-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <div className="p-1 rounded-md bg-[#0c2a5e] text-white">
+                        <FileCheck className="w-3.5 h-3.5" />
                       </div>
                       <div>
                         <h3 className="text-xs sm:text-sm font-bold text-slate-900">
                           Merchant KYC Documents &amp; Numbers
                         </h3>
-                        <p className="text-[11px] text-slate-500">
-                          Both Aadhaar and PAN numbers and documents are mandatory for merchant verification
+                        <p className="text-[10px] sm:text-[11px] text-slate-500">
+                          Aadhaar and PAN details required for verification
                         </p>
                       </div>
                     </div>
-                    <span className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-amber-900 bg-amber-100 px-2 py-0.5 rounded-md border border-amber-300">
+                    <span className="text-[9px] sm:text-xs font-bold uppercase tracking-wider text-amber-900 bg-amber-100 px-1.5 py-0.5 rounded border border-amber-300">
                       Mandatory
                     </span>
                   </div>
 
                   {/* 2-Column Responsive Grid for Aadhaar & PAN */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-4">
                     {/* 1. Aadhaar Card Section */}
-                    <div className="p-3.5 rounded-2xl bg-gradient-to-b from-blue-50/50 to-slate-50 border border-blue-200 space-y-3">
+                    <div className="p-2.5 sm:p-3.5 rounded-xl bg-gradient-to-b from-blue-50/50 to-slate-50 border border-blue-200 space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
-                          <CreditCard className="w-4 h-4 text-[#0c2a5e]" />
+                          <CreditCard className="w-3.5 h-3.5 text-[#0c2a5e]" />
                           <span className="text-xs font-bold text-slate-900">
                             1. Aadhaar Card *
                           </span>
                         </div>
-                        <span className="text-[10px] font-bold text-blue-800 bg-blue-100 px-1.5 py-0.5 rounded">
+                        <span className="text-[9px] sm:text-[10px] font-bold text-blue-800 bg-blue-100 px-1.5 py-0.5 rounded">
                           Required
                         </span>
                       </div>
@@ -679,11 +679,11 @@ const Register = () => {
                       {/* Aadhaar Number Input */}
                       <div className="space-y-1">
                         <div className="flex items-center justify-between">
-                          <label className="text-[11px] font-bold text-slate-700">
+                          <label className="text-[10px] sm:text-[11px] font-bold text-slate-700">
                             Aadhaar Number (12 Digits) *
                           </label>
                           {aadhaarNumber.replace(/\s/g, '').length === 12 && (
-                            <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5">
+                            <span className="text-[9px] text-emerald-600 font-bold flex items-center gap-0.5">
                               <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                               <span>12 Digits</span>
                             </span>
@@ -700,7 +700,7 @@ const Register = () => {
                             setAadhaarNumber(formatted);
                           }}
                           placeholder="1234 5678 9012"
-                          className="w-full px-3 py-2 text-xs sm:text-sm font-mono tracking-wider bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
+                          className="w-full px-2.5 py-1.5 sm:py-2 text-xs sm:text-sm font-mono tracking-wider bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
                         />
                       </div>
 
@@ -721,7 +721,7 @@ const Register = () => {
                             handleAadhaarChange(e.dataTransfer.files?.[0]);
                           }}
                           onClick={() => aadhaarInputRef.current?.click()}
-                          className={`border-2 border-dashed rounded-xl p-3.5 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1.5 ${
+                          className={`border-2 border-dashed rounded-xl p-2.5 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1 ${
                             isDraggingAadhaar
                               ? 'border-[#0c2a5e] bg-blue-50'
                               : 'border-slate-300 bg-white hover:bg-slate-50 hover:border-slate-400'
@@ -735,37 +735,37 @@ const Register = () => {
                             onChange={(e) => handleAadhaarChange(e.target.files?.[0])}
                             className="hidden"
                           />
-                          <div className="w-8 h-8 rounded-full bg-blue-50 text-[#0c2a5e] flex items-center justify-center">
-                            <UploadCloud className="w-4 h-4" />
+                          <div className="w-7 h-7 rounded-full bg-blue-50 text-[#0c2a5e] flex items-center justify-center">
+                            <UploadCloud className="w-3.5 h-3.5" />
                           </div>
                           <div>
                             <p className="text-xs font-bold text-slate-800">
                               Upload Aadhaar Document *
                             </p>
-                            <p className="text-[10px] text-slate-400 mt-0.5">
+                            <p className="text-[9px] text-slate-400">
                               PDF, JPG, PNG (Max 10MB)
                             </p>
                           </div>
                         </div>
                       ) : (
-                        <div className="bg-white rounded-xl p-2.5 border border-emerald-300 shadow-2xs flex items-center justify-between gap-2">
+                        <div className="bg-white rounded-xl p-2 border border-emerald-300 shadow-2xs flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
                             {aadhaarPreview ? (
                               <img
                                 src={aadhaarPreview}
                                 alt="Aadhaar Preview"
-                                className="w-10 h-10 rounded-lg object-cover border border-slate-200 flex-shrink-0"
+                                className="w-8 h-8 rounded-lg object-cover border border-slate-200 flex-shrink-0"
                               />
                             ) : (
-                              <div className="w-10 h-10 rounded-lg bg-red-50 text-red-600 flex items-center justify-center flex-shrink-0 border border-red-200">
-                                <FileText className="w-5 h-5" />
+                              <div className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center flex-shrink-0 border border-red-200">
+                                <FileText className="w-4 h-4" />
                               </div>
                             )}
                             <div className="min-w-0">
                               <span className="text-xs font-bold text-slate-900 truncate block">
                                 {aadhaarFile.name}
                               </span>
-                              <span className="text-[10px] text-emerald-700 font-semibold">
+                              <span className="text-[9px] text-emerald-700 font-semibold">
                                 {(aadhaarFile.size / 1024).toFixed(1)} KB • Attached
                               </span>
                             </div>
@@ -776,22 +776,22 @@ const Register = () => {
                             className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer flex-shrink-0"
                             title="Remove file"
                           >
-                            <X className="w-4 h-4" />
+                            <X className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       )}
                     </div>
 
                     {/* 2. PAN Card Section */}
-                    <div className="p-3.5 rounded-2xl bg-gradient-to-b from-blue-50/50 to-slate-50 border border-blue-200 space-y-3">
+                    <div className="p-2.5 sm:p-3.5 rounded-xl bg-gradient-to-b from-blue-50/50 to-slate-50 border border-blue-200 space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
-                          <CreditCard className="w-4 h-4 text-[#0c2a5e]" />
+                          <CreditCard className="w-3.5 h-3.5 text-[#0c2a5e]" />
                           <span className="text-xs font-bold text-slate-900">
                             2. PAN Card *
                           </span>
                         </div>
-                        <span className="text-[10px] font-bold text-blue-800 bg-blue-100 px-1.5 py-0.5 rounded">
+                        <span className="text-[9px] sm:text-[10px] font-bold text-blue-800 bg-blue-100 px-1.5 py-0.5 rounded">
                           Required
                         </span>
                       </div>
@@ -799,11 +799,11 @@ const Register = () => {
                       {/* PAN Number Input */}
                       <div className="space-y-1">
                         <div className="flex items-center justify-between">
-                          <label className="text-[11px] font-bold text-slate-700">
+                          <label className="text-[10px] sm:text-[11px] font-bold text-slate-700">
                             PAN Number (10 Characters) *
                           </label>
                           {panNumber.trim().length === 10 && (
-                            <span className="text-[10px] text-emerald-600 font-bold flex items-center gap-0.5">
+                            <span className="text-[9px] text-emerald-600 font-bold flex items-center gap-0.5">
                               <CheckCircle2 className="w-3 h-3 text-emerald-600" />
                               <span>Valid Format</span>
                             </span>
@@ -816,7 +816,7 @@ const Register = () => {
                           value={panNumber}
                           onChange={(e) => setPanNumber(e.target.value.toUpperCase().slice(0, 10))}
                           placeholder="ABCDE1234F"
-                          className="w-full px-3 py-2 text-xs sm:text-sm font-mono tracking-wider uppercase bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
+                          className="w-full px-2.5 py-1.5 sm:py-2 text-xs sm:text-sm font-mono tracking-wider uppercase bg-white border border-slate-300 rounded-xl text-slate-900 focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
                         />
                       </div>
 
@@ -837,7 +837,7 @@ const Register = () => {
                             handlePanChange(e.dataTransfer.files?.[0]);
                           }}
                           onClick={() => panInputRef.current?.click()}
-                          className={`border-2 border-dashed rounded-xl p-3.5 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1.5 ${
+                          className={`border-2 border-dashed rounded-xl p-2.5 text-center cursor-pointer transition flex flex-col items-center justify-center gap-1 ${
                             isDraggingPan
                               ? 'border-[#0c2a5e] bg-blue-50'
                               : 'border-slate-300 bg-white hover:bg-slate-50 hover:border-slate-400'
@@ -851,37 +851,37 @@ const Register = () => {
                             onChange={(e) => handlePanChange(e.target.files?.[0])}
                             className="hidden"
                           />
-                          <div className="w-8 h-8 rounded-full bg-blue-50 text-[#0c2a5e] flex items-center justify-center">
-                            <UploadCloud className="w-4 h-4" />
+                          <div className="w-7 h-7 rounded-full bg-blue-50 text-[#0c2a5e] flex items-center justify-center">
+                            <UploadCloud className="w-3.5 h-3.5" />
                           </div>
                           <div>
                             <p className="text-xs font-bold text-slate-800">
                               Upload PAN Document *
                             </p>
-                            <p className="text-[10px] text-slate-400 mt-0.5">
+                            <p className="text-[9px] text-slate-400">
                               PDF, JPG, PNG (Max 10MB)
                             </p>
                           </div>
                         </div>
                       ) : (
-                        <div className="bg-white rounded-xl p-2.5 border border-emerald-300 shadow-2xs flex items-center justify-between gap-2">
+                        <div className="bg-white rounded-xl p-2 border border-emerald-300 shadow-2xs flex items-center justify-between gap-2">
                           <div className="flex items-center gap-2 min-w-0">
                             {panPreview ? (
                               <img
                                 src={panPreview}
                                 alt="PAN Preview"
-                                className="w-10 h-10 rounded-lg object-cover border border-slate-200 flex-shrink-0"
+                                className="w-8 h-8 rounded-lg object-cover border border-slate-200 flex-shrink-0"
                               />
                             ) : (
-                              <div className="w-10 h-10 rounded-lg bg-red-50 text-red-600 flex items-center justify-center flex-shrink-0 border border-red-200">
-                                <FileText className="w-5 h-5" />
+                              <div className="w-8 h-8 rounded-lg bg-red-50 text-red-600 flex items-center justify-center flex-shrink-0 border border-red-200">
+                                <FileText className="w-4 h-4" />
                               </div>
                             )}
                             <div className="min-w-0">
                               <span className="text-xs font-bold text-slate-900 truncate block">
                                 {panFile.name}
                               </span>
-                              <span className="text-[10px] text-emerald-700 font-semibold">
+                              <span className="text-[9px] text-emerald-700 font-semibold">
                                 {(panFile.size / 1024).toFixed(1)} KB • Attached
                               </span>
                             </div>
@@ -892,7 +892,7 @@ const Register = () => {
                             className="p-1 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition cursor-pointer flex-shrink-0"
                             title="Remove file"
                           >
-                            <X className="w-4 h-4" />
+                            <X className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       )}
@@ -902,7 +902,7 @@ const Register = () => {
               )}
 
               {/* Referral Code (Optional) */}
-              <div className="space-y-1.5 pt-1">
+              <div className="space-y-1 pt-0.5">
                 {!showReferralInput && !referralCode ? (
                   <button
                     type="button"
@@ -910,7 +910,7 @@ const Register = () => {
                     className="text-xs font-bold text-[#0c2a5e] hover:underline inline-flex items-center gap-1 cursor-pointer"
                   >
                     <Gift className="w-3.5 h-3.5" />
-                    <span>Have a referral code? Enter it for welcome rewards</span>
+                    <span>Have a referral code? Enter it for rewards</span>
                   </button>
                 ) : (
                   <div className="space-y-1">
@@ -918,7 +918,7 @@ const Register = () => {
                       <label className="text-xs font-bold text-slate-700">
                         Referral Code (Optional)
                       </label>
-                      <span className="text-[11px] text-emerald-600 font-semibold">
+                      <span className="text-[10px] sm:text-[11px] text-emerald-600 font-semibold">
                         Eligible for Rewards
                       </span>
                     </div>
@@ -930,25 +930,25 @@ const Register = () => {
                         value={referralCode}
                         onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
                         placeholder="Enter referral code"
-                        className="w-full pl-10 pr-3 py-2 text-sm font-mono uppercase bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e] transition"
+                        className="w-full pl-9 sm:pl-10 pr-3 py-2 text-xs sm:text-sm font-mono uppercase bg-slate-50 border border-slate-300 rounded-xl text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e] transition"
                       />
-                      <Gift className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                      <Gift className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 absolute left-3 sm:left-3.5 top-1/2 -translate-y-1/2" />
                     </div>
                   </div>
                 )}
               </div>
 
               {/* Terms Checkbox */}
-              <div className="flex items-start gap-2.5 pt-1">
+              <div className="flex items-start gap-2 pt-0.5">
                 <input
                   type="checkbox"
                   id="reg-terms-checkbox"
                   checked={agreeTerms}
                   onChange={(e) => setAgreeTerms(e.target.checked)}
-                  className="mt-0.5 rounded border-slate-300 text-[#0c2a5e] focus:ring-[#0c2a5e] cursor-pointer"
+                  className="mt-0.5 w-3.5 h-3.5 sm:w-4 sm:h-4 rounded border-slate-300 text-[#0c2a5e] focus:ring-[#0c2a5e] cursor-pointer"
                 />
-                <label htmlFor="reg-terms-checkbox" className="text-xs text-slate-600 leading-snug cursor-pointer">
-                  I agree to Amezon's{' '}
+                <label htmlFor="reg-terms-checkbox" className="text-[11px] sm:text-xs text-slate-600 leading-snug cursor-pointer">
+                  I agree to SR Marketplace's{' '}
                   <span className="text-[#0c2a5e] font-semibold underline">Terms of Use</span> and{' '}
                   <span className="text-[#0c2a5e] font-semibold underline">Privacy Policy</span>.
                 </label>
@@ -959,36 +959,57 @@ const Register = () => {
                 type="submit"
                 id="register-submit-btn"
                 disabled={loading}
-                className="w-full py-3.5 rounded-xl bg-gradient-to-r from-[#0c2a5e] to-[#154699] hover:from-[#09224d] hover:to-[#123c85] text-white font-bold text-sm sm:text-base shadow-lg shadow-blue-900/20 transition cursor-pointer disabled:bg-slate-300 disabled:from-slate-300 disabled:to-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:scale-98"
+                className="w-full py-2.5 sm:py-3.5 rounded-xl bg-gradient-to-r from-[#0c2a5e] to-[#154699] hover:from-[#09224d] hover:to-[#123c85] text-white font-bold text-xs sm:text-base shadow-md sm:shadow-lg shadow-blue-900/20 transition cursor-pointer disabled:bg-slate-300 disabled:from-slate-300 disabled:to-slate-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:scale-98"
               >
                 {loading ? (
                   <div className="flex items-center gap-2">
-                    <RefreshCw className="w-4 h-4 animate-spin" />
+                    <RefreshCw className="w-3.5 h-3.5 sm:w-4 sm:h-4 animate-spin" />
                     <span>
                       {role === 'vendor'
-                        ? 'Uploading KYC documents & dispatching OTP...'
+                        ? 'Uploading KYC documents...'
                         : 'Creating your account...'}
                     </span>
                   </div>
                 ) : role === 'vendor' ? (
                   <>
                     <span>Continue Merchant KYC</span>
-                    <ArrowRight className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <ArrowRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </>
                 ) : (
                   <>
-                    <UserPlus className="w-4 h-4 sm:w-5 sm:h-5" />
+                    <UserPlus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     <span>Create Customer Account</span>
                   </>
                 )}
               </button>
             </form>
 
-            <div className="text-center pt-2 border-t border-slate-100 text-sm text-slate-600">
+            <div className="text-center pt-2 border-t border-slate-100 text-xs sm:text-sm text-slate-600">
               Already have an account?{' '}
               <Link to="/login" className="font-bold text-[#0c2a5e] hover:underline">
                 Sign In here
               </Link>
+            </div>
+
+            {/* Mobile Trust Strip to gracefully cover space */}
+            <div className="lg:hidden pt-2 border-t border-slate-100 space-y-2">
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-50/80 border border-slate-200/60">
+                  <ShieldCheck className="w-4 h-4 text-emerald-600 mb-0.5" />
+                  <span className="text-[10px] font-bold text-slate-800">Verified</span>
+                  <span className="text-[9px] text-slate-500">Security</span>
+                </div>
+                <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-50/80 border border-slate-200/60">
+                  <Truck className="w-4 h-4 text-[#0c2a5e] mb-0.5" />
+                  <span className="text-[10px] font-bold text-slate-800">Pan-India</span>
+                  <span className="text-[9px] text-slate-500">Delivery</span>
+                </div>
+                <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-50/80 border border-slate-200/60">
+                  <Gift className="w-4 h-4 text-amber-600 mb-0.5" />
+                  <span className="text-[10px] font-bold text-slate-800">Rewards</span>
+                  <span className="text-[9px] text-slate-500">On Signup</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>

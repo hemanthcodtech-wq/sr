@@ -303,6 +303,19 @@ const VendorOrderDetail = () => {
                             <div className="text-xs text-slate-600 font-medium mt-1">
                               Quantity: <strong className="text-slate-800 font-semibold">{item.quantity}</strong> × ₹{item.price?.toLocaleString('en-IN')}
                             </div>
+                            {(item.sourceType === 'admin_catalog' || item.sourceAdminProduct) && (
+                              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-900 border border-indigo-200 flex items-center gap-1">
+                                  <Package className="w-2.5 h-2.5 text-indigo-600" />
+                                  Admin Central Fulfillment
+                                </span>
+                                {item.vendorProductCode && (
+                                  <span className="text-[10px] font-mono text-indigo-800 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200 font-bold">
+                                    {item.vendorProductCode}
+                                  </span>
+                                )}
+                              </div>
+                            )}
                             {(item.courierName || item.trackingNumber) && (
                               <div className="text-[11px] text-blue-600 font-semibold mt-1 flex items-center gap-1.5">
                                 <Truck className="w-3.5 h-3.5" />
@@ -323,75 +336,89 @@ const VendorOrderDetail = () => {
                       </div>
 
                       {/* Status Transition Control Strip */}
-                      <div className="flex flex-wrap items-center justify-between gap-2.5 bg-slate-50/70 p-3 rounded-2xl border border-slate-200/60 text-xs">
-                        <div className="flex items-center gap-1.5 text-slate-600 font-medium">
-                          <Clock className="w-3.5 h-3.5 text-slate-400" />
-                          <span>Dispatch Action:</span>
-                        </div>
-
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {item.deliveryStatus === 'Processing' && (
-                            <button
-                              onClick={() => openDispatch(item)}
-                              disabled={updatingId === item._id}
-                              className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
-                            >
-                              <Truck className="w-3.5 h-3.5" />
-                              <span>Dispatch / Ship Package</span>
-                            </button>
-                          )}
-
-                          {item.deliveryStatus === 'Shipped' && (
-                            <button
-                              onClick={() => handleStatusUpdate(item._id, 'Out for Delivery')}
-                              disabled={updatingId === item._id}
-                              className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
-                            >
-                              <Send className="w-3.5 h-3.5" />
-                              <span>Mark Out for Delivery</span>
-                            </button>
-                          )}
-
-                          {(item.deliveryStatus === 'Shipped' || item.deliveryStatus === 'Out for Delivery') && (
-                            <button
-                              onClick={() => handleStatusUpdate(item._id, 'Delivered')}
-                              disabled={updatingId === item._id}
-                              className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
-                            >
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              <span>Mark Delivered (Claim ₹)</span>
-                            </button>
-                          )}
-
-                          {item.deliveryStatus === 'Delivered' && (
-                            <span className="text-xs font-bold text-emerald-700 flex items-center gap-1 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                              <span>Delivered &amp; Settled in Wallet</span>
+                      {item.sourceType === 'admin_catalog' || item.sourceAdminProduct || item.fulfillmentType === 'admin_central' ? (
+                        <div className="flex flex-wrap items-center justify-between gap-2.5 bg-indigo-50/60 p-3 rounded-2xl border border-indigo-200/70 text-xs">
+                          <div className="flex items-center gap-2 text-indigo-950 font-medium">
+                            <Package className="w-4 h-4 text-indigo-600 flex-shrink-0" />
+                            <span>
+                              <strong>Admin Central Delivery:</strong> SR Marketplace warehouse handles packing and courier delivery for this item.
                             </span>
-                          )}
+                          </div>
+                          <span className={`px-2.5 py-1 rounded-xl text-xs font-bold border ${getStatusBadge(item.deliveryStatus)}`}>
+                            Stage: {item.deliveryStatus}
+                          </span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-wrap items-center justify-between gap-2.5 bg-slate-50/70 p-3 rounded-2xl border border-slate-200/60 text-xs">
+                          <div className="flex items-center gap-1.5 text-slate-600 font-medium">
+                            <Clock className="w-3.5 h-3.5 text-slate-400" />
+                            <span>Dispatch Action:</span>
+                          </div>
 
-                          {/* Override dropdown */}
-                          <div className="relative">
-                            <select
-                              value={item.deliveryStatus}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                if (val === 'Shipped') openDispatch(item);
-                                else handleStatusUpdate(item._id, val);
-                              }}
-                              disabled={updatingId === item._id}
-                              className="appearance-none pl-3 pr-7 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold text-xs focus:outline-none cursor-pointer shadow-2xs"
-                            >
-                              {statusOptions.map((opt) => (
-                                <option key={opt} value={opt}>
-                                  {opt}
-                                </option>
-                              ))}
-                            </select>
-                            <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          <div className="flex items-center gap-2 flex-wrap">
+                            {item.deliveryStatus === 'Processing' && (
+                              <button
+                                onClick={() => openDispatch(item)}
+                                disabled={updatingId === item._id}
+                                className="px-3.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl text-xs transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <Truck className="w-3.5 h-3.5" />
+                                <span>Dispatch / Ship Package</span>
+                              </button>
+                            )}
+
+                            {item.deliveryStatus === 'Shipped' && (
+                              <button
+                                onClick={() => handleStatusUpdate(item._id, 'Out for Delivery')}
+                                disabled={updatingId === item._id}
+                                className="px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl text-xs transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <Send className="w-3.5 h-3.5" />
+                                <span>Mark Out for Delivery</span>
+                              </button>
+                            )}
+
+                            {(item.deliveryStatus === 'Shipped' || item.deliveryStatus === 'Out for Delivery') && (
+                              <button
+                                onClick={() => handleStatusUpdate(item._id, 'Delivered')}
+                                disabled={updatingId === item._id}
+                                className="px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition shadow-2xs flex items-center gap-1.5 cursor-pointer"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                <span>Mark Delivered (Claim ₹)</span>
+                              </button>
+                            )}
+
+                            {item.deliveryStatus === 'Delivered' && (
+                              <span className="text-xs font-bold text-emerald-700 flex items-center gap-1 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
+                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                                <span>Delivered &amp; Settled in Wallet</span>
+                              </span>
+                            )}
+
+                            {/* Override dropdown */}
+                            <div className="relative">
+                              <select
+                                value={item.deliveryStatus}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  if (val === 'Shipped') openDispatch(item);
+                                  else handleStatusUpdate(item._id, val);
+                                }}
+                                disabled={updatingId === item._id}
+                                className="appearance-none pl-3 pr-7 py-1.5 rounded-xl bg-white border border-slate-200 text-slate-700 font-bold text-xs focus:outline-none cursor-pointer shadow-2xs"
+                              >
+                                {statusOptions.map((opt) => (
+                                  <option key={opt} value={opt}>
+                                    {opt}
+                                  </option>
+                                ))}
+                              </select>
+                              <ChevronDown className="w-3.5 h-3.5 text-slate-400 absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none" />
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      )}
                     </div>
                   ))}
                 </div>

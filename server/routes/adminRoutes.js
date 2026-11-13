@@ -11,6 +11,7 @@ const {
   settleVendorWallet,
   getVendorFullDetails,
   getAdminCommissionLedger,
+  updateVendorCatalogAccess,
 } = require('../controllers/adminController');
 const { protect, authorize } = require('../middleware/auth');
 
@@ -21,6 +22,7 @@ router.put('/applications/:storeId/review', protect, authorize('admin'), reviewM
 router.get('/vendors', protect, authorize('admin'), getAllVendors);
 router.get('/vendors/:storeId/full-details', protect, authorize('admin'), getVendorFullDetails);
 router.put('/vendors/:storeId/status', protect, authorize('admin'), updateVendorStatus);
+router.put('/vendors/:storeId/catalog-access', protect, authorize('admin'), updateVendorCatalogAccess);
 router.post('/settle-vendor-wallet', protect, authorize('admin'), settleVendorWallet);
 router.get('/settings', protect, authorize('admin'), getPlatformSettings);
 router.put('/settings', protect, authorize('admin'), updatePlatformSettings);

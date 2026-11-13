@@ -120,12 +120,19 @@ const AdminVendorOrders = () => {
     }
   };
 
-  // Filter only items that belong to third-party vendors (not dropshipped items)
+  // Filter only items that belong to third-party vendors (own store items or admin sourced items listed by vendor)
   const vendorOrdersList = useMemo(() => {
     return orders
       .map((order) => {
         const vendorItems = (order.items || []).filter((item) => {
-          return !item.isDropshipped || (item.vendor && item.vendor.role === 'vendor') || item.sourcePlatform === 'in_house';
+          return (
+            !item.isDropshipped ||
+            item.sourceType === 'admin_catalog' ||
+            item.fulfillmentType === 'admin_central' ||
+            !!item.sourceAdminProduct ||
+            (item.vendor && item.vendor.role === 'vendor') ||
+            item.sourcePlatform === 'in_house'
+          );
         });
 
         const vendorTotal = vendorItems.reduce((sum, i) => sum + i.price * i.quantity, 0);
@@ -889,6 +896,13 @@ const AdminVendorOrders = () => {
                                   <Store className="w-3 h-3 text-purple-600" />
                                   <span>{vendorName}</span>
                                 </span>
+
+                                {(item.sourceType === 'admin_catalog' || item.sourceAdminProduct) && (
+                                  <span className="text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-900 border border-indigo-200 flex items-center gap-1">
+                                    <Package className="w-2.5 h-2.5 text-indigo-600" />
+                                    Admin Sourced ({item.vendorProductCode || 'Central Dispatch'})
+                                  </span>
+                                )}
 
                                 {item.vendor?.email && (
                                   <span className="text-[11px] text-slate-400 font-mono">

@@ -103,6 +103,26 @@ const storeSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    // Admin Catalog Sourcing Permission
+    adminCatalogAccess: {
+      status: {
+        type: String,
+        enum: ['none', 'requested', 'approved', 'rejected'],
+        default: 'none',
+      },
+      requestedAt: { type: Date, default: null },
+      approvedAt: { type: Date, default: null },
+      adminNotes: { type: String, default: '' },
+    },
+    // Official Plan & Membership Tax Invoice record
+    membershipInvoice: {
+      invoiceNumber: { type: String, default: '' },
+      invoiceDate: { type: Date, default: null },
+      amount: { type: Number, default: 0 },
+      planTitle: { type: String, default: '' },
+      paymentId: { type: String, default: '' },
+      invoiceUrl: { type: String, default: '' },
+    },
     bankDetails: {
       accountHolder: { type: String, default: '' },
       accountNumber: { type: String, default: '' },

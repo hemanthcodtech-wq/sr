@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import ProtectedRoute from './ProtectedRoute';
 
 // Public Pages
@@ -225,6 +225,15 @@ const AppRoutes = () => {
             <AdminVendorDetail />
           </ProtectedRoute>
         }
+      />
+      {/* Compatibility aliases for legacy notification links */}
+      <Route
+        path="/admin/merchants"
+        element={<Navigate to="/admin/vendors" replace />}
+      />
+      <Route
+        path="/admin/merchants/:id"
+        element={<Navigate to="/admin/vendors" replace />}
       />
       {/* Admin Orders - Unified master view */}
       <Route

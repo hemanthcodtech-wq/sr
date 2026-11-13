@@ -59,6 +59,32 @@ const productSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Vendor Catalog Architecture: Vendor Own vs Admin Sourced
+    sourceType: {
+      type: String,
+      enum: ['vendor_own', 'admin_catalog'],
+      default: 'vendor_own',
+    },
+    fulfillmentType: {
+      type: String,
+      enum: ['vendor_self', 'admin_central'],
+      default: 'vendor_self',
+    },
+    isSourcedFromAdmin: {
+      type: Boolean,
+      default: false,
+    },
+    sourceAdminProduct: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Product',
+      default: null,
+    },
+    vendorProductCode: {
+      type: String,
+      default: '',
+      trim: true,
+      index: true,
+    },
     // Dropshipping & External Sourcing Configuration (Amazon, Flipkart, Meesho, DeoDap)
     sourcePlatform: {
       type: String,

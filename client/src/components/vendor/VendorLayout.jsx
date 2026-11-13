@@ -423,17 +423,17 @@ const VendorLayout = ({
                     key={item.path}
                     to={item.path}
                     className={`flex items-center ${
-                      sidebarCollapsed ? 'justify-center px-2 py-3' : 'gap-3 px-3 py-2.5'
+                      sidebarCollapsed ? 'justify-center px-2 py-3' : 'gap-3 px-3.5 py-2.5'
                     } rounded-xl transition duration-150 group ${
                       isActive
-                        ? 'bg-gradient-to-r from-amber-500/20 via-amber-400/25 to-amber-500/10 text-amber-950 font-black border border-amber-300/60 shadow-xs'
-                        : 'text-slate-600 hover:bg-white/80 hover:text-slate-900 hover:shadow-2xs'
+                        ? 'bg-[#071d42] text-white font-extrabold shadow-sm shadow-[#071d42]/20'
+                        : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
                     }`}
                     title={sidebarCollapsed ? item.title : undefined}
                   >
                     <Icon
                       className={`w-4 h-4 shrink-0 transition-transform duration-200 group-hover:scale-110 ${
-                        isActive ? 'text-amber-600' : 'text-slate-400 group-hover:text-[#0c2a5e]'
+                        isActive ? 'text-amber-400' : 'text-slate-400 group-hover:text-[#071d42]'
                       }`}
                     />
                     {!sidebarCollapsed && (
@@ -441,7 +441,7 @@ const VendorLayout = ({
                         <span>{item.title}</span>
                         {item.badge && (
                           <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ml-1.5 shadow-2xs ${
-                            item.badgeColor || 'bg-amber-400 text-slate-950'
+                            isActive ? 'bg-amber-400 text-slate-950' : (item.badgeColor || 'bg-amber-100 text-amber-900')
                           }`}>
                             {item.badge}
                           </span>
@@ -594,15 +594,17 @@ const VendorLayout = ({
                         onClick={() => setMobileDrawerOpen(false)}
                         className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition ${
                           isActive
-                            ? 'bg-gradient-to-r from-amber-500/20 via-amber-400/25 to-amber-500/10 text-amber-950 font-black border border-amber-300/60'
+                            ? 'bg-[#071d42] text-white font-extrabold shadow-sm'
                             : 'text-slate-600 hover:bg-slate-100'
                         }`}
                       >
-                        <Icon className="w-4 h-4 text-amber-600" />
+                        <Icon className={`w-4 h-4 ${isActive ? 'text-amber-400' : 'text-slate-400'}`} />
                         <span className="flex-1 flex items-center justify-between">
                           <span>{item.title}</span>
                           {item.badge && (
-                            <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full bg-amber-400 text-slate-950">
+                            <span className={`text-[9px] font-black uppercase px-1.5 py-0.5 rounded-full ${
+                              isActive ? 'bg-amber-400 text-slate-950' : 'bg-amber-100 text-amber-900'
+                            }`}>
                               {item.badge}
                             </span>
                           )}

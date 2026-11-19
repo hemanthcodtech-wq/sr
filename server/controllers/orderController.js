@@ -161,7 +161,7 @@ const enrichItemsWithDropship = async (items, defaultTrackingNum = '') => {
       store: i.store?._id || i.store || dbProd?.store,
       deliveryStatus: i.deliveryStatus || 'Processing',
       courierName: isSourcedFromAdmin ? 'SR Marketplace Central Logistics' : (i.courierName || 'Merchant Courier Partner'),
-      trackingNumber: i.trackingNumber || defaultTrackingNum || '',
+      trackingNumber: isSourcedFromAdmin ? '' : (i.trackingNumber || defaultTrackingNum || ''),
       vendorSettled: false,
       sourceType: prodSourceType,
       fulfillmentType: prodFulfillmentType,
@@ -195,7 +195,10 @@ const autoDispatchDeoDapItems = async (order) => {
       try {
         const dispatchResult = await dispatchToDeoDap(order, item);
         item.sourceOrderId = dispatchResult.sourceOrderId;
-        item.sourceTrackingNumber = dispatchResult.sourceTrackingNumber;
+        // Tracking ID will be uploaded by admin; leave empty until admin updates
+        item.sourceTrackingNumber = (dispatchResult.sourceTrackingNumber && !dispatchResult.sourceTrackingNumber.startsWith('DEODAP-')) ? dispatchResult.sourceTrackingNumber : '';
+        item.trackingNumber = item.sourceTrackingNumber;
+        item.courierName = 'SR Central Logistics';
         item.fulfillmentStatus = 'ordered_on_source';
         item.deliveryStatus = 'Processing';
         const commissionAmount = item.profitMargin || Math.max(0, (item.price - (item.sourcePrice || 0)) * item.quantity);
@@ -205,9 +208,9 @@ const autoDispatchDeoDapItems = async (order) => {
         if (order.trackingTimeline) {
           order.trackingTimeline.push({
             status: 'Processing',
-            title: 'DeoDap Central Fulfillment & Logistics Dispatched',
-            description: `Automated DeoDap delivery in motion for ${order.shippingAddress?.fullName || 'customer'}. Supplier Order #${dispatchResult.sourceOrderId} with Delhivery Courier (AWB: ${dispatchResult.sourceTrackingNumber}). Net admin commission of ₹${commissionAmount} credited.`,
-            location: 'DeoDap Central Warehouse (Surat / Ahmedabad)',
+            title: 'SR Central Logistics - Order Verified',
+            description: `Order verified and queued at SR Central Logistics facility for ${order.shippingAddress?.fullName || 'customer'}. Courier tracking ID will be uploaded by admin upon dispatch.`,
+            location: 'SR Central Logistics Facility',
             timestamp: new Date(),
           });
         }
@@ -229,8 +232,8 @@ const autoDispatchDeoDapItems = async (order) => {
                 vendor: admin._id,
                 type: 'dropship_commission',
                 amount: adminProfitAmount,
-                description: `DeoDap Dropship Commission on Order #${order.invoiceNumber || order._id} for "${item.title}" (Sold @ ₹${item.price} - DeoDap Cost: ₹${item.sourcePrice || 0})${item.isAffiliateSale ? ' [Promoted by Vendor]' : ''}`,
-                referenceId: order._id ? order._id.toString() : 'deodap_ref',
+                description: `Central Sourcing Commission on Order #${order.invoiceNumber || order._id} for "${item.title}"${item.isAffiliateSale ? ' [Promoted by Vendor]' : ''}`,
+                referenceId: order._id ? order._id.toString() : 'central_ref',
                 status: 'completed',
                 balanceAfter: admin.walletBalance,
               });
@@ -245,7 +248,7 @@ const autoDispatchDeoDapItems = async (order) => {
                 vendor: mockAdmin._id,
                 type: 'dropship_commission',
                 amount: adminProfitAmount,
-                description: `DeoDap Dropship Commission on Order #${order.invoiceNumber || order._id} for "${item.title}"${item.isAffiliateSale ? ' [Promoted by Vendor]' : ''}`,
+                description: `Central Sourcing Commission on Order #${order.invoiceNumber || order._id} for "${item.title}"${item.isAffiliateSale ? ' [Promoted by Vendor]' : ''}`,
                 referenceId: order._id ? order._id.toString() : 'mock_ref',
                 status: 'completed',
                 balanceAfter: mockAdmin.walletBalance,
@@ -255,16 +258,19 @@ const autoDispatchDeoDapItems = async (order) => {
           }
         }
       } catch (err) {
-        console.warn('[DeoDap Auto-Dispatch & Commission Note]:', err.message);
+        console.warn('[Central Auto-Dispatch & Commission Note]:', err.message);
       }
     }
   }
 
   if (hasDeoDap) {
-    const trackedItem = order.items.find((i) => i.sourceTrackingNumber);
+    const trackedItem = order.items.find((i) => i.sourceTrackingNumber && !i.sourceTrackingNumber.startsWith('DEODAP-'));
     if (trackedItem) {
-      order.courierName = 'Delhivery Express (DeoDap Fulfillment)';
+      order.courierName = trackedItem.courierName || 'Delhivery Express';
       order.trackingNumber = trackedItem.sourceTrackingNumber;
+    } else {
+      order.courierName = 'SR Central Logistics';
+      order.trackingNumber = ''; // Will be provided by admin upon courier upload
     }
   }
 };
@@ -466,6 +472,7 @@ exports.createCodOrWalletOrder = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Please provide complete shipping address' });
     }
 
+    const codFee = paymentMethod === 'Cash on Delivery' ? 25 : 0;
     const trackingNum = `AWB${Math.floor(100000000 + Math.random() * 900000000)}`;
     const invoiceNumber = `INV-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
     const estDelivery = new Date(Date.now() + 3 * 86400000);
@@ -477,7 +484,7 @@ exports.createCodOrWalletOrder = async (req, res, next) => {
         title: paymentMethod === 'Wallet' ? 'Paid via Wallet' : 'Order Placed (Cash on Delivery)',
         description: paymentMethod === 'Wallet' 
           ? '₹' + totalAmount + ' deducted from your SR Marketplace Wallet. Order confirmed.'
-          : 'Cash on delivery payment will be collected at doorstep during delivery.',
+          : 'Cash on delivery payment of ₹' + totalAmount + ' (includes ₹25 handling fee) will be collected at doorstep during delivery.',
         location: 'Central Order Processing Facility',
         timestamp: new Date(),
       },
@@ -506,6 +513,7 @@ exports.createCodOrWalletOrder = async (req, res, next) => {
         customer: req.user,
         items: enrichedItems,
         totalAmount,
+        codFee,
         paymentStatus: paymentMethod === 'Wallet' ? 'paid' : 'pending',
         paymentMethod,
         shippingAddress,
@@ -561,6 +569,7 @@ exports.createCodOrWalletOrder = async (req, res, next) => {
       customer: req.user._id || req.user.id,
       items: enrichedItems,
       totalAmount,
+      codFee,
       paymentStatus: paymentMethod === 'Wallet' ? 'paid' : 'pending',
       paymentMethod,
       shippingAddress,

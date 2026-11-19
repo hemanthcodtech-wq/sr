@@ -808,6 +808,22 @@ const VendorProducts = () => {
                           <img
                             src={item.images?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=500'}
                             alt={item.title}
+                            loading="lazy"
+                            onError={(e) => {
+                              e.currentTarget.onerror = null;
+                              // Cycle to next available image if present, otherwise category-matched high-res fallback
+                              const fallbacks = {
+                                'Fitness': 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=500&auto=format&fit=crop&q=80',
+                                'Home & Kitchen': 'https://images.unsplash.com/photo-1584992236310-6edddc08acff?w=500&auto=format&fit=crop&q=80',
+                                'Toys': 'https://images.unsplash.com/photo-1566576912321-d58ddd7a6088?w=500&auto=format&fit=crop&q=80',
+                                'Beauty': 'https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?w=500&auto=format&fit=crop&q=80',
+                                'Electronics': 'https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=500&auto=format&fit=crop&q=80',
+                                'Automotive': 'https://images.unsplash.com/photo-1503376780353-7e6692767b70?w=500&auto=format&fit=crop&q=80',
+                                'Fashion': 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=500&auto=format&fit=crop&q=80',
+                              };
+                              const altImg = item.images?.find((img) => img && !img.includes('cdn.shopify.com/s/files'));
+                              e.currentTarget.src = altImg || fallbacks[item.category] || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&auto=format&fit=crop&q=80';
+                            }}
                             className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
                           />
                           <div className="absolute top-2.5 left-2.5 flex flex-col gap-1">
@@ -1121,6 +1137,12 @@ const VendorProducts = () => {
                                 <img
                                   src={prod.images[0]}
                                   alt={prod.title}
+                                  loading="lazy"
+                                  onError={(e) => {
+                                    e.currentTarget.onerror = null;
+                                    const altImg = prod.images?.find((img) => img && !img.includes('cdn.shopify.com/s/files'));
+                                    e.currentTarget.src = altImg || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=500&auto=format&fit=crop&q=80';
+                                  }}
                                   className="w-full h-full object-cover group-hover:scale-105 transition duration-200"
                                 />
                               ) : (

@@ -81,6 +81,15 @@ const server = app.listen(PORT, () => {
   console.log(`[Server] Amezon.online Multi-Vendor Backend running on port ${PORT}`);
   console.log(`[Server] Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`[Server] Health Check: http://localhost:${PORT}/api/health`);
+
+  // Initialize automated 24-hour periodic store plan expiry & reminder sweeper
+  try {
+    const { initDailySweeper } = require('./services/planSweeperService');
+    initDailySweeper();
+    console.log('[Server] Daily Store Plan Expiry Sweeper initialized.');
+  } catch (sweeperErr) {
+    console.warn('[Server] Could not initialize plan sweeper:', sweeperErr.message);
+  }
 });
 
 // Handle unhandled promise rejections

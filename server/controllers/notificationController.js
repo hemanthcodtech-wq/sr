@@ -48,16 +48,17 @@ const getNotifications = async (req, res, next) => {
       return res.status(401).json({ success: false, message: 'Unauthorized' });
     }
 
-    const { unreadOnly } = req.query;
+    const { unreadOnly, role: queryRole } = req.query;
+    const activeRole = queryRole || user.role;
 
     if (mongoose.connection.readyState !== 1) {
       let filtered = mockNotifications.filter((n) => {
         // Admin gets all admin notifications or broadcasts
-        if (user.role === 'admin') {
+        if (activeRole === 'admin') {
           return n.role === 'admin' || n.role === 'all' || n.recipient === user._id;
         }
         // Vendor gets vendor notifications
-        if (user.role === 'vendor') {
+        if (activeRole === 'vendor') {
           return (
             (n.role === 'vendor' && (!n.recipient || n.recipient === user._id || n.recipient === user.id)) ||
             n.role === 'all'
@@ -84,14 +85,33 @@ const getNotifications = async (req, res, next) => {
       });
     }
 
-    // Live MongoDB Query
-    const query = {
-      $or: [
-        { recipient: user._id },
-        { role: user.role, recipient: null },
-        { role: 'all' },
-      ],
-    };
+    // Live MongoDB Query strictly scoped by role
+    let query;
+    if (activeRole === 'admin') {
+      query = {
+        $or: [
+          { role: 'admin' },
+          { role: 'all' },
+          { recipient: user._id },
+        ],
+      };
+    } else if (activeRole === 'vendor') {
+      query = {
+        $or: [
+          { recipient: user._id, role: { $in: ['vendor', 'all'] } },
+          { role: 'vendor', recipient: null },
+          { role: 'all' },
+        ],
+      };
+    } else {
+      query = {
+        $or: [
+          { recipient: user._id },
+          { role: user.role, recipient: null },
+          { role: 'all' },
+        ],
+      };
+    }
 
     if (unreadOnly === 'true') {
       query.isRead = false;

@@ -105,12 +105,12 @@ const categoryBgColors = [
 // Verified marketplace partner stores for the stores slider
 const defaultMarketplaceStores = [
   {
-    id: 'store_deodap',
-    name: 'DeoDap Wholesale',
-    productsCount: '240 Products',
+    id: 'store_sr_central',
+    name: 'SR Central Mart',
+    productsCount: '240+ Products',
     logo: 'https://images.unsplash.com/photo-1472851294608-062f824d29cc?w=200&auto=format&fit=crop&q=80',
-    badge: 'DD',
-    link: '/products?search=DeoDap',
+    badge: 'SR',
+    link: '/products',
   },
   {
     id: 'store_svfashion',
@@ -253,10 +253,8 @@ const Home = () => {
   }, []);
 
   const handleQuickAdd = (product) => {
+    // addToCart in CartContext already handles feedback toast notifications
     addToCart(product, 1);
-    if (showToast) {
-      showToast(`${product.title} added to cart!`, 'success');
-    }
   };
 
   // Unique categories derived dynamically from database products + popular categories to fill the row

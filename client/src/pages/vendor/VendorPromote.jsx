@@ -128,7 +128,7 @@ const VendorPromote = () => {
                   </span>
                 </div>
                 <p className="text-xs sm:text-sm text-blue-200 mt-1 max-w-xl">
-                  Promote dropshipped products sourced by Admin from Meesho and DeoDap. When a buyer orders using your link, the product profit margin is split <strong>50% to Admin and 50% directly to you</strong>!
+                  Promote high-demand dropshipped products from the Central Catalog. When a buyer orders using your link, the product profit margin is split <strong>50% to Admin and 50% directly to you</strong>!
                 </p>
               </div>
             </div>
@@ -191,7 +191,7 @@ const VendorPromote = () => {
                   <span className="font-bold text-slate-800">Customer Places Order</span>
                 </div>
                 <p className="text-[11px] text-slate-600 leading-relaxed">
-                  When a customer clicks your link and buys the item, the system tags your vendor account as the promoter. Admin fulfills the product via DeoDap / Meesho.
+                  When a customer clicks your link and buys the item, the system tags your vendor account as the promoter. Admin fulfills the product via Central Logistics.
                 </p>
               </div>
 
@@ -282,8 +282,8 @@ const VendorPromote = () => {
               onChange={(e) => setSelectedPlatform(e.target.value)}
               className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]/20"
             >
-              <option value="all">All Sourcing Suppliers</option>
-              <option value="deodap">DeoDap Products</option>
+              <option value="all">All Catalog Products</option>
+              <option value="deodap">Central Catalog Products</option>
               <option value="meesho">Meesho Products</option>
               <option value="amazon">Amazon Products</option>
               <option value="flipkart">Flipkart Products</option>

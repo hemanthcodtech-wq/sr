@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import * as XLSX from 'xlsx';
 import {
   Truck,
   Search,
@@ -244,70 +245,146 @@ Payment Mode: ${order.paymentMethod === 'Cash on Delivery' ? 'Cash on Delivery (
     });
   }, [dropshipOrdersList, searchQuery, selectedStatus, selectedMonth, startDate, endDate]);
 
-  // Export / Backup to CSV formatted for DeoDap Official Order Entry
+  // Helper to build rows formatted for Bulk Order template (One row per order)
+  const buildBulkOrderData = () => {
+    const headers = [
+      'Platform order number',
+      'First Name',
+      'Last Name',
+      'Company',
+      'Mobile',
+      'Shipping Address 1',
+      'Shipping Address 2',
+      'City',
+      'State',
+      'Pincode',
+      'SKU',
+      'Quantity',
+      'Payment Method',
+      'Sellling Price',
+    ];
+
+    const dataObjects = [];
+
+    filteredOrders.forEach((ord) => {
+      const addr = ord.shippingAddress || {};
+      const fullName = (addr.fullName || '').trim();
+      let firstName = fullName;
+      let lastName = '';
+      if (fullName.includes(' ')) {
+        const parts = fullName.split(/\s+/);
+        firstName = parts[0];
+        lastName = parts.slice(1).join(' ');
+      }
+
+      // Address splitting for Shipping Address 1 and Shipping Address 2
+      const fullStreet = (addr.street || '').trim();
+      let addr1 = fullStreet;
+      let addr2 = '';
+      if (fullStreet.length > 35) {
+        const commaIdx = fullStreet.indexOf(',');
+        if (commaIdx > 10 && commaIdx < fullStreet.length - 5) {
+          addr1 = fullStreet.substring(0, commaIdx).trim();
+          addr2 = fullStreet.substring(commaIdx + 1).trim();
+        } else {
+          addr1 = fullStreet.substring(0, 35).trim();
+          addr2 = fullStreet.substring(35).trim();
+        }
+      }
+
+      const company = addr.company || '';
+      const mobile = addr.phone || '';
+      const city = addr.city || '';
+      const state = addr.state || '';
+      const pincode = addr.zipCode || '';
+      const platformOrderNo = ord.invoiceNumber || ord.orderNumber || ord._id;
+      const paymentMethod = ord.paymentMethod || 'Prepaid';
+
+      // Consolidate all items in this single order into 1 single row:
+      // Combine all SKUs, sum total quantity, and calculate total selling price
+      const dropshipItems = ord.dropshipItems || [];
+      const combinedSKU = dropshipItems
+        .map((item) => (item.sku || item.vendorProductCode || '').trim())
+        .filter(Boolean)
+        .join(', ');
+
+      const totalQuantity = dropshipItems.reduce((sum, item) => sum + (item.quantity || 1), 0);
+      const totalSellingPrice = dropshipItems.reduce(
+        (sum, item) => sum + (item.price || 0) * (item.quantity || 1),
+        0
+      );
+
+      dataObjects.push({
+        'Platform order number': String(platformOrderNo),
+        'First Name': firstName,
+        'Last Name': lastName,
+        'Company': company,
+        'Mobile': mobile,
+        'Shipping Address 1': addr1,
+        'Shipping Address 2': addr2,
+        'City': city,
+        'State': state,
+        'Pincode': pincode,
+        'SKU': combinedSKU,
+        'Quantity': totalQuantity,
+        'Payment Method': paymentMethod,
+        'Sellling Price': totalSellingPrice,
+      });
+    });
+
+    return { headers, dataObjects };
+  };
+
+  // Export orders to Excel (.xlsx) matching exact Wukusy / DeoDap format template
+  const handleExportExcel = () => {
+    if (filteredOrders.length === 0) {
+      error('No orders available to export');
+      return;
+    }
+
+    const { headers, dataObjects } = buildBulkOrderData();
+    const ws = XLSX.utils.json_to_sheet(dataObjects, { header: headers });
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1');
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const fileName = `Orders_Bulk_Export_${selectedMonth !== 'all' ? selectedMonth : dateStr}.xlsx`;
+    XLSX.writeFile(wb, fileName);
+
+    success(`Exported ${dataObjects.length} order items to Excel (.xlsx)!`);
+  };
+
+  // Export orders to CSV matching DeoDap Bulk Order Import format
   const handleExportCSV = () => {
     if (filteredOrders.length === 0) {
       error('No orders available to export');
       return;
     }
 
-    const headers = [
-      'Order ID / Invoice',
-      'Order Date',
-      'Product Title',
-      'SKU',
-      'Quantity',
-      'Supplier Cost Price',
-      'Customer Selling Price',
-      'Profit Margin',
-      'Customer Name',
-      'Customer Phone',
-      'Delivery Street',
-      'Delivery City',
-      'Delivery State',
-      'Delivery PIN Code',
-      'Country',
-      'DeoDap Order ID',
-      'Tracking Number',
-      'Fulfillment Status',
-      'Payment Status',
-    ];
-
-    const rows = [];
-
-    filteredOrders.forEach((ord) => {
-      const addr = ord.shippingAddress || {};
-      ord.dropshipItems.forEach((item) => {
-        rows.push([
-          `"${ord.invoiceNumber || ord._id}"`,
-          `"${new Date(ord.createdAt).toISOString().split('T')[0]}"`,
-          `"${(item.title || '').replace(/"/g, '""')}"`,
-          `"${item.sku || ''}"`,
-          item.quantity || 1,
-          item.sourcePrice || 0,
-          item.price || 0,
-          item.profitMargin || 0,
-          `"${(addr.fullName || '').replace(/"/g, '""')}"`,
-          `"${addr.phone || ''}"`,
-          `"${(addr.street || '').replace(/"/g, '""')}"`,
-          `"${(addr.city || '').replace(/"/g, '""')}"`,
-          `"${(addr.state || '').replace(/"/g, '""')}"`,
-          `"${addr.zipCode || ''}"`,
-          `"${addr.country || 'India'}"`,
-          `"${item.sourceOrderId || ''}"`,
-          `"${item.sourceTrackingNumber || ''}"`,
-          `"${item.fulfillmentStatus || 'unfulfilled'}"`,
-          `"${ord.paymentStatus || 'paid'}"`,
-        ]);
-      });
-    });
+    const { headers, dataObjects } = buildBulkOrderData();
+    const rows = dataObjects.map((d) => [
+      `"${String(d['Platform order number']).replace(/"/g, '""')}"`,
+      `"${String(d['First Name']).replace(/"/g, '""')}"`,
+      `"${String(d['Last Name']).replace(/"/g, '""')}"`,
+      `"${String(d['Company']).replace(/"/g, '""')}"`,
+      `"${String(d['Mobile']).replace(/"/g, '""')}"`,
+      `"${String(d['Shipping Address 1']).replace(/"/g, '""')}"`,
+      `"${String(d['Shipping Address 2']).replace(/"/g, '""')}"`,
+      `"${String(d['City']).replace(/"/g, '""')}"`,
+      `"${String(d['State']).replace(/"/g, '""')}"`,
+      `"${String(d['Pincode']).replace(/"/g, '""')}"`,
+      `"${String(d['SKU']).replace(/"/g, '""')}"`,
+      d['Quantity'],
+      `"${String(d['Payment Method']).replace(/"/g, '""')}"`,
+      d['Sellling Price'],
+    ]);
 
     const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
     const dateStr = new Date().toISOString().slice(0, 10);
-    link.setAttribute('download', `DeoDap_Orders_Backup_${selectedMonth !== 'all' ? selectedMonth : dateStr}.csv`);
+    link.setAttribute('download', `Orders_Export_${selectedMonth !== 'all' ? selectedMonth : dateStr}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -562,7 +639,7 @@ Payment Mode: ${order.paymentMethod === 'Cash on Delivery' ? 'Cash on Delivery (
   return (
     <AdminLayout
       title="DeoDap Orders & Supplier Fulfillment"
-      subtitle="Copy buyer shipping addresses, export monthly backup files, and place orders directly on DeoDap"
+      subtitle="Copy buyer shipping addresses, export bulk order CSV files, and place orders directly on DeoDap"
       onRefresh={fetchOrders}
     >
       <div className="space-y-6 max-w-7xl mx-auto pb-16 font-sans">
@@ -596,12 +673,21 @@ Payment Mode: ${order.paymentMethod === 'Cash on Delivery' ? 'Cash on Delivery (
               </a>
 
               <button
+                onClick={handleExportExcel}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs shadow-md shadow-teal-600/20 active:scale-98 transition cursor-pointer"
+                title="Download bulk order Excel (.xlsx) formatted for Wukusy / Supplier import template"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-emerald-200" />
+                <span>Export Excel (.xlsx)</span>
+              </button>
+
+              <button
                 onClick={handleExportCSV}
                 className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-600/20 active:scale-98 transition cursor-pointer"
-                title="Download CSV Spreadsheet backup of all filtered orders"
+                title="Download bulk order CSV formatted for software import"
               >
                 <Download className="w-4 h-4" />
-                <span>Export Orders Backup (CSV)</span>
+                <span>Export Orders (CSV)</span>
               </button>
 
               <button

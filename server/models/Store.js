@@ -103,6 +103,14 @@ const storeSchema = new mongoose.Schema(
       type: Date,
       default: null,
     },
+    expiryReminderSentAt: {
+      type: Date,
+      default: null,
+    },
+    planExpiredNotificationSentAt: {
+      type: Date,
+      default: null,
+    },
     // Admin Catalog Sourcing Permission
     adminCatalogAccess: {
       status: {
@@ -153,5 +161,24 @@ storeSchema.pre('save', function () {
       .replace(/^-+|-+$/g, '') + '-' + Math.random().toString(36).substring(2, 6);
   }
 });
+
+// Cascade delete all products when a store is deleted
+storeSchema.post('findOneAndDelete', async function (doc) {
+  if (doc) {
+    try {
+      const Product = mongoose.model('Product');
+      await Product.deleteMany({
+        $or: [
+          { store: doc._id },
+          ...(doc.vendor ? [{ vendor: doc.vendor }] : []),
+        ],
+      });
+    } catch (_) {}
+  }
+});
+
+// Compound Indexes for Performance
+storeSchema.index({ status: 1, planExpiresAt: 1 });
+storeSchema.index({ slug: 1 });
 
 module.exports = mongoose.model('Store', storeSchema);

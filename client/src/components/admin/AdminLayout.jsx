@@ -125,8 +125,8 @@ const AdminLayout = ({ children, title = 'Dashboard Overview', subtitle = '', on
       badgeAlert: pendingApprovalsCount > 0,
     },
     {
-      title: 'DeoDap Products',
-      shortTitle: 'DeoDap',
+      title: 'Central Products Catalog',
+      shortTitle: 'Catalog',
       path: '/admin/products',
       icon: Package,
     },

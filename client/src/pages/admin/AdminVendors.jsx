@@ -35,6 +35,7 @@ import {
   ArrowDownLeft,
   Tag,
   Layers,
+  Trash2,
 } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import api from '../../services/api';
@@ -220,6 +221,34 @@ const AdminVendors = () => {
       }
     } catch (err) {
       error(err.response?.data?.message || 'Failed to update catalog access');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
+  // Permanently delete vendor, store, and all catalog products
+  const handleDeleteVendor = async (storeId, storeName) => {
+    if (
+      !window.confirm(
+        `Are you sure you want to PERMANENTLY delete the vendor "${storeName || 'Merchant'}"?\n\nThis will permanently delete:\n• The vendor store profile\n• The vendor login account\n• ALL listed products (both vendor-uploaded and admin-sourced)\n• Store notifications and records\n\nThis action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    setProcessingId(storeId);
+    try {
+      const res = await api.delete(`/admin/vendors/${storeId}`);
+      if (res.data?.success) {
+        success(res.data.message || `Store "${storeName}" and vendor account deleted permanently`);
+        if (selectedApplication?._id === storeId) {
+          setSelectedApplication(null);
+        }
+        fetchData();
+        window.dispatchEvent(new Event('vendor-approvals-changed'));
+      }
+    } catch (err) {
+      error(err.response?.data?.message || 'Failed to delete vendor store');
     } finally {
       setProcessingId(null);
     }
@@ -819,6 +848,15 @@ const AdminVendors = () => {
                                 <X className="w-3.5 h-3.5" />
                                 <span>Reject</span>
                               </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteVendor(store._id, store.storeName)}
+                                disabled={processingId === store._id}
+                                className="p-1.5 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300 font-bold text-xs transition cursor-pointer inline-flex items-center justify-center disabled:opacity-50"
+                                title="Permanently Delete Vendor, Store & Products"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
                             </div>
                           ) : (
                             <div className="inline-flex items-center gap-1.5 justify-end">
@@ -855,6 +893,15 @@ const AdminVendors = () => {
                               >
                                 <Eye className="w-3.5 h-3.5" />
                                 <span>View</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteVendor(store._id, store.storeName)}
+                                disabled={processingId === store._id}
+                                className="p-1.5 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 hover:border-rose-300 font-bold text-xs transition cursor-pointer inline-flex items-center justify-center disabled:opacity-50"
+                                title="Permanently Delete Vendor, Store & Products"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </div>
                           )}
@@ -993,16 +1040,36 @@ const AdminVendors = () => {
                             <X className="w-3.5 h-3.5" />
                             <span>Reject</span>
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteVendor(store._id, store.storeName)}
+                            disabled={processingId === store._id}
+                            className="p-2 border border-rose-200 hover:bg-rose-50 text-rose-600 rounded-xl text-xs font-bold flex items-center justify-center cursor-pointer transition disabled:opacity-50"
+                            title="Delete Vendor & Store"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </>
                       ) : (
-                        <button
-                          type="button"
-                          onClick={() => openVendorDetails(store)}
-                          className="w-full py-2 bg-[#0c2a5e] hover:bg-[#153e85] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
-                        >
-                          <Eye className="w-3.5 h-3.5" />
-                          <span>View Application</span>
-                        </button>
+                        <div className="w-full flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => openVendorDetails(store)}
+                            className="flex-1 py-2 bg-[#0c2a5e] hover:bg-[#153e85] text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 cursor-pointer shadow-2xs"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>View Details</span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteVendor(store._id, store.storeName)}
+                            disabled={processingId === store._id}
+                            className="p-2 border border-rose-200 hover:bg-rose-50 text-rose-600 rounded-xl text-xs font-bold flex items-center justify-center cursor-pointer transition disabled:opacity-50"
+                            title="Delete Vendor & Store"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       )}
                     </div>
                   </div>
@@ -1781,6 +1848,15 @@ const AdminVendors = () => {
 
                 {selectedApplication.status === 'active' ? (
                   <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteVendor(selectedApplication._id, selectedApplication.storeName)}
+                      disabled={processingId === selectedApplication._id}
+                      className="px-3.5 py-2.5 rounded-xl border border-rose-300 text-rose-700 hover:bg-rose-50 text-xs font-bold transition cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete Store</span>
+                    </button>
                     <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                       <span>Approved &amp; Active Merchant</span>
@@ -1795,6 +1871,17 @@ const AdminVendors = () => {
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 w-full sm:w-auto justify-end flex-wrap">
+                    {/* Delete vendor store button */}
+                    <button
+                      type="button"
+                      onClick={() => handleDeleteVendor(selectedApplication._id, selectedApplication.storeName)}
+                      disabled={processingId === selectedApplication._id}
+                      className="px-3.5 py-2.5 rounded-xl border border-rose-300 text-rose-700 hover:bg-rose-50 text-xs font-bold transition cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete Store</span>
+                    </button>
+
                     {/* Reject button */}
                     <button
                       type="button"

@@ -234,63 +234,77 @@ const AdminPlans = () => {
         </div>
 
         {/* 3 STAT TILES: Total Plans, Active Status, Duration Spread */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider font-sans">Configured Plans</p>
-              <h3 className="text-2xl sm:text-3xl font-black text-slate-900 mt-1 tracking-tight font-mono">{plans.length}</h3>
-              <span className="text-[11px] text-slate-500 block mt-0.5">Total registered pricing models</span>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-5">
+          <div className="group bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 hover:border-blue-200 shadow-2xs hover:shadow-md transition-all duration-300 flex items-center justify-between">
+            <div className="space-y-1">
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest font-sans">
+                Configured Plans
+              </span>
+              <h3 className="text-3xl font-black text-slate-900 tracking-tight font-mono">
+                {plans.length}
+              </h3>
+              <p className="text-[11px] text-slate-500 font-medium">Total registered pricing models</p>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#0c2a5e] flex items-center justify-center shadow-2xs border border-blue-100">
-              <Layers className="w-6 h-6" />
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider font-sans">Active For Merchants</p>
-              <h3 className="text-2xl sm:text-3xl font-black text-emerald-600 mt-1 tracking-tight font-mono">{activePlansCount}</h3>
-              <span className="text-[11px] text-emerald-700 font-semibold block mt-0.5">Visible on registration</span>
-            </div>
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center shadow-2xs border border-emerald-100">
-              <ShieldCheck className="w-6 h-6" />
+            <div className="w-13 h-13 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 text-[#0c2a5e] flex items-center justify-center shadow-xs border border-blue-100 group-hover:scale-105 transition-transform">
+              <Layers className="w-6 h-6 stroke-[2.2]" />
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs flex items-center justify-between">
-            <div>
-              <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider font-sans">Validity Scope</p>
-              <h3 className="text-2xl sm:text-3xl font-black text-amber-600 mt-1 tracking-tight font-mono">
+          <div className="group bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 hover:border-emerald-200 shadow-2xs hover:shadow-md transition-all duration-300 flex items-center justify-between">
+            <div className="space-y-1">
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest font-sans">
+                Active For Merchants
+              </span>
+              <h3 className="text-3xl font-black text-emerald-600 tracking-tight font-mono">
+                {activePlansCount}
+              </h3>
+              <p className="text-[11px] text-emerald-600 font-semibold">Live on vendor registration</p>
+            </div>
+            <div className="w-13 h-13 rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-50 text-emerald-600 flex items-center justify-center shadow-xs border border-emerald-100 group-hover:scale-105 transition-transform">
+              <ShieldCheck className="w-6 h-6 stroke-[2.2]" />
+            </div>
+          </div>
+
+          <div className="group bg-white rounded-3xl p-5 sm:p-6 border border-slate-200/90 hover:border-amber-200 shadow-2xs hover:shadow-md transition-all duration-300 flex items-center justify-between">
+            <div className="space-y-1">
+              <span className="text-[11px] font-black text-slate-400 uppercase tracking-widest font-sans">
+                Validity Scope
+              </span>
+              <h3 className="text-3xl font-black text-amber-600 tracking-tight font-mono">
                 {plans.length > 0
                   ? Math.min(...plans.map((p) => p.durationDays)) === Math.max(...plans.map((p) => p.durationDays))
                     ? `${Math.min(...plans.map((p) => p.durationDays))}d`
                     : `${Math.min(...plans.map((p) => p.durationDays))}d - ${Math.max(...plans.map((p) => p.durationDays))}d`
                   : '0d'}
               </h3>
-              <span className="text-[11px] text-slate-500 block mt-0.5">Storefront duration terms</span>
+              <p className="text-[11px] text-slate-500 font-medium">Storefront duration terms</p>
             </div>
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center shadow-2xs border border-amber-100">
-              <Clock className="w-6 h-6" />
+            <div className="w-13 h-13 rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 text-amber-600 flex items-center justify-center shadow-xs border border-amber-100 group-hover:scale-105 transition-transform">
+              <Clock className="w-6 h-6 stroke-[2.2]" />
             </div>
           </div>
         </div>
 
         {/* PLAN CARDS CATALOG SECTION */}
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
+        <div className="space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
-              <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider flex items-center gap-2">
+              <h3 className="text-base font-black text-slate-900 tracking-tight flex items-center gap-2">
                 <span>Available Subscription Packages</span>
-                <span className="text-xs text-slate-400 font-normal lowercase">({plans.length} total)</span>
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                  {plans.length} total
+                </span>
               </h3>
-              <p className="text-xs text-slate-500">Card plans presented to vendors during onboarding and plan extension</p>
+              <p className="text-xs text-slate-500">
+                Card plans presented to vendors during onboarding and plan extension
+              </p>
             </div>
           </div>
 
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[1, 2, 3].map((i) => (
-                <div key={i} className="h-80 rounded-3xl bg-slate-100 border border-slate-200 animate-pulse" />
+                <div key={i} className="h-96 rounded-3xl bg-slate-100 border border-slate-200 animate-pulse" />
               ))}
             </div>
           ) : plans.length > 0 ? (
@@ -300,23 +314,23 @@ const AdminPlans = () => {
                 return (
                   <div
                     key={plan._id}
-                    className="bg-white rounded-3xl border border-slate-200/90 hover:border-[#0c2a5e]/50 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 p-6 flex flex-col justify-between relative group"
+                    className="bg-white rounded-3xl border border-slate-200/90 hover:border-blue-400/80 shadow-xs hover:shadow-xl hover:-translate-y-1 transition-all duration-300 p-6 flex flex-col justify-between relative group overflow-hidden"
                   >
-                    {/* Top Color Accent */}
-                    <div className="absolute top-0 inset-x-6 h-1 rounded-b-full bg-gradient-to-r from-transparent via-[#0c2a5e]/40 to-transparent group-hover:via-[#0c2a5e] transition" />
+                    {/* Top Gradient Banner Pill */}
+                    <div className="absolute top-0 inset-x-0 h-1.5 bg-gradient-to-r from-[#071d42] via-[#0c2a5e] to-blue-500 group-hover:h-2 transition-all duration-300" />
 
-                    <div className="space-y-5">
-                      {/* Card Header: Icon, Title & Status */}
-                      <div className="flex items-start justify-between gap-3 pt-1">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#071d42] to-[#153e85] text-amber-300 flex items-center justify-center shadow-md flex-shrink-0">
+                    <div className="space-y-5 pt-2">
+                      {/* Card Header: Icon, Title & Status Badge */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-3.5">
+                          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#071d42] via-[#0c2a5e] to-[#153e85] text-amber-300 flex items-center justify-center shadow-md shadow-blue-950/15 flex-shrink-0 group-hover:scale-105 transition-transform">
                             <CreditCard className="w-6 h-6" />
                           </div>
                           <div>
-                            <h4 className="font-black text-lg text-slate-900 tracking-tight capitalize group-hover:text-[#0c2a5e] transition">
+                            <h4 className="font-black text-xl text-slate-900 tracking-tight group-hover:text-[#0c2a5e] transition">
                               {plan.title}
                             </h4>
-                            <div className="flex items-center gap-1 text-[11px] text-slate-400 font-medium">
+                            <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-semibold mt-0.5">
                               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                               <span>Store License</span>
                             </div>
@@ -324,32 +338,36 @@ const AdminPlans = () => {
                         </div>
 
                         <span
-                          className={`inline-flex items-center gap-1.5 text-[10px] font-black px-2.5 py-1 rounded-full border shadow-2xs ${
+                          className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase px-2.5 py-1 rounded-full border shadow-2xs ${
                             plan.isActive
                               ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                               : 'bg-slate-100 text-slate-500 border-slate-200'
                           }`}
                         >
-                          <span className={`w-1.5 h-1.5 rounded-full ${plan.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'}`} />
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              plan.isActive ? 'bg-emerald-500 animate-pulse' : 'bg-slate-400'
+                            }`}
+                          />
                           <span>{plan.isActive ? 'ACTIVE' : 'DRAFT'}</span>
                         </span>
                       </div>
 
-                      {/* Pricing Display */}
-                      <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-50 to-blue-50/30 border border-slate-200/80">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                      {/* Pricing Display Card */}
+                      <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-br from-slate-50 via-blue-50/20 to-slate-50 border border-slate-200/90 shadow-2xs">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
                           Platform Enrollment Fee
                         </span>
-                        <div className="flex items-baseline justify-between gap-2">
+                        <div className="flex items-baseline justify-between gap-2 flex-wrap">
                           <div className="flex items-baseline font-mono">
-                            <span className="text-xl font-bold text-slate-400 mr-0.5">₹</span>
+                            <span className="text-xl sm:text-2xl font-black text-slate-400 mr-1">₹</span>
                             <span className="text-3xl sm:text-4xl font-black text-slate-900 tracking-tight">
                               {plan.price.toLocaleString('en-IN')}
                             </span>
-                            <span className="text-xs text-slate-400 font-medium font-sans ml-1">/ cycle</span>
+                            <span className="text-xs text-slate-500 font-bold font-sans ml-1.5">/ cycle</span>
                           </div>
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white border border-slate-200 text-[#0c2a5e] font-bold text-[11px] shadow-2xs font-mono">
-                            <Zap className="w-3 h-3 text-amber-500" />
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-white border border-slate-200/90 text-[#0c2a5e] font-extrabold text-[11px] shadow-2xs font-mono">
+                            <Zap className="w-3 h-3 text-amber-500 fill-amber-500" />
                             ₹{dailyRate}/day
                           </span>
                         </div>
@@ -357,51 +375,61 @@ const AdminPlans = () => {
 
                       {/* Key Terms Details */}
                       <div className="space-y-2 text-xs">
-                        <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                          <span className="text-slate-500 font-medium flex items-center gap-1.5">
-                            <Clock className="w-3.5 h-3.5 text-blue-600" />
+                        <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 hover:bg-slate-100/70 border border-slate-100 transition">
+                          <span className="text-slate-600 font-bold flex items-center gap-2">
+                            <Clock className="w-4 h-4 text-blue-600" />
                             <span>Validity Period:</span>
                           </span>
-                          <strong className="text-slate-900 font-mono font-black">{plan.durationDays} Days Active</strong>
+                          <span className="text-slate-900 font-mono font-black text-xs px-2 py-0.5 rounded-md bg-white border border-slate-200 shadow-2xs">
+                            {plan.durationDays} Days Active
+                          </span>
                         </div>
 
-                        <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                          <span className="text-slate-500 font-medium flex items-center gap-1.5">
-                            <Store className="w-3.5 h-3.5 text-emerald-600" />
+                        <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 hover:bg-slate-100/70 border border-slate-100 transition">
+                          <span className="text-slate-600 font-bold flex items-center gap-2">
+                            <Store className="w-4 h-4 text-emerald-600" />
                             <span>Storefront Access:</span>
                           </span>
-                          <span className="font-bold text-emerald-700">Full Commercial</span>
+                          <span className="font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                            Full Commercial
+                          </span>
                         </div>
 
-                        <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                          <span className="text-slate-500 font-medium flex items-center gap-1.5">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600" />
+                        <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-50 hover:bg-slate-100/70 border border-slate-100 transition">
+                          <span className="text-slate-600 font-bold flex items-center gap-2">
+                            <CheckCircle2 className="w-4 h-4 text-indigo-600" />
                             <span>Merchant Dashboard:</span>
                           </span>
-                          <span className="font-bold text-slate-800">Included</span>
+                          <span className="font-black text-slate-800 bg-slate-200/70 px-2 py-0.5 rounded-md">
+                            Included
+                          </span>
                         </div>
                       </div>
                     </div>
 
                     {/* Card Actions Footer */}
-                    <div className="pt-5 mt-4 border-t border-slate-100 flex items-center justify-between gap-2">
+                    <div className="pt-4 mt-5 border-t border-slate-100 flex items-center justify-between gap-2">
                       <button
                         onClick={() => handleToggleStatus(plan)}
-                        className={`text-xs font-bold px-3 py-2 rounded-xl border transition cursor-pointer flex items-center gap-1.5 ${
+                        className={`text-xs font-black px-3.5 py-2.5 rounded-xl border transition-all cursor-pointer flex items-center gap-2 active:scale-95 ${
                           plan.isActive
-                            ? 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
-                            : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200'
+                            ? 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 hover:border-slate-300'
+                            : 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-300'
                         }`}
                         title={plan.isActive ? 'Deactivate Tier' : 'Activate Tier'}
                       >
-                        <span className={`w-2 h-2 rounded-full ${plan.isActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                        <span
+                          className={`w-2 h-2 rounded-full ${
+                            plan.isActive ? 'bg-emerald-500' : 'bg-slate-400'
+                          }`}
+                        />
                         <span>{plan.isActive ? 'Deactivate' : 'Publish'}</span>
                       </button>
 
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-2">
                         <button
                           onClick={() => handleOpenEdit(plan)}
-                          className="px-3.5 py-2 rounded-xl bg-[#0c2a5e] hover:bg-[#153e85] text-white text-xs font-bold transition cursor-pointer flex items-center gap-1 shadow-2xs"
+                          className="px-4 py-2.5 rounded-xl bg-[#0c2a5e] hover:bg-[#153e85] text-white text-xs font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-sm active:scale-95"
                           title="Edit Plan"
                         >
                           <Edit2 className="w-3.5 h-3.5" />
@@ -409,10 +437,10 @@ const AdminPlans = () => {
                         </button>
                         <button
                           onClick={() => handleDelete(plan._id, plan.title)}
-                          className="p-2 rounded-xl border border-rose-200 text-rose-600 hover:bg-rose-50 transition cursor-pointer"
+                          className="p-2.5 rounded-xl border border-rose-200 bg-rose-50/50 hover:bg-rose-100 text-rose-600 transition-all cursor-pointer active:scale-95"
                           title="Delete Plan"
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
                     </div>

@@ -154,6 +154,10 @@ const orderSchema = new mongoose.Schema(
       type: Number,
       required: true,
     },
+    codFee: {
+      type: Number,
+      default: 0,
+    },
     paymentStatus: {
       type: String,
       enum: ['pending', 'paid', 'failed'],
@@ -196,6 +200,15 @@ const orderSchema = new mongoose.Schema(
       type: String,
       default: '',
     },
+    deliveryStatus: {
+      type: String,
+      enum: ['Processing', 'Shipped', 'Out for Delivery', 'Delivered', 'Cancelled'],
+      default: 'Processing',
+    },
+    deliveredAt: {
+      type: Date,
+      default: null,
+    },
     estimatedDelivery: {
       type: Date,
       default: null,
@@ -215,11 +228,38 @@ const orderSchema = new mongoose.Schema(
   }
 );
 
-// Auto-generate invoice number before save
+// Auto-generate invoice number and sync order-level delivery status before save
 orderSchema.pre('save', function () {
   if (!this.invoiceNumber) {
     this.invoiceNumber = `INV-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
   }
+
+  if (this.items && this.items.length > 0) {
+    const allDelivered = this.items.every(
+      (it) => it.deliveryStatus === 'Delivered' || it.fulfillmentStatus === 'delivered_to_customer'
+    );
+    if (allDelivered) {
+      this.deliveryStatus = 'Delivered';
+      if (!this.deliveredAt) this.deliveredAt = new Date();
+    } else {
+      const anyOut = this.items.some((it) => it.deliveryStatus === 'Out for Delivery');
+      const anyShipped = this.items.some(
+        (it) => it.deliveryStatus === 'Shipped' || it.fulfillmentStatus === 'shipped_by_source'
+      );
+      if (anyOut) {
+        this.deliveryStatus = 'Out for Delivery';
+      } else if (anyShipped) {
+        this.deliveryStatus = 'Shipped';
+      }
+    }
+  }
 });
+
+// Compound Indexes for Performance (Scaling past 10,000+ orders)
+orderSchema.index({ 'items.vendor': 1, 'items.deliveryStatus': 1 });
+orderSchema.index({ 'items.vendor': 1, createdAt: -1 });
+orderSchema.index({ deliveryStatus: 1, createdAt: -1 });
+orderSchema.index({ customer: 1, createdAt: -1 });
+orderSchema.index({ invoiceNumber: 1 });
 
 module.exports = mongoose.model('Order', orderSchema);

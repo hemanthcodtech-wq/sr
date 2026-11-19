@@ -238,6 +238,19 @@ const Login = () => {
                 <div className="flex items-center justify-between pb-1.5 border-b border-slate-200">
                   <div>
                     <span className="font-bold text-[#0c2a5e] block">Customer:</span>
+                    <span className="font-mono text-[10px] sm:text-[11px]">ramarajukoyyalagadda123@gmail.com</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => fillCredentials('ramarajukoyyalagadda123@gmail.com', 'R@maraju123')}
+                    className="px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg bg-[#0c2a5e] text-white font-bold text-[10px] sm:text-[11px] hover:bg-[#153e85] transition cursor-pointer"
+                  >
+                    Auto Fill
+                  </button>
+                </div>
+                <div className="flex items-center justify-between pb-1.5 border-b border-slate-200">
+                  <div>
+                    <span className="font-bold text-[#0c2a5e] block">Vendor:</span>
                     <span className="font-mono text-[10px] sm:text-[11px]">ramarajukoyyalagadda@gmail.com</span>
                   </div>
                   <button
@@ -253,16 +266,6 @@ const Login = () => {
                   <button
                     type="button"
                     onClick={() => fillCredentials('admin@amazon.com', 'admin123')}
-                    className="text-[#0c2a5e] font-bold hover:underline cursor-pointer"
-                  >
-                    Auto Fill
-                  </button>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span>Vendor: <strong className="font-mono">techgear@vendor.com</strong></span>
-                  <button
-                    type="button"
-                    onClick={() => fillCredentials('techgear@vendor.com', 'password123')}
                     className="text-[#0c2a5e] font-bold hover:underline cursor-pointer"
                   >
                     Auto Fill

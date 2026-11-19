@@ -44,10 +44,8 @@ const ProductCard = ({ product, showVendorBadge = true, mobileCols = 4 }) => {
   const handleAddToCart = (e) => {
     e.preventDefault();
     e.stopPropagation();
+    // addToCart in CartContext already handles feedback toast notifications
     addToCart(product, 1);
-    if (showToast) {
-      showToast(`${product.title} added to your cart!`, 'success');
-    }
   };
 
   const handleToggleWishlist = (e) => {

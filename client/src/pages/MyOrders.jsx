@@ -342,9 +342,13 @@ const MyOrders = () => {
                                   <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-bold">
                                     Status: {it.deliveryStatus || order.deliveryStatus || 'Processing'}
                                   </span>
-                                  {it.trackingNumber && (
+                                  {it.trackingNumber && !it.trackingNumber.startsWith('DEODAP-') ? (
                                     <span className="px-2 py-0.5 rounded-md bg-slate-100 font-mono text-slate-600 text-[10px]">
                                       AWB: {it.trackingNumber}
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-0.5 rounded-md bg-amber-50 font-medium text-amber-800 text-[10px] border border-amber-200/60">
+                                      AWB will be uploaded on dispatch
                                     </span>
                                   )}
                                 </div>

@@ -133,13 +133,13 @@ export const CartProvider = ({ children }) => {
           toastMsg = `Added "${product.title}" to your cart!`;
           toastType = 'success';
           return [
-            ...prevItems,
             {
               product,
               quantity,
               store: product.store || product.vendor?.store,
               promotedByVendor: affiliateVendor,
             },
+            ...prevItems,
           ];
         }
       });

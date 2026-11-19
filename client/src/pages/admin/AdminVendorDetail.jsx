@@ -24,6 +24,7 @@ import {
   ArrowUpRight,
   Layers,
   Sparkles,
+  Trash2,
 } from 'lucide-react';
 import AdminLayout from '../../components/admin/AdminLayout';
 import api from '../../services/api';
@@ -109,6 +110,33 @@ const AdminVendorDetail = () => {
     }
   };
 
+  const handleDeleteVendor = async () => {
+    const store = vendorData?.store;
+    const storeId = store?._id || id;
+    const storeName = store?.storeName || 'Merchant';
+
+    if (
+      !window.confirm(
+        `Are you sure you want to PERMANENTLY delete "${storeName}"?\n\nThis will permanently delete:\n• The vendor store profile\n• The vendor login account\n• ALL ${productsCount || 0} product listings (both uploaded and admin-sourced)\n• Store notifications and records\n\nThis action cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setProcessingAction(true);
+      const res = await api.delete(`/admin/vendors/${storeId}`);
+      if (res.data?.success) {
+        success(res.data.message || `Store "${storeName}" and vendor account deleted permanently`);
+        navigate('/admin/vendors');
+      }
+    } catch (err) {
+      error(err.response?.data?.message || 'Failed to delete vendor store');
+    } finally {
+      setProcessingAction(false);
+    }
+  };
+
   if (loading) {
     return (
       <AdminLayout title="Vendor Details" subtitle="Loading vendor record...">
@@ -170,6 +198,16 @@ const AdminVendorDetail = () => {
               {store.status === 'active' ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" /> : <Clock className="w-3.5 h-3.5 text-amber-600" />}
               <span className="capitalize">{store.status?.replace(/_/g, ' ')}</span>
             </span>
+
+            <button
+              onClick={handleDeleteVendor}
+              disabled={processingAction}
+              className="px-3 py-2 rounded-xl bg-white border border-rose-300 text-rose-700 hover:bg-rose-50 transition cursor-pointer shadow-2xs text-xs font-bold flex items-center gap-1.5 disabled:opacity-50"
+              title="Permanently Delete Store & Vendor Account"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Delete Store</span>
+            </button>
 
             <button
               onClick={fetchVendorDetails}
@@ -289,6 +327,15 @@ const AdminVendorDetail = () => {
                 >
                   Reject Registration
                 </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteVendor}
+                  disabled={processingAction}
+                  className="px-4 py-2 rounded-xl bg-rose-600/30 hover:bg-rose-600/50 text-rose-100 border border-rose-400/50 text-xs font-bold transition cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete Store</span>
+                </button>
               </div>
             )}
           </div>
@@ -305,14 +352,25 @@ const AdminVendorDetail = () => {
                 <Sparkles className="w-4 h-4 text-amber-200" />
                 <span>{processingAction ? 'Processing...' : 'Approve & Activate Live'}</span>
               </button>
-              <button
-                type="button"
-                onClick={() => handleReview('reject')}
-                disabled={processingAction}
-                className="w-full py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-400/30 text-xs font-bold transition flex items-center justify-center cursor-pointer disabled:opacity-50"
-              >
-                Reject Registration
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleReview('reject')}
+                  disabled={processingAction}
+                  className="flex-1 py-2 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-200 border border-rose-400/30 text-xs font-bold transition flex items-center justify-center cursor-pointer disabled:opacity-50"
+                >
+                  Reject
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDeleteVendor}
+                  disabled={processingAction}
+                  className="flex-1 py-2 rounded-xl bg-rose-600/30 hover:bg-rose-600/50 text-rose-100 border border-rose-400/50 text-xs font-bold transition flex items-center justify-center gap-1 cursor-pointer disabled:opacity-50"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete</span>
+                </button>
+              </div>
             </div>
           )}
         </div>

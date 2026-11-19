@@ -15,8 +15,12 @@ import {
   Tag,
   MapPin,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
   FileText,
   Sparkles,
+  Plus,
+  Check,
 } from 'lucide-react';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -31,6 +35,9 @@ const Checkout = () => {
 
   // Selected Saved Address index or 'custom'
   const [selectedAddressIndex, setSelectedAddressIndex] = useState(0);
+  const [isAddressDropdownOpen, setIsAddressDropdownOpen] = useState(false);
+  const [saveToProfile, setSaveToProfile] = useState(false);
+  const [addressTag, setAddressTag] = useState('Home');
 
   const [shippingAddress, setShippingAddress] = useState({
     fullName: user?.name || '',
@@ -81,8 +88,11 @@ const Checkout = () => {
     fetchCoupons();
   }, []);
 
-  // Calculate final payable amount after coupon
-  const finalPayable = Math.max(0, cartTotal - couponDiscount);
+  // Extra ₹25 handling fee for Cash on Delivery per user request
+  const codFee = paymentMethod === 'Cash on Delivery' ? 25 : 0;
+
+  // Calculate final payable amount after coupon and COD handling fee
+  const finalPayable = Math.max(0, cartTotal - couponDiscount + codFee);
 
   const [loading, setLoading] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(null);
@@ -151,6 +161,44 @@ const Checkout = () => {
       zipCode: addr.zipCode || '',
       country: addr.country || 'India',
     });
+    // Automatically close the saved address dropdown upon selection
+    setIsAddressDropdownOpen(false);
+    success(`Selected ${addr.tag || 'Saved'} address`);
+  };
+
+  const handleConfirmAddress = async () => {
+    if (
+      !shippingAddress.fullName?.trim() ||
+      !shippingAddress.phone?.trim() ||
+      !shippingAddress.street?.trim() ||
+      !shippingAddress.city?.trim() ||
+      !shippingAddress.state?.trim() ||
+      !shippingAddress.zipCode?.trim()
+    ) {
+      error('Please complete all required shipping address fields');
+      return;
+    }
+
+    if (saveToProfile) {
+      try {
+        await api.post('/profile/addresses', {
+          tag: addressTag || 'Home',
+          fullName: shippingAddress.fullName,
+          phone: shippingAddress.phone,
+          street: shippingAddress.street,
+          city: shippingAddress.city,
+          state: shippingAddress.state,
+          zipCode: shippingAddress.zipCode,
+          country: shippingAddress.country || 'India',
+          isDefault: true,
+        });
+        if (refreshUser) refreshUser();
+        success('Address saved to your address book!');
+      } catch (_) {}
+    }
+
+    // Close dropdown on save/confirmation
+    setIsAddressDropdownOpen(false);
   };
 
   const handleInputChange = (e) => {
@@ -501,123 +549,192 @@ const Checkout = () => {
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div className="flex items-center gap-2">
                   <MapPin className="w-5 h-5 text-[#0c2a5e]" />
-                  <h2 className="text-base font-black text-slate-900">1. Select Delivery Address</h2>
+                  <h2 className="text-base font-black text-slate-900">1. Delivery Address</h2>
                 </div>
-                <Link to="/profile?tab=settings" className="text-xs font-bold text-[#0c2a5e] hover:underline">
-                  Manage Addresses
-                </Link>
+                <div className="flex items-center gap-3">
+                  {shippingAddress.fullName && (
+                    <button
+                      type="button"
+                      onClick={() => setIsAddressDropdownOpen(!isAddressDropdownOpen)}
+                      className="text-xs font-bold text-[#0c2a5e] hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>{isAddressDropdownOpen ? 'Close Address Selector' : 'Change Address'}</span>
+                      {isAddressDropdownOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    </button>
+                  )}
+                  <Link to="/profile?tab=settings" className="text-xs font-bold text-slate-500 hover:text-slate-800">
+                    Manage
+                  </Link>
+                </div>
               </div>
 
-              {user?.savedAddresses && user.savedAddresses.length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-2">
-                  {user.savedAddresses.map((addr, idx) => (
-                    <div
-                      key={idx}
-                      onClick={() => handleSelectSavedAddress(addr, idx)}
-                      className={`p-4 rounded-2xl border text-xs cursor-pointer transition flex flex-col justify-between ${
-                        selectedAddressIndex === idx
-                          ? 'border-[#0c2a5e] bg-blue-50/50 shadow-2xs'
-                          : 'border-slate-200 hover:border-slate-300 bg-white'
-                      }`}
-                    >
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="font-extrabold text-[10px] uppercase px-2 py-0.5 rounded bg-slate-200 text-slate-700">
-                            {addr.tag || 'Home'}
-                          </span>
-                          {selectedAddressIndex === idx && (
-                            <span className="text-[11px] font-bold text-[#0c2a5e] flex items-center gap-1">
-                              <CheckCircle2 className="w-3.5 h-3.5" /> Selected
-                            </span>
-                          )}
-                        </div>
-                        <strong className="text-sm font-bold text-slate-900 block">{addr.fullName}</strong>
-                        <p className="text-slate-600 line-clamp-2 mt-0.5">
-                          {addr.street}, {addr.city} - {addr.zipCode}
-                        </p>
-                      </div>
-                      <span className="text-slate-500 text-[11px] mt-2 block font-medium">Phone: {addr.phone}</span>
+              {/* Collapsed Selected Address Card */}
+              {!isAddressDropdownOpen && shippingAddress.fullName ? (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 bg-slate-50/90 border border-slate-200/90 rounded-2xl">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-[10px] uppercase px-2 py-0.5 rounded bg-[#0c2a5e] text-white">
+                        Delivering To
+                      </span>
+                      <strong className="text-sm font-bold text-slate-900">{shippingAddress.fullName}</strong>
+                      <span className="text-xs text-slate-500 font-medium">({shippingAddress.phone})</span>
                     </div>
-                  ))}
+                    <p className="text-xs text-slate-600 line-clamp-1">
+                      {shippingAddress.street}, {shippingAddress.city}, {shippingAddress.state} - <strong className="text-slate-900">{shippingAddress.zipCode}</strong>
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddressDropdownOpen(true)}
+                    className="px-3.5 py-1.5 text-xs font-bold text-[#0c2a5e] bg-white border border-slate-300 rounded-xl hover:bg-slate-100 transition shadow-2xs flex items-center justify-center gap-1.5 self-start sm:self-auto cursor-pointer"
+                  >
+                    <span>Change</span>
+                    <ChevronDown className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                /* Expanded Address Selector & Form (Closes when address selected or confirmed) */
+                <div className="space-y-4 pt-1 animate-fadeIn">
+                  {user?.savedAddresses && user.savedAddresses.length > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-700">Choose from Saved Address Book:</span>
+                        <span className="text-[11px] text-slate-400">Click to select &amp; close</span>
+                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pb-2">
+                        {user.savedAddresses.map((addr, idx) => (
+                          <div
+                            key={idx}
+                            onClick={() => handleSelectSavedAddress(addr, idx)}
+                            className={`p-4 rounded-2xl border text-xs cursor-pointer transition flex flex-col justify-between ${
+                              selectedAddressIndex === idx
+                                ? 'border-[#0c2a5e] bg-blue-50/50 shadow-2xs'
+                                : 'border-slate-200 hover:border-slate-300 bg-white'
+                            }`}
+                          >
+                            <div>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="font-extrabold text-[10px] uppercase px-2 py-0.5 rounded bg-slate-200 text-slate-700">
+                                  {addr.tag || 'Home'}
+                                </span>
+                                {selectedAddressIndex === idx && (
+                                  <span className="text-[11px] font-bold text-[#0c2a5e] flex items-center gap-1">
+                                    <CheckCircle2 className="w-3.5 h-3.5" /> Selected
+                                  </span>
+                                )}
+                              </div>
+                              <strong className="text-sm font-bold text-slate-900 block">{addr.fullName}</strong>
+                              <p className="text-slate-600 line-clamp-2 mt-0.5">
+                                {addr.street}, {addr.city} - {addr.zipCode}
+                              </p>
+                            </div>
+                            <span className="text-slate-500 text-[11px] mt-2 block font-medium">Phone: {addr.phone}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Editable Shipping Address Fields */}
+                  <div className="space-y-3 pt-2 border-t border-slate-100">
+                    <span className="text-xs font-bold text-slate-700 block">Or Enter / Edit Delivery Details:</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                      <div className="space-y-1">
+                        <label className="font-bold text-slate-700">Recipient Full Name *</label>
+                        <input
+                          type="text"
+                          name="fullName"
+                          required
+                          value={shippingAddress.fullName}
+                          onChange={handleInputChange}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
+                        />
+                      </div>
+
+                      <div className="space-y-1">
+                        <label className="font-bold text-slate-700">Contact Phone Number *</label>
+                        <input
+                          type="tel"
+                          name="phone"
+                          required
+                          value={shippingAddress.phone}
+                          onChange={handleInputChange}
+                          className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-1 text-xs">
+                      <label className="font-bold text-slate-700">Street Address &amp; House Number *</label>
+                      <input
+                        type="text"
+                        name="street"
+                        required
+                        value={shippingAddress.street}
+                        onChange={handleInputChange}
+                        className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-3 text-xs">
+                      <div className="space-y-1">
+                        <label className="font-bold text-slate-700">City *</label>
+                        <input
+                          type="text"
+                          name="city"
+                          required
+                          value={shippingAddress.city}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="font-bold text-slate-700">State *</label>
+                        <input
+                          type="text"
+                          name="state"
+                          required
+                          value={shippingAddress.state}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="font-bold text-slate-700">PIN Code *</label>
+                        <input
+                          type="text"
+                          name="zipCode"
+                          required
+                          value={shippingAddress.zipCode}
+                          onChange={handleInputChange}
+                          className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Save to Profile Option */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+                      <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={saveToProfile}
+                          onChange={(e) => setSaveToProfile(e.target.checked)}
+                          className="w-4 h-4 text-[#0c2a5e] rounded"
+                        />
+                        <span>Save this address to my profile address book</span>
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleConfirmAddress}
+                        className="px-4 py-2 bg-[#0c2a5e] text-white rounded-xl text-xs font-bold hover:bg-[#153e85] transition cursor-pointer self-start sm:self-auto flex items-center gap-1.5 shadow-2xs"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                        <span>Confirm &amp; Use Address</span>
+                      </button>
+                    </div>
+                  </div>
                 </div>
               )}
-
-              {/* Editable Shipping Address Fields */}
-              <div className="space-y-4 pt-2">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                  <div className="space-y-1">
-                    <label className="font-bold text-slate-700">Recipient Full Name *</label>
-                    <input
-                      type="text"
-                      name="fullName"
-                      required
-                      value={shippingAddress.fullName}
-                      onChange={handleInputChange}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
-                    />
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="font-bold text-slate-700">Contact Phone Number *</label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      required
-                      value={shippingAddress.phone}
-                      onChange={handleInputChange}
-                      className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1 text-xs">
-                  <label className="font-bold text-slate-700">Street Address &amp; House Number *</label>
-                  <input
-                    type="text"
-                    name="street"
-                    required
-                    value={shippingAddress.street}
-                    onChange={handleInputChange}
-                    className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
-                  />
-                </div>
-
-                <div className="grid grid-cols-3 gap-3 text-xs">
-                  <div className="space-y-1">
-                    <label className="font-bold text-slate-700">City *</label>
-                    <input
-                      type="text"
-                      name="city"
-                      required
-                      value={shippingAddress.city}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="font-bold text-slate-700">State *</label>
-                    <input
-                      type="text"
-                      name="state"
-                      required
-                      value={shippingAddress.state}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="font-bold text-slate-700">PIN Code *</label>
-                    <input
-                      type="text"
-                      name="zipCode"
-                      required
-                      value={shippingAddress.zipCode}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0c2a5e]"
-                    />
-                  </div>
-                </div>
-              </div>
             </div>
 
             {/* 2. PAYMENT METHOD SELECTION */}
@@ -653,7 +770,7 @@ const Checkout = () => {
                   </span>
                 </div>
 
-                {/* Method 2: Cash on Delivery */}
+                {/* Method 2: Cash on Delivery (+₹25 Handling Fee) */}
                 <div
                   onClick={() => setPaymentMethod('Cash on Delivery')}
                   className={`p-5 rounded-2xl border cursor-pointer transition flex flex-col justify-between ${
@@ -663,18 +780,23 @@ const Checkout = () => {
                   }`}
                 >
                   <div className="space-y-2.5">
-                    <div className="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center shadow-xs">
-                      <Banknote className="w-5 h-5" />
+                    <div className="flex items-center justify-between">
+                      <div className="w-10 h-10 rounded-xl bg-amber-600 text-white flex items-center justify-center shadow-xs">
+                        <Banknote className="w-5 h-5" />
+                      </div>
+                      <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300">
+                        +₹25 COD Fee
+                      </span>
                     </div>
                     <div>
                       <strong className="text-sm font-extrabold text-slate-900 block">Cash on Delivery</strong>
                       <p className="text-[11.5px] text-slate-500 mt-1 leading-relaxed">
-                        Pay cash or scan UPI QR code upon doorstep delivery
+                        Pay cash or scan UPI QR code upon doorstep delivery. (Includes extra ₹25 COD convenience charge).
                       </p>
                     </div>
                   </div>
                   <span className="text-[10.5px] text-amber-700 font-extrabold mt-3 inline-flex items-center gap-1">
-                    ● Pay at Doorstep
+                    ● Pay at Doorstep (₹{finalPayable.toLocaleString('en-IN')})
                   </span>
                 </div>
               </div>
@@ -808,9 +930,17 @@ const Checkout = () => {
                   <div key={product._id} className="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-3 text-xs">
                     <div className="flex items-center gap-3">
                       <img
-                        src={product.images?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=80&auto=format&fit=crop&q=80'}
+                        src={
+                          (Array.isArray(product.images) && product.images[0]) ||
+                          product.image ||
+                          product.thumbnail ||
+                          'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=80&auto=format&fit=crop&q=80'
+                        }
                         alt={product.title}
-                        className="w-12 h-12 rounded-xl object-cover border border-slate-200"
+                        className="w-12 h-12 rounded-xl object-contain bg-slate-50 border border-slate-200"
+                        onError={(e) => {
+                          e.target.src = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=80&auto=format&fit=crop&q=80';
+                        }}
                       />
                       <div>
                         <h4 className="font-bold text-slate-900 line-clamp-1 max-w-[170px]">{product.title}</h4>
@@ -843,6 +973,13 @@ const Checkout = () => {
                 <span>Standard Delivery:</span>
                 <span className="text-emerald-600 font-bold uppercase">FREE</span>
               </div>
+
+              {paymentMethod === 'Cash on Delivery' && (
+                <div className="flex justify-between text-amber-700 font-bold">
+                  <span>Cash on Delivery Handling:</span>
+                  <span>+₹25</span>
+                </div>
+              )}
 
               <div className="pt-2 border-t border-slate-100 flex justify-between text-sm font-black text-slate-900">
                 <span>Total Payable:</span>

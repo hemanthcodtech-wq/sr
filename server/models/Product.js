@@ -233,4 +233,11 @@ productSchema.virtual('discountPercentage').get(function () {
   return 0;
 });
 
+// Compound Indexes for Catalog Search & Vendor Operations
+productSchema.index({ vendor: 1, status: 1 });
+productSchema.index({ store: 1, status: 1 });
+productSchema.index({ sourcePlatform: 1, isDeoDapProduct: 1 });
+productSchema.index({ category: 1, price: 1 });
+productSchema.index({ sku: 1 });
+
 module.exports = mongoose.model('Product', productSchema);

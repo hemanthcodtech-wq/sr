@@ -252,26 +252,26 @@ const AdminProducts = () => {
     try {
       setCsvUploading(true);
       setCsvResult(null);
-      info('Parsing DeoDap CSV and updating database...');
+      info('Parsing Wholesale CSV and updating database...');
 
       const res = await api.post('/deodap/upload-csv', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
       if (res.data?.success) {
-        success(res.data.message || 'DeoDap products imported successfully!');
+        success(res.data.message || 'Products imported successfully!');
         setCsvResult(res.data.data);
         fetchProducts();
       }
     } catch (err) {
       console.error(err);
-      error(err.response?.data?.message || 'Failed to process DeoDap CSV');
+      error(err.response?.data?.message || 'Failed to process Wholesale CSV');
     } finally {
       setCsvUploading(false);
     }
   };
 
-  // Generate and download sample DeoDap CSV template
+  // Generate and download sample CSV template
   const handleDownloadSampleCsv = () => {
     const sampleHeaders = [
       'Handle',
@@ -308,7 +308,7 @@ const AdminProducts = () => {
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', 'deodap_wholesale_sample.csv');
+    link.setAttribute('download', 'wholesale_products_sample.csv');
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -381,8 +381,8 @@ const AdminProducts = () => {
 
   return (
     <AdminLayout
-      title="DeoDap Wholesale Dropship Catalog"
-      subtitle="Import, auto-markup (+30% + 30 delivery), and manage DeoDap products directly for customer orders"
+      title="Central Wholesale Dropship Catalog"
+      subtitle="Import, auto-markup (+30% + ₹30 delivery), and manage wholesale products directly for customer orders"
       onRefresh={fetchProducts}
     >
       <div className="space-y-6 animate-fadeIn pb-12 font-sans">
@@ -397,14 +397,14 @@ const AdminProducts = () => {
               </div>
               <div>
                 <div className="flex items-center gap-2.5 flex-wrap">
-                  <h2 className="text-xl sm:text-2xl font-black tracking-tight">DeoDap Dropship Catalog &amp; CSV Sourcing</h2>
+                  <h2 className="text-xl sm:text-2xl font-black tracking-tight">Central Dropship Catalog &amp; CSV Sourcing</h2>
                   <span className="text-[10px] font-bold px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                     Admin Controlled
                   </span>
                 </div>
                 <p className="text-xs sm:text-sm text-blue-200 mt-1 max-w-2xl leading-relaxed">
-                  Bulk import DeoDap wholesale products using standard Shopify CSV exports. Selling price is automatically marked up (+30% + 30 delivery) and rendered with Free Delivery for customers.
+                  Bulk import wholesale products using standard Shopify CSV exports. Selling price is automatically marked up (+30% + ₹30 delivery) and rendered with Free Delivery for customers.
                 </p>
               </div>
             </div>
@@ -427,7 +427,7 @@ const AdminProducts = () => {
                 className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 px-5 py-3 rounded-2xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-200 border border-emerald-400/40 font-bold text-xs shadow-lg backdrop-blur-md active:scale-98 transition cursor-pointer"
               >
                 <FileSpreadsheet className="w-4 h-4 text-emerald-300" />
-                <span>Upload DeoDap CSV</span>
+                <span>Upload Wholesale CSV</span>
               </button>
 
               <button
@@ -724,7 +724,7 @@ const AdminProducts = () => {
                     <FileSpreadsheet className="w-5 h-5 sm:w-6 sm:h-6" />
                   </div>
                   <div>
-                    <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">Import DeoDap Wholesale CSV</h3>
+                    <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">Import Wholesale Products CSV</h3>
                     <p className="text-[11px] sm:text-xs text-slate-500">Auto-applies markup &amp; delivery charge</p>
                   </div>
                 </div>
@@ -741,10 +741,10 @@ const AdminProducts = () => {
                   <div className="space-y-0.5">
                     <span className="text-xs font-black text-emerald-900 flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                      Standard Shopify / DeoDap Columns Supported
+                      Shopify &amp; Wholesale Products CSV Supported
                     </span>
                     <p className="text-[11px] text-emerald-700 leading-snug">
-                      Stores all columns into database and calculates customer selling price with Free Delivery.
+                      Please upload <strong>Products Export CSV</strong> (which includes Title, Price, and <code>Image Src</code>). Note: <code>inventory_export.csv</code> only contains stock counts and does not contain product images.
                     </p>
                   </div>
                   <button
@@ -759,7 +759,7 @@ const AdminProducts = () => {
 
                 <form id="csv-upload-form" onSubmit={handleUploadCsv} className="space-y-4">
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-slate-700 block">Select DeoDap CSV File *</label>
+                    <label className="text-xs font-bold text-slate-700 block">Select Wholesale CSV File *</label>
                     <label className="border-2 border-dashed border-slate-300 hover:border-emerald-500 bg-slate-50/70 hover:bg-emerald-50/30 rounded-2xl p-5 sm:p-6 flex flex-col items-center justify-center gap-2 cursor-pointer transition text-center group">
                       <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-2xl bg-white shadow-2xs border border-slate-200 group-hover:border-emerald-300 flex items-center justify-center text-slate-500 group-hover:text-emerald-600 transition">
                         <UploadCloud className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -774,7 +774,7 @@ const AdminProducts = () => {
                       ) : (
                         <div>
                           <div className="text-xs font-bold text-slate-700">Click to browse or drag &amp; drop CSV</div>
-                          <div className="text-[11px] text-slate-400 mt-0.5">Supports .csv exported from DeoDap / Shopify</div>
+                          <div className="text-[11px] text-slate-400 mt-0.5">Supports .csv exported from Shopify / Wholesale suppliers</div>
                         </div>
                       )}
                       <input
@@ -851,7 +851,7 @@ const AdminProducts = () => {
                     <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 space-y-2 animate-fadeIn">
                       <div className="flex items-center gap-2 text-emerald-900 font-black text-xs">
                         <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                        DeoDap Import Completed Successfully!
+                        Wholesale Products Imported Successfully!
                       </div>
                       <div className="grid grid-cols-3 gap-2 pt-1 text-center font-mono">
                         <div className="bg-white rounded-xl p-2 border border-emerald-200/60 shadow-2xs">
@@ -1031,7 +1031,7 @@ const AdminProducts = () => {
           <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
             <div className="bg-white rounded-2xl sm:rounded-3xl max-w-md w-full p-4 sm:p-6 shadow-2xl border border-slate-100 max-h-[90vh] flex flex-col custom-scrollbar overflow-hidden space-y-4">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0">
-                <h3 className="text-base font-black text-slate-900">Edit DeoDap Product</h3>
+                <h3 className="text-base font-black text-slate-900">Edit Central Catalog Product</h3>
                 <button
                   onClick={() => setEditModalOpen(false)}
                   className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center cursor-pointer transition shrink-0"

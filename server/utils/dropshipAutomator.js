@@ -56,9 +56,9 @@ exports.dispatchToDeoDap = async (order, item) => {
     }
   }
 
-  // Realistic Simulation for DeoDap Dropshipping Dispatch
+  // Dispatch initialization - tracking number will be provided/uploaded by admin
   const mockDeoOrderId = `DEO-ORD-${Math.floor(1000000 + Math.random() * 9000000)}`;
-  const mockAwb = `DEODAP-DELHIVERY-${Math.floor(10000000 + Math.random() * 90000000)}`;
+  const mockAwb = ''; // Real tracking ID provided by admin upon dispatch upload
   const commission = Math.max(0, (item.price - (item.sourcePrice || 0)) * (item.quantity || 1));
 
   return {
@@ -67,7 +67,7 @@ exports.dispatchToDeoDap = async (order, item) => {
     sourceOrderId: mockDeoOrderId,
     sourceTrackingNumber: mockAwb,
     commissionEarned: commission,
-    message: `Order successfully transmitted to DeoDap Central Fulfillment Center for ${shipping.fullName}`,
+    message: `Order registered for central fulfillment for ${shipping.fullName}`,
     payload,
   };
 };

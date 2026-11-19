@@ -232,6 +232,18 @@ const importDeoDapCSV = async (csvContent, options = {}) => {
     throw new Error('CSV file appears empty or could not be parsed.');
   }
 
+  // Safeguard: Check if user accidentally uploaded inventory_export.csv (contains inventory counts only, lacks images and prices)
+  const firstRow = rows[0] || {};
+  const allKeys = Object.keys(firstRow).map((k) => k.toLowerCase().replace(/[^a-z0-9]/g, ''));
+  const hasInventoryOnlyKeys = allKeys.some((k) => k.includes('available') || k.includes('onhand') || k.includes('committed') || k.includes('hscode'));
+  const hasImageOrPrice = allKeys.some((k) => k.includes('image') || k.includes('price') || k.includes('cost'));
+
+  if (hasInventoryOnlyKeys && !hasImageOrPrice) {
+    throw new Error(
+      'It looks like you uploaded an "Inventory Export CSV" (which only tracks warehouse stock and has no prices or images). Please upload Shopify\'s "Products Export CSV" instead, which includes Title, Variant Price, and Image Src.'
+    );
+  }
+
   // Group by Handle (or SKU / Title if handle is missing) to merge multi-row variants and images
   const productMap = new Map();
 

@@ -270,43 +270,6 @@ const VendorRegister = () => {
     }));
   };
 
-  // Auto-fill demo details for quick setup testing
-  const handleFillDemoData = () => {
-    const demoAcc = '987654321012';
-    setConfirmAccountNumber(demoAcc);
-    setFormData((prev) => ({
-      ...prev,
-      storeName: prev.storeName || 'Royal Electronics & Spares',
-      category: prev.category || 'Electronics',
-      description: prev.description || 'Authorized retailer of genuine electronic components, smartphones, accessories, and replacement spare parts with manufacturer warranty.',
-      phone: prev.phone || user?.phone || '9876543210',
-      alternatePhone: prev.alternatePhone || '9848012345',
-      address: {
-        street: prev.address?.street || 'Shop 14, Commercial Market Complex, Main Bazaar',
-        landmark: prev.address?.landmark || 'Opposite Clock Tower Junction',
-        city: prev.address?.city || 'Kalidindi',
-        state: prev.address?.state || 'Andhra Pradesh',
-        zipCode: prev.address?.zipCode || '521344',
-        country: 'India',
-      },
-      documents: {
-        ...prev.documents,
-        aadhaarNumber: prev.documents?.aadhaarNumber || user?.aadhaarNumber || '543210987654',
-        aadhaarDocument: prev.documents?.aadhaarDocument || user?.aadhaarDocument || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe',
-        panNumber: prev.documents?.panNumber || user?.panNumber || 'ABCDE1234F',
-        panDocument: prev.documents?.panDocument || user?.panDocument || 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c',
-      },
-      bankDetails: {
-        accountHolder: prev.bankDetails?.accountHolder || user?.name || 'Raju Merchant',
-        bankName: prev.bankDetails?.bankName || 'State Bank of India',
-        accountNumber: demoAcc,
-        ifscCode: 'SBIN0001234',
-        upiId: 'merchant@oksbi',
-      },
-    }));
-    success('Store, address, and settlement bank details populated!');
-  };
-
   // 1. Validate Store & Bank Form Fields
   const validateStoreDetails = () => {
     if (!formData.storeName?.trim()) {
@@ -863,23 +826,12 @@ const VendorRegister = () => {
 
           {formStep === 1 && (
             <div className="space-y-8 animate-fadeIn">
-              {/* Header Action: Auto-fill Demo Data */}
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pb-3 border-b border-slate-100">
-                <div>
-                  <h2 className="text-lg font-black text-slate-900">Merchant Store Setup &amp; Bank Settlement</h2>
-                  <p className="text-xs text-slate-500">
-                    Step 2 of 4: Enter store profile, physical dispatch address, and settlement bank details.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  id="fill-demo-store-data-btn"
-                  onClick={handleFillDemoData}
-                  className="text-xs font-bold text-[#0c2a5e] bg-blue-50 hover:bg-blue-100 border border-blue-200 px-3 py-1.5 rounded-xl transition cursor-pointer flex items-center gap-1.5 self-start sm:self-auto shadow-xs"
-                >
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Auto-Fill Demo Details</span>
-                </button>
+              {/* Header */}
+              <div className="pb-3 border-b border-slate-100">
+                <h2 className="text-lg font-black text-slate-900">Merchant Store Setup &amp; Bank Settlement</h2>
+                <p className="text-xs text-slate-500">
+                  Step 2 of 4: Enter store profile, physical dispatch address, and settlement bank details.
+                </p>
               </div>
 
               {/* Section 1: Store Profile Information */}

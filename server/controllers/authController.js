@@ -693,15 +693,25 @@ exports.login = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Please provide an email and password' });
     }
 
+    const cleanEmail = email.trim().toLowerCase();
+
     if (mongoose.connection.readyState !== 1) {
-      const user = mockUsers.find((u) => u.email.toLowerCase() === email.toLowerCase());
+      const user = mockUsers.find((u) => u.email.toLowerCase() === cleanEmail);
       if (!user) {
         return res.status(401).json({ success: false, message: 'Invalid credentials' });
       }
       return sendTokenResponse(user, 200, res);
     }
 
-    const user = await User.findOne({ email }).select('+password').populate('store');
+    let user = await User.findOne({ email: cleanEmail }).select('+password').populate('store');
+    if (!user) {
+      // Case-insensitive regex fallback
+      user = await User.findOne({ email: { $regex: new RegExp(`^${cleanEmail}$`, 'i') } }).select('+password').populate('store');
+    }
+    // Handle single-d typo alias for convenience
+    if (!user && cleanEmail === 'ramarajukoyyalagada@gmail.com') {
+      user = await User.findOne({ email: 'ramarajukoyyalagadda@gmail.com' }).select('+password').populate('store');
+    }
 
     if (!user) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });

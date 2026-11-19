@@ -8,6 +8,7 @@ const Subscription = require('../models/Subscription');
 const Settlement = require('../models/Settlement');
 const PlatformSetting = require('../models/PlatformSetting');
 const WalletTransaction = require('../models/WalletTransaction');
+const Notification = require('../models/Notification');
 const { createNotification } = require('./notificationController');
 const {
   sendEmail,
@@ -24,6 +25,7 @@ const {
   mockSettlements,
   mockSettings,
   mockTransactions,
+  mockNotifications,
 } = require('../config/mockStore');
 
 // Helper to credit referral bonus upon store approval/activation
@@ -283,7 +285,11 @@ exports.getAllVendors = async (req, res, next) => {
         .filter((u) => u.role === 'vendor')
         .filter((u) => {
           const store = mockStores.find((s) => s.vendor === u._id || s.vendor?._id === u._id);
-          return store && ((store.enrollmentFeePaid || 0) > 0 || ['active', 'rejected', 'suspended'].includes(store.status));
+          return store && (
+            (store.enrollmentFeePaid || 0) > 0 ||
+            ['active', 'rejected', 'suspended', 'pending_admin_approval'].includes(store.status) ||
+            store.adminCatalogAccess?.status === 'requested'
+          );
         });
       return res.status(200).json({ success: true, count: vendors.length, vendors });
     }
@@ -295,7 +301,8 @@ exports.getAllVendors = async (req, res, next) => {
           storeName: { $nin: ['Official Flagship Store', 'SR Marketplace'] },
           $or: [
             { enrollmentFeePaid: { $gt: 0 } },
-            { status: { $in: ['active', 'rejected', 'suspended'] } },
+            { status: { $in: ['active', 'rejected', 'suspended', 'pending_admin_approval'] } },
+            { 'adminCatalogAccess.status': 'requested' },
           ],
         },
         populate: { path: 'activePlan' },
@@ -322,9 +329,9 @@ exports.getAllVendors = async (req, res, next) => {
 exports.getMerchantApplications = async (req, res, next) => {
   try {
     if (mongoose.connection.readyState !== 1) {
-      // Exclude stores that haven't paid the enrollment fee yet
+      // Exclude stores that haven't paid the enrollment fee yet unless pending or requested catalog
       const applications = mockStores
-        .filter((s) => (s.enrollmentFeePaid || 0) > 0 || ['active', 'rejected', 'suspended'].includes(s.status))
+        .filter((s) => (s.enrollmentFeePaid || 0) > 0 || ['active', 'rejected', 'suspended', 'pending_admin_approval'].includes(s.status) || s.adminCatalogAccess?.status === 'requested')
         .map((s) => {
           const vendorUser = mockUsers.find((u) => u._id === s.vendor || u._id === s.vendor?._id);
           return {
@@ -339,7 +346,7 @@ exports.getMerchantApplications = async (req, res, next) => {
       });
     }
 
-    // Live MongoDB: Only return applications of real vendors (never admin) where enrollment fee has been paid (or active/rejected)
+    // Live MongoDB: Only return applications of real vendors (never admin) where enrollment fee has been paid (or active/rejected/pending/catalog requested)
     // Find admin users to strictly exclude
     const adminUsers = await User.find({ role: 'admin' }).select('_id');
     const adminIds = adminUsers.map((a) => a._id);
@@ -348,7 +355,8 @@ exports.getMerchantApplications = async (req, res, next) => {
       vendor: { $nin: adminIds },
       $or: [
         { enrollmentFeePaid: { $gt: 0 } },
-        { status: { $in: ['active', 'rejected', 'suspended'] } },
+        { status: { $in: ['active', 'rejected', 'suspended', 'pending_admin_approval'] } },
+        { 'adminCatalogAccess.status': 'requested' },
       ],
     })
       .populate('vendor', 'name email phone avatar createdAt referralCode role')
@@ -1159,6 +1167,121 @@ exports.updateVendorCatalogAccess = async (req, res, next) => {
       message: `Admin catalog access status updated to ${status}`,
       store,
     });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// @desc    Permanently delete a vendor, their store, and all catalog products
+// @route   DELETE /api/admin/vendors/:storeId
+// @access  Private (Admin)
+exports.deleteVendorStore = async (req, res, next) => {
+  try {
+    const { storeId } = req.params;
+
+    let store = null;
+    let vendorId = null;
+
+    if (mongoose.connection.readyState === 1) {
+      if (mongoose.Types.ObjectId.isValid(storeId)) {
+        store = await Store.findById(storeId);
+      }
+      if (!store) {
+        store = await Store.findOne({
+          $or: [
+            { slug: storeId },
+            { slug: storeId.toLowerCase() },
+            { storeName: new RegExp(`^${storeId}$`, 'i') },
+          ],
+        });
+      }
+
+      if (!store) {
+        return res.status(404).json({ success: false, message: 'Merchant store not found' });
+      }
+
+      vendorId = store.vendor?._id || store.vendor;
+      const storeName = store.storeName;
+
+      // 1. Delete all products belonging to this vendor or store (vendor-uploaded and VND... sourced clones)
+      const deleteProductQuery = {
+        $or: [
+          { store: store._id },
+          ...(vendorId ? [{ vendor: vendorId }] : []),
+        ],
+      };
+      const deletedProducts = await Product.deleteMany(deleteProductQuery);
+
+      // 2. Delete the store document
+      await Store.findByIdAndDelete(store._id);
+
+      // 3. Delete the vendor User account
+      if (vendorId) {
+        await User.findByIdAndDelete(vendorId);
+      }
+
+      // 4. Clean up notifications linked to vendor or store
+      if (vendorId) {
+        await Notification.deleteMany({
+          $or: [
+            { recipient: vendorId },
+            { 'metadata.storeId': store._id.toString() },
+          ],
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: `Store "${storeName}", vendor account, and ${deletedProducts.deletedCount || 0} product listing(s) permanently deleted.`,
+        deletedStoreId: store._id,
+      });
+    } else {
+      // Mock store mode fallback
+      const storeIdx = mockStores.findIndex((s) => s._id === storeId || s.slug === storeId);
+      if (storeIdx === -1) {
+        return res.status(404).json({ success: false, message: 'Merchant store not found' });
+      }
+
+      store = mockStores[storeIdx];
+      vendorId = store.vendor?._id || store.vendor;
+      const storeName = store.storeName;
+
+      // 1. Remove all products belonging to this store/vendor
+      let deletedCount = 0;
+      for (let i = mockProducts.length - 1; i >= 0; i--) {
+        const p = mockProducts[i];
+        if (p.store === store._id || p.vendor === vendorId || p.storeId === store._id) {
+          mockProducts.splice(i, 1);
+          deletedCount++;
+        }
+      }
+
+      // 2. Remove store
+      mockStores.splice(storeIdx, 1);
+
+      // 3. Remove vendor user
+      if (vendorId) {
+        const uIdx = mockUsers.findIndex((u) => u._id === vendorId);
+        if (uIdx !== -1) {
+          mockUsers.splice(uIdx, 1);
+        }
+      }
+
+      // 4. Remove mock notifications
+      if (vendorId) {
+        for (let i = mockNotifications.length - 1; i >= 0; i--) {
+          if (mockNotifications[i].recipient === vendorId) {
+            mockNotifications.splice(i, 1);
+          }
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: `Store "${storeName}", vendor account, and ${deletedCount} product listing(s) permanently deleted.`,
+        deletedStoreId: store._id,
+      });
+    }
   } catch (err) {
     next(err);
   }

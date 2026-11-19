@@ -152,4 +152,21 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
+// Cascade delete vendor store and products when a user is deleted
+userSchema.post('findOneAndDelete', async function (doc) {
+  if (doc) {
+    try {
+      const Store = mongoose.model('Store');
+      const Product = mongoose.model('Product');
+      const store = await Store.findOne({ vendor: doc._id });
+      if (store) {
+        await Product.deleteMany({ $or: [{ vendor: doc._id }, { store: store._id }] });
+        await Store.findByIdAndDelete(store._id);
+      } else {
+        await Product.deleteMany({ vendor: doc._id });
+      }
+    } catch (_) {}
+  }
+});
+
 module.exports = mongoose.model('User', userSchema);

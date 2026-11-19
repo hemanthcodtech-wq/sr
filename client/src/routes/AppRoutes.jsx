@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import ProtectedRoute from './ProtectedRoute';
 
 // Public Pages
@@ -56,6 +56,11 @@ import AdminSettlements from '../pages/admin/AdminSettlements';
 import AdminSettings from '../pages/admin/AdminSettings';
 import AdminCoupons from '../pages/admin/AdminCoupons';
 import AdminBanners from '../pages/admin/AdminBanners';
+
+const AdminMerchantDetailRedirect = () => {
+  const { id } = useParams();
+  return <Navigate to={`/admin/vendors/${id}`} replace />;
+};
 
 const AppRoutes = () => {
   return (
@@ -233,7 +238,7 @@ const AppRoutes = () => {
       />
       <Route
         path="/admin/merchants/:id"
-        element={<Navigate to="/admin/vendors" replace />}
+        element={<AdminMerchantDetailRedirect />}
       />
       {/* Admin Orders - Unified master view */}
       <Route

@@ -533,11 +533,10 @@ exports.registerStoreWithPlan = async (req, res, next) => {
       bankDetails,
     } = req.body;
 
-    const planExpiresAt = new Date();
-    planExpiresAt.setDate(planExpiresAt.getDate() + 90);
-
     if (mongoose.connection.readyState !== 1) {
       const plan = mockPlans.find((p) => p._id === planId) || mockPlans[0];
+      const planDurationDays = Number(plan?.durationDays) || 90;
+      const planExpiresAt = new Date(Date.now() + planDurationDays * 86400000);
       const newStore = {
         _id: `store_${Date.now()}`,
         vendor: req.user._id,
@@ -600,6 +599,9 @@ exports.registerStoreWithPlan = async (req, res, next) => {
     if (!plan) {
       return res.status(404).json({ success: false, message: 'Subscription plan not found' });
     }
+
+    const planDurationDays = Number(plan.durationDays) || 90;
+    const planExpiresAt = new Date(Date.now() + planDurationDays * 86400000);
 
     const store = await Store.create({
       vendor: req.user._id,
@@ -1191,16 +1193,16 @@ exports.renewPlanSubscription = async (req, res, next) => {
       await createNotification({
         role: 'admin',
         type: 'plan_activated',
-        title: '🏪 New Store Plan Subscribed',
-        message: `${req.user?.name || 'Merchant'} paid ₹${enrollmentFee} for "${plan?.title || 'Merchant Plan'}". Ready for verification.`,
+        title: '🔄 Store Plan Renewed',
+        message: `${req.user?.name || 'Merchant'} renewed "${plan?.title || 'Merchant Plan'}" for ₹${renewalFee}. Validity extended.`,
         link: '/admin/vendors',
       });
       await createNotification({
         recipient: req.user._id,
         role: 'vendor',
         type: 'plan_activated',
-        title: '💳 Plan Activated Successfully',
-        message: `Your payment of ₹${enrollmentFee} for "${plan?.title || 'Merchant Plan'}" was received. Store setup is complete!`,
+        title: '💳 Plan Renewed Successfully',
+        message: `Your payment of ₹${renewalFee} for "${plan?.title || 'Merchant Plan'}" was received. Store is active until ${newExpiresAt.toLocaleDateString('en-IN')}!`,
         link: '/vendor/dashboard',
       });
     } catch (_) {}

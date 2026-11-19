@@ -1072,136 +1072,159 @@ const Profile = () => {
               </div>
 
               {/* Active Tracking Visual Stepper */}
-              {trackedOrder ? (
-                <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs p-6 sm:p-8 space-y-6">
-                  {/* Courier & AWB Bar */}
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-2xl bg-[#0c2a5e] text-white flex items-center justify-center font-black">
-                        <Truck className="w-6 h-6" />
-                      </div>
-                      <div>
-                        <span className="text-[11px] text-blue-900 font-extrabold uppercase tracking-wider block">
-                          {trackedOrder.courierName || 'Delhivery Express Logistics'}
-                        </span>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-xs text-slate-500 font-medium">Tracking Number:</span>
-                          <strong className="text-sm font-mono text-slate-900 font-extrabold">
-                            {trackedOrder.trackingNumber || trackedOrder.items?.[0]?.trackingNumber || 'AWB892110293'}
-                          </strong>
+              {trackedOrder ? (() => {
+                const rawCourier = trackedOrder.courierName || 'Delhivery Express Logistics';
+                const displayCourier = rawCourier
+                  .replace(/\(DeoDap Fulfillment\)/gi, '')
+                  .replace(/DeoDap/gi, 'SR Central Logistics')
+                  .trim() || 'SR Central Logistics';
+
+                const rawTracking = trackedOrder.trackingNumber || trackedOrder.items?.[0]?.trackingNumber || '';
+                const hasRealTracking = rawTracking && !rawTracking.startsWith('DEODAP-');
+
+                const cleanTimeline = (trackedOrder.trackingTimeline && trackedOrder.trackingTimeline.length > 0
+                  ? trackedOrder.trackingTimeline
+                  : [
+                      {
+                        status: 'Order Placed',
+                        title: 'Order Confirmed & Payment Verified',
+                        description: 'Transaction confirmed successfully.',
+                        location: 'Central Order Facility',
+                        timestamp: new Date(Date.now() - 2 * 86400000),
+                      },
+                      {
+                        status: 'Processing',
+                        title: 'Package Prepared at Fulfillment Hub',
+                        description: 'Logistics team securely boxed item for courier handover.',
+                        location: 'Fulfillment Warehouse',
+                        timestamp: new Date(Date.now() - 36 * 3600000),
+                      },
+                      {
+                        status: 'Shipped',
+                        title: 'In Transit with Express Logistics',
+                        description: 'Consignment departed origin hub heading to delivery station.',
+                        location: 'Regional Sorting Facility',
+                        timestamp: new Date(Date.now() - 12 * 3600000),
+                      },
+                    ]
+                ).map((step) => ({
+                  ...step,
+                  title: (step.title || '').replace(/DeoDap/gi, 'SR Central Logistics'),
+                  description: (step.description || '')
+                    .replace(/\bDEODAP-DELHIVERY-\d+\b/gi, 'Tracking ID pending upload')
+                    .replace(/DeoDap/gi, 'SR Central Logistics'),
+                  location: (step.location || '').replace(/DeoDap/gi, 'SR Central Logistics'),
+                }));
+
+                return (
+                  <div className="bg-white rounded-3xl border border-slate-200/90 shadow-2xs p-6 sm:p-8 space-y-6">
+                    {/* Courier & AWB Bar */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 rounded-2xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/80">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-2xl bg-[#0c2a5e] text-white flex items-center justify-center font-black">
+                          <Truck className="w-6 h-6" />
                         </div>
-                      </div>
-                    </div>
-
-                    <div className="flex flex-wrap items-center gap-3">
-                      <div className="text-left md:text-right">
-                        <span className="text-[10px] text-slate-500 uppercase block font-bold">Estimated Delivery</span>
-                        <strong className="text-xs text-slate-900 font-extrabold">
-                          {trackedOrder.estimatedDelivery
-                            ? new Date(trackedOrder.estimatedDelivery).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })
-                            : '2-3 Business Days'}
-                        </strong>
-                      </div>
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusBadge(trackedOrder.items?.[0]?.deliveryStatus || 'Shipped')}`}>
-                        {trackedOrder.items?.[0]?.deliveryStatus || 'Shipped'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Visual Milestones Timeline */}
-                  <div className="py-4">
-                    <h3 className="text-sm font-bold text-slate-900 mb-6">Delivery Progress Milestones</h3>
-                    <div className="relative pl-6 sm:pl-8 border-l-2 border-blue-200 space-y-8 ml-3">
-                      {(trackedOrder.trackingTimeline && trackedOrder.trackingTimeline.length > 0
-                        ? trackedOrder.trackingTimeline
-                        : [
-                            {
-                              status: 'Order Placed',
-                              title: 'Order Confirmed & Payment Verified',
-                              description: 'Transaction confirmed successfully.',
-                              location: 'Central Order Facility',
-                              timestamp: new Date(Date.now() - 2 * 86400000),
-                            },
-                            {
-                              status: 'Processing',
-                              title: 'Package Packed by Merchant',
-                              description: 'Seller securely boxed item and generated courier label.',
-                              location: 'Seller Warehouse',
-                              timestamp: new Date(Date.now() - 36 * 3600000),
-                            },
-                            {
-                              status: 'Shipped',
-                              title: 'In Transit with Express Logistics',
-                              description: 'Consignment departed origin hub heading to delivery station.',
-                              location: 'Regional Sorting Facility',
-                              timestamp: new Date(Date.now() - 12 * 3600000),
-                            },
-                          ]
-                      ).map((step, idx) => (
-                        <div key={idx} className="relative group">
-                          {/* Stepper Dot */}
-                          <div className="absolute -left-[31px] sm:-left-[39px] top-1 w-6 h-6 rounded-full bg-white border-4 border-[#0c2a5e] flex items-center justify-center shadow-xs">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#0c2a5e]"></span>
-                          </div>
-
-                          <div className="space-y-1">
-                            <div className="flex flex-wrap items-center justify-between gap-2">
-                              <h4 className="font-extrabold text-xs sm:text-sm text-slate-900">{step.title}</h4>
-                              <span className="text-[11px] text-slate-400 font-mono">
-                                {new Date(step.timestamp).toLocaleString('en-IN', {
-                                  month: 'short',
-                                  day: 'numeric',
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })}
+                        <div>
+                          <span className="text-[11px] text-blue-900 font-extrabold uppercase tracking-wider block">
+                            {displayCourier}
+                          </span>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-xs text-slate-500 font-medium">Tracking Number:</span>
+                            {hasRealTracking ? (
+                              <strong className="text-sm font-mono text-slate-900 font-extrabold">
+                                {rawTracking}
+                              </strong>
+                            ) : (
+                              <span className="text-xs text-amber-800 font-semibold bg-amber-50 px-2.5 py-0.5 rounded-md border border-amber-200">
+                                Tracking ID will be uploaded by admin upon dispatch
                               </span>
-                            </div>
-                            <p className="text-xs text-slate-600 leading-relaxed">{step.description}</p>
-                            {step.location && (
-                              <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mt-1">
-                                <MapPin className="w-3 h-3 text-[#0c2a5e]" />
-                                <span>{step.location}</span>
-                              </div>
                             )}
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
+                      </div>
 
-                  {/* Destination Address & Items Preview */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100 text-xs">
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                        Shipping Destination
-                      </span>
-                      <strong className="text-slate-900 block font-bold text-sm">
-                        {trackedOrder.shippingAddress?.fullName}
-                      </strong>
-                      <p className="text-slate-600 mt-0.5">
-                        {trackedOrder.shippingAddress?.street}, {trackedOrder.shippingAddress?.city}, {trackedOrder.shippingAddress?.state} - {trackedOrder.shippingAddress?.zipCode}
-                      </p>
-                      <p className="text-slate-500 mt-1">Phone: {trackedOrder.shippingAddress?.phone}</p>
-                    </div>
-
-                    <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
-                        Package Contents ({trackedOrder.items?.length || 1} items)
-                      </span>
-                      {trackedOrder.items?.map((item, i) => (
-                        <div key={i} className="flex items-center justify-between py-1 border-b last:border-b-0 border-slate-200/60">
-                          <span className="text-slate-800 font-medium truncate max-w-[200px]">{item.title}</span>
-                          <span className="font-bold text-slate-900">Qty: {item.quantity}</span>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="text-left md:text-right">
+                          <span className="text-[10px] text-slate-500 uppercase block font-bold">Estimated Delivery</span>
+                          <strong className="text-xs text-slate-900 font-extrabold">
+                            {trackedOrder.estimatedDelivery
+                              ? new Date(trackedOrder.estimatedDelivery).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })
+                              : '2-3 Business Days'}
+                          </strong>
                         </div>
-                      ))}
-                      <div className="pt-2 flex justify-between font-bold text-slate-900">
-                        <span>Paid Total:</span>
-                        <span>₹{trackedOrder.totalAmount?.toLocaleString('en-IN')}</span>
+                        <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusBadge(trackedOrder.items?.[0]?.deliveryStatus || 'Shipped')}`}>
+                          {trackedOrder.items?.[0]?.deliveryStatus || 'Shipped'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Visual Milestones Timeline */}
+                    <div className="py-4">
+                      <h3 className="text-sm font-bold text-slate-900 mb-6">Delivery Progress Milestones</h3>
+                      <div className="relative pl-6 sm:pl-8 border-l-2 border-blue-200 space-y-8 ml-3">
+                        {cleanTimeline.map((step, idx) => (
+                          <div key={idx} className="relative group">
+                            {/* Stepper Dot */}
+                            <div className="absolute -left-[31px] sm:-left-[39px] top-1 w-6 h-6 rounded-full bg-white border-4 border-[#0c2a5e] flex items-center justify-center shadow-xs">
+                              <span className="w-1.5 h-1.5 rounded-full bg-[#0c2a5e]"></span>
+                            </div>
+
+                            <div className="space-y-1">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <h4 className="font-extrabold text-xs sm:text-sm text-slate-900">{step.title}</h4>
+                                <span className="text-[11px] text-slate-400 font-mono">
+                                  {step.timestamp
+                                    ? new Date(step.timestamp).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+                                    : 'Recent'}
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-600 leading-relaxed">{step.description}</p>
+                              {step.location && (
+                                <span className="text-[11px] text-slate-400 flex items-center gap-1">
+                                  <MapPin className="w-3 h-3 text-slate-400" />
+                                  <span>{step.location}</span>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Destination Address & Items Preview */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-slate-100 text-xs">
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                          Shipping Destination
+                        </span>
+                        <strong className="text-slate-900 block font-bold text-sm">
+                          {trackedOrder.shippingAddress?.fullName}
+                        </strong>
+                        <p className="text-slate-600 mt-0.5">
+                          {trackedOrder.shippingAddress?.street}, {trackedOrder.shippingAddress?.city}, {trackedOrder.shippingAddress?.state} - {trackedOrder.shippingAddress?.zipCode}
+                        </p>
+                        <p className="text-slate-500 mt-1">Phone: {trackedOrder.shippingAddress?.phone}</p>
+                      </div>
+
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block mb-1">
+                          Package Contents ({trackedOrder.items?.length || 1} items)
+                        </span>
+                        {trackedOrder.items?.map((item, i) => (
+                          <div key={i} className="flex items-center justify-between py-1 border-b last:border-b-0 border-slate-200/60">
+                            <span className="text-slate-800 font-medium truncate max-w-[200px]">{item.title}</span>
+                            <span className="font-bold text-slate-900">Qty: {item.quantity}</span>
+                          </div>
+                        ))}
+                        <div className="pt-2 flex justify-between font-bold text-slate-900">
+                          <span>Paid Total:</span>
+                          <span>₹{trackedOrder.totalAmount?.toLocaleString('en-IN')}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
-                </div>
-              ) : null}
+                );
+              })() : null}
             </div>
           )}
 

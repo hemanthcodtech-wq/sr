@@ -144,6 +144,11 @@ const OrderTracking = () => {
       });
     }
     if (centralItems.length > 0) {
+      const rawTracking = centralItems[0]?.sourceTrackingNumber || centralItems[0]?.trackingNumber || '';
+      const validTracking = rawTracking && !rawTracking.startsWith('DEODAP-') ? rawTracking : '';
+      const rawCourier = centralItems[0]?.courierName || order.courierName || 'SR Express Central Logistics';
+      const cleanCourier = rawCourier.replace(/\(DeoDap Fulfillment\)/gi, '').replace(/DeoDap/gi, 'SR Central Logistics').trim();
+
       pkgs.push({
         id: 'pkg_central',
         label: `Package ${pkgs.length + 1} • SR Central Warehouse`,
@@ -151,22 +156,27 @@ const OrderTracking = () => {
         hub: 'Central Warehouse (Pan-India Logistics)',
         type: 'central',
         status: centralItems[0]?.deliveryStatus || 'Processing',
-        trackingNumber: centralItems[0]?.sourceTrackingNumber || centralItems[0]?.trackingNumber || '',
-        courierName: centralItems[0]?.courierName || 'SR Express Central Logistics',
+        trackingNumber: validTracking,
+        courierName: cleanCourier,
         items: centralItems,
       });
     }
 
+    const rawSingleTracking = order.trackingNumber || order.items?.[0]?.trackingNumber || '';
+    const validSingleTracking = rawSingleTracking && !rawSingleTracking.startsWith('DEODAP-') ? rawSingleTracking : '';
+    const rawSingleCourier = order.courierName || 'Delhivery Express Logistics';
+    const cleanSingleCourier = rawSingleCourier.replace(/\(DeoDap Fulfillment\)/gi, '').replace(/DeoDap/gi, 'SR Central Logistics').trim();
+
     return pkgs.length > 0 ? pkgs : [{
       id: 'pkg_single',
       label: 'Package 1 • Standard Delivery',
-      origin: order.items[0]?.store?.storeName || 'SR Marketplace',
+      origin: order.items?.[0]?.store?.storeName || 'SR Marketplace Central Facility',
       hub: 'Central Facility',
       type: 'standard',
       status: order.deliveryStatus || 'Confirmed',
-      trackingNumber: order.trackingNumber || '',
-      courierName: order.courierName || 'Delhivery Express',
-      items: order.items,
+      trackingNumber: validSingleTracking,
+      courierName: cleanSingleCourier,
+      items: order.items || [],
     }];
   }, [order]);
 
@@ -387,9 +397,13 @@ const OrderTracking = () => {
                       </div>
                     </div>
 
-                    {activePackage.trackingNumber && (
+                    {activePackage.trackingNumber ? (
                       <span className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 font-mono text-[11px] text-slate-700 font-bold shadow-2xs">
                         AWB: {activePackage.trackingNumber}
+                      </span>
+                    ) : (
+                      <span className="px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-[11px] text-amber-800 font-medium">
+                        AWB will be uploaded upon dispatch
                       </span>
                     )}
                   </div>

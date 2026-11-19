@@ -96,7 +96,8 @@ const NotificationDropdown = ({ variant = 'light', role = null }) => {
 
   const fetchNotifications = async () => {
     try {
-      const res = await api.get('/notifications?unreadOnly=false');
+      const activeRole = role || user?.role || '';
+      const res = await api.get(`/notifications?unreadOnly=false${activeRole ? `&role=${activeRole}` : ''}`);
       if (res.data?.success) {
         setNotifications(res.data.notifications || []);
         setUnreadCount(res.data.unreadCount || 0);
@@ -118,7 +119,7 @@ const NotificationDropdown = ({ variant = 'light', role = null }) => {
       window.removeEventListener('focus', handleFocus);
       window.removeEventListener('orders-updated', handleFocus);
     };
-  }, [user]);
+  }, [user, role]);
 
   // Close on outside click
   useEffect(() => {
@@ -145,9 +146,33 @@ const NotificationDropdown = ({ variant = 'light', role = null }) => {
       }
       if (notif.link) {
         setIsOpen(false);
-        const targetLink = notif.link.startsWith('/admin/merchants')
-          ? notif.link.replace('/admin/merchants', '/admin/vendors')
-          : notif.link;
+        let targetLink = notif.link;
+
+        // Legacy /admin/merchants rewriting
+        if (targetLink.startsWith('/admin/merchants')) {
+          targetLink = targetLink.replace('/admin/merchants', '/admin/vendors');
+        }
+
+        // Role-safe destination routing
+        const currentRole = role || user?.role;
+        if (currentRole === 'admin') {
+          // Admin clicking vendor links should be routed to appropriate admin panels
+          if (targetLink.startsWith('/vendor/orders')) {
+            targetLink = '/admin/dropshipping';
+          } else if (targetLink.startsWith('/vendor/wallet')) {
+            targetLink = '/admin/settlements';
+          } else if (targetLink.startsWith('/vendor/products')) {
+            targetLink = '/admin/vendor-products';
+          } else if (targetLink.startsWith('/vendor')) {
+            targetLink = '/admin/vendors';
+          }
+        } else if (currentRole === 'vendor') {
+          // Vendor clicking admin links should be safely routed to their vendor portal
+          if (targetLink.startsWith('/admin')) {
+            targetLink = '/vendor/dashboard';
+          }
+        }
+
         navigate(targetLink);
       }
     } catch (_) {}
